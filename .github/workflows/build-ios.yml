@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-ios:
     name: Build iOS IPA
@@ -39,9 +42,15 @@ jobs:
           zip -r Musified.ipa Payload
           ls -la Musified.ipa
 
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: success()
         with:
-          name: Musified-iOS-IPA
-          path: build/ipa/Musified.ipa
-          if-no-files-found: error
+          tag_name: v1.0.0
+          name: "Musified iOS v1.0.0"
+          body: "Ready-to-install unsigned iOS IPA for Musified (YouTube Music + JioSaavn 320k client)."
+          draft: false
+          prerelease: false
+          files: build/ipa/Musified.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
