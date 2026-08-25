@@ -87,9 +87,15 @@ Future<StreamManifest?> _fetchStreamManifest(String songId) async {
     return ProxyManager().getSongManifest(songId).timeout(_manifestTimeout);
   }
 
-  return ytClient.videos.streams
-      .getManifest(songId, ytClients: customClients)
-      .timeout(_manifestTimeout);
+  try {
+    return await ytClient.videos.streams
+        .getManifest(songId, ytClients: customClients)
+        .timeout(_manifestTimeout);
+  } catch (e) {
+    return ytClient.videos.streams
+        .getManifest(songId)
+        .timeout(_manifestTimeout);
+  }
 }
 
 /// Returns a cached song URL if present and still valid.
@@ -644,6 +650,7 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
 /// Resolves a playable stream URL for a song (cached when possible).
 Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
   final songId = song['ytid']?.toString() ?? '';
+  logger.log('Resolution start for songId=$songId');
   try {
     if (songId.isEmpty) {
       logger.log('fetchSongStreamUrl: songId is empty');
@@ -677,13 +684,17 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       final saavnSource = await SourceResolver().resolveAudioSource(song);
       if (saavnSource != null && saavnSource['url'] != null) {
         final url = saavnSource['url'] as String;
+        logger.log('JioSaavn stream result found: url=$url');
         song['resolvedSource'] = 'jiosaavn';
         song['resolvedBitrate'] = saavnSource['bitrate'];
         song['resolvedFormat'] = saavnSource['format'];
         if (forceSource == null) {
           unawaited(addOrUpdateData<String>('cache', cacheKey, url));
         }
+        logger.log('Final URL resolved via jiosaavn');
         return url;
+      } else {
+        logger.log('JioSaavn search result not found or empty url');
       }
     }
 
@@ -695,6 +706,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     }
 
     final url = selectedStream.url.toString();
+    logger.log('YouTube stream result found: url=$url');
     song['resolvedSource'] = 'youtube';
     song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
     song['resolvedFormat'] = selectedStream.audioCodec;
@@ -702,6 +714,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     if (forceSource == null) {
       unawaited(addOrUpdateData<String>('cache', cacheKey, url));
     }
+    logger.log('Final URL resolved via youtube');
 
     return url;
   } on TimeoutException catch (_) {

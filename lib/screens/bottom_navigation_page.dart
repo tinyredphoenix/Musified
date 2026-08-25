@@ -19,6 +19,8 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:ui';
+
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -82,6 +84,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
               final items = _getNavigationItems(isOfflineMode);
 
               return Scaffold(
+                extendBody: true,
                 body: SafeArea(
                   child: Row(
                     children: [
@@ -140,19 +143,30 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                   ),
                 ),
                 bottomNavigationBar: !isLargeScreen
-                    ? NavigationBar(
-                        selectedIndex: _getCurrentIndex(items, isOfflineMode),
-                        onDestinationSelected: (index) =>
-                            _onTabTapped(index, items),
-                        destinations: items
-                            .map(
-                              (item) => NavigationDestination(
-                                icon: Icon(item.icon),
-                                selectedIcon: Icon(item.selectedIcon),
-                                label: item.label,
-                              ),
-                            )
-                            .toList(),
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                            child: NavigationBar(
+                              backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
+                              elevation: 0,
+                              selectedIndex: _getCurrentIndex(items, isOfflineMode),
+                              onDestinationSelected: (index) =>
+                                  _onTabTapped(index, items),
+                              destinations: items
+                                  .map(
+                                    (item) => NavigationDestination(
+                                      icon: Icon(item.icon),
+                                      selectedIcon: Icon(item.selectedIcon),
+                                      label: item.label,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ),
                       )
                     : null,
               );

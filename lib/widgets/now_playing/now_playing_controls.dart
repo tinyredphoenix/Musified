@@ -31,6 +31,7 @@ import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/widgets/now_playing/marquee_text_widget.dart';
+import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
 import 'package:musify/widgets/playback_icon_button.dart';
 import 'package:musify/widgets/position_slider.dart';
 
@@ -110,6 +111,8 @@ class NowPlayingControls extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                  const SizedBox(height: 8),
+                  AudioQualityBadge(metadata: metadata),
                 ],
               ),
             ),

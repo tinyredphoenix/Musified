@@ -61,4 +61,13 @@ class Logger {
   int getLogCount() {
     return _logCount;
   }
+
+  String getLogs() {
+    return _logs;
+  }
+
+  void clearLogs() {
+    _logs = '';
+    _logCount = 0;
+  }
 }

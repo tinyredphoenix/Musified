@@ -705,7 +705,7 @@ class _SongInfo extends StatelessWidget {
           title,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             fontSize: 15,
             color: colorScheme.onSurface,
           ),

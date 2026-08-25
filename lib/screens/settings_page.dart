@@ -36,7 +36,6 @@ import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
-import 'package:musify/services/update_manager.dart';
 import 'package:musify/theme/app_colors.dart';
 import 'package:musify/theme/app_themes.dart';
 import 'package:musify/utilities/flutter_bottom_sheet.dart';
@@ -205,25 +204,6 @@ class SettingsPage extends StatelessWidget {
             );
           },
         ),
-        if (!isFdroidBuild)
-          ValueListenableBuilder<bool?>(
-            valueListenable: shouldWeCheckUpdates,
-            builder: (_, value, __) {
-              return CustomBar(
-                context.l10n!.automaticUpdateChecks,
-                FluentIcons.arrow_sync_24_regular,
-                description: context.l10n!.automaticUpdateChecksDescription,
-                borderRadius: offlineMode.value
-                    ? commonCustomBarRadiusLast
-                    : BorderRadius.zero,
-                trailing: Switch(
-                  value: value ?? false,
-                  onChanged: (value) =>
-                      _toggleAutomaticUpdateChecks(context, value),
-                ),
-              );
-            },
-          ),
       ],
     );
   }
@@ -371,7 +351,6 @@ class SettingsPage extends StatelessWidget {
         ),
 
         _buildToolsSection(context),
-        _buildSponsorSection(context),
       ],
     );
   }
@@ -523,73 +502,10 @@ class SettingsPage extends StatelessWidget {
             }
           },
         ),
-        if (!isFdroidBuild)
-          CustomBar(
-            context.l10n!.downloadAppUpdate,
-            FluentIcons.arrow_download_24_regular,
-            borderRadius: commonCustomBarRadiusLast,
-            onTap: checkAppUpdates,
-          ),
       ],
     );
   }
 
-  Widget _buildSponsorSection(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: context.l10n!.becomeSponsor,
-          icon: FluentIcons.heart_24_filled,
-        ),
-        Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          elevation: 0,
-          color: colorScheme.primaryContainer,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: InkWell(
-            onTap: () => launchURL(Uri.parse('https://ko-fi.com/gokadzev')),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: colorScheme.onPrimaryContainer.withValues(
-                        alpha: 0.14,
-                      ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      FluentIcons.heart_24_filled,
-                      color: colorScheme.onPrimaryContainer,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      context.l10n!.sponsorProject,
-                      style: TextStyle(
-                        color: colorScheme.onPrimaryContainer,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
 
   Widget _buildOthersSection(BuildContext context) {
     return Column(
@@ -617,10 +533,10 @@ class SettingsPage extends StatelessWidget {
           onTap: () async => showToast(context, await logger.copyLogs(context)),
         ),
         CustomBar(
-          context.l10n!.about,
-          FluentIcons.book_information_24_regular,
+          'Musified iOS v1.0.0',
+          FluentIcons.info_24_regular,
           borderRadius: commonCustomBarRadiusLast,
-          onTap: () => NavigationManager.router.go('/settings/about'),
+          onTap: () {},
         ),
       ],
     );
@@ -864,12 +780,6 @@ class SettingsPage extends StatelessWidget {
   void _toggleAutoPlayNext(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'playNextSongAutomatically', value);
     playNextSongAutomatically.value = value;
-    showToast(context, context.l10n!.settingChangedMsg);
-  }
-
-  void _toggleAutomaticUpdateChecks(BuildContext context, bool value) {
-    addOrUpdateData<bool>('settings', 'shouldWeCheckUpdates', value);
-    shouldWeCheckUpdates.value = value;
     showToast(context, context.l10n!.settingChangedMsg);
   }
 

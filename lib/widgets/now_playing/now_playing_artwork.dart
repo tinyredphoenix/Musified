@@ -59,7 +59,7 @@ class NowPlayingArtwork extends StatelessWidget {
         ? screenWidth * 0.88
         : screenWidth * 0.70;
 
-    const borderRadius = 12.0;
+    const borderRadius = 16.0;
 
     return FlipCard(
       rotateSide: RotateSide.right,
@@ -71,29 +71,20 @@ class NowPlayingArtwork extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: colorScheme.shadow.withValues(alpha: 0.15),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-              spreadRadius: 2,
+              blurRadius: 32,
+              offset: const Offset(0, 16),
+              spreadRadius: 4,
             ),
           ],
         ),
-        child: Stack(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(borderRadius),
-              child: SongArtworkWidget(
-                metadata: metadata,
-                size: imageSize,
-                errorWidgetIconSize: size.width / 8,
-                borderRadius: borderRadius,
-              ),
-            ),
-            Positioned(
-              right: 10,
-              bottom: 10,
-              child: _AudioQualityBadge(metadata: metadata),
-            ),
-          ],
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: SongArtworkWidget(
+            metadata: metadata,
+            size: imageSize,
+            errorWidgetIconSize: size.width / 8,
+            borderRadius: borderRadius,
+          ),
         ),
       ),
       backWidget: Container(
@@ -105,9 +96,9 @@ class NowPlayingArtwork extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: colorScheme.shadow.withValues(alpha: 0.15),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-              spreadRadius: 2,
+              blurRadius: 32,
+              offset: const Offset(0, 16),
+              spreadRadius: 4,
             ),
           ],
         ),
@@ -187,8 +178,8 @@ String _normalizeCodec(String codec) => switch (codec) {
   final c => c,
 };
 
-class _AudioQualityBadge extends StatelessWidget {
-  const _AudioQualityBadge({required this.metadata});
+class AudioQualityBadge extends StatelessWidget {
+  const AudioQualityBadge({super.key, required this.metadata});
   final MediaItem metadata;
 
   void _showSourcePicker(BuildContext context) {
@@ -308,18 +299,33 @@ class _AudioQualityBadge extends StatelessWidget {
     return GestureDetector(
       onTap: () => _showSourcePicker(context),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.8),
-          borderRadius: BorderRadius.circular(8),
+          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.2),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
       ),
     );

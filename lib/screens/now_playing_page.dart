@@ -19,6 +19,8 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:ui';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:material_ui/material_ui.dart';
@@ -28,6 +30,7 @@ import 'package:musify/widgets/now_playing/bottom_actions_row.dart';
 import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
 import 'package:musify/widgets/now_playing/now_playing_controls.dart';
 import 'package:musify/widgets/queue_list_view.dart';
+import 'package:musify/widgets/song_artwork.dart';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -55,52 +58,68 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              colorScheme.primary.withValues(alpha: 0.15),
-              colorScheme.surface,
-            ],
-            stops: const [0.0, 0.4],
-          ),
-        ),
-        child: SafeArea(
-          child: StreamBuilder<MediaItem?>(
+      body: Stack(
+        children: [
+          StreamBuilder<MediaItem?>(
             stream: audioHandler.mediaItem,
             builder: (context, snapshot) {
-              if (snapshot.data == null || !snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              final metadata = snapshot.data!;
-              return Column(
-                children: [
-                  _buildAppBar(context, colorScheme),
-                  Expanded(
-                    child: isLargeScreen
-                        ? _DesktopLayout(
-                            metadata: metadata,
-                            size: size,
-                            adjustedIconSize: baseIconSize,
-                            adjustedMiniIconSize: miniIconSize,
-                            lyricsController: _lyricsController,
-                          )
-                        : _MobileLayout(
-                            metadata: metadata,
-                            size: size,
-                            adjustedIconSize: baseIconSize,
-                            adjustedMiniIconSize: miniIconSize,
-                            isLargeScreen: isLargeScreen,
-                            lyricsController: _lyricsController,
-                          ),
-                  ),
-                ],
+              final metadata = snapshot.data;
+              if (metadata == null) return const SizedBox.shrink();
+              return Positioned.fill(
+                child: SongArtworkWidget(
+                  metadata: metadata,
+                  size: size.height,
+                  errorWidgetIconSize: size.width / 8,
+                  borderRadius: 0,
+                ),
               );
             },
           ),
-        ),
+          Positioned.fill(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+              child: Container(
+                color: theme.brightness == Brightness.dark
+                    ? Colors.black.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.3),
+              ),
+            ),
+          ),
+          SafeArea(
+            child: StreamBuilder<MediaItem?>(
+              stream: audioHandler.mediaItem,
+              builder: (context, snapshot) {
+                if (snapshot.data == null || !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final metadata = snapshot.data!;
+                return Column(
+                  children: [
+                    _buildAppBar(context, colorScheme),
+                    Expanded(
+                      child: isLargeScreen
+                          ? _DesktopLayout(
+                              metadata: metadata,
+                              size: size,
+                              adjustedIconSize: baseIconSize,
+                              adjustedMiniIconSize: miniIconSize,
+                              lyricsController: _lyricsController,
+                            )
+                          : _MobileLayout(
+                              metadata: metadata,
+                              size: size,
+                              adjustedIconSize: baseIconSize,
+                              adjustedMiniIconSize: miniIconSize,
+                              isLargeScreen: isLargeScreen,
+                              lyricsController: _lyricsController,
+                            ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

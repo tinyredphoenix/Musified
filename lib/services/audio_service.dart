@@ -40,16 +40,20 @@ import 'package:rxdart/rxdart.dart';
 class MusifyAudioHandler extends BaseAudioHandler {
   MusifyAudioHandler() {
     _androidEqualizer = AndroidEqualizer();
-    audioPlayer = AudioPlayer(
-      audioPipeline: AudioPipeline(androidAudioEffects: [_androidEqualizer]),
-      audioLoadConfiguration: const AudioLoadConfiguration(
-        androidLoadControl: AndroidLoadControl(
-          maxBufferDuration: Duration(seconds: 60),
-          bufferForPlaybackDuration: Duration(milliseconds: 500),
-          bufferForPlaybackAfterRebufferDuration: Duration(seconds: 3),
+    if (Platform.isAndroid) {
+      audioPlayer = AudioPlayer(
+        audioPipeline: AudioPipeline(androidAudioEffects: [_androidEqualizer]),
+        audioLoadConfiguration: const AudioLoadConfiguration(
+          androidLoadControl: AndroidLoadControl(
+            maxBufferDuration: Duration(seconds: 60),
+            bufferForPlaybackDuration: Duration(milliseconds: 500),
+            bufferForPlaybackAfterRebufferDuration: Duration(seconds: 3),
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      audioPlayer = AudioPlayer();
+    }
 
     _setupEventSubscriptions();
     _updatePlaybackState();
@@ -101,7 +105,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
   static const int _queueLookahead = 3;
   static const int _maxConcurrentPreloads = 2;
   static const Duration _errorRetryDelay = Duration(seconds: 2);
-  static const Duration _songTransitionTimeout = Duration(seconds: 30);
+  static const Duration _songTransitionTimeout = Duration(seconds: 8);
   static const Duration _debounceInterval = Duration(milliseconds: 150);
   static const Duration _positionDataThreshold = Duration(milliseconds: 250);
   static const Duration _playbackStateHeartbeat = Duration(seconds: 1);
@@ -1880,6 +1884,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
         return false;
       }
 
+      logger.log('Playing [${songData['title']}] source=${songData['resolvedSource']} url=${playback.songUrl}');
+
       return await _setAudioSourceAndPlay(
         songData,
         audioSource,
@@ -1892,6 +1898,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
       logger.log('Error playing song', error: e, stackTrace: stackTrace);
       _lastError = e.toString();
       return false;
+    } finally {
+      _currentLoadingIndex = -1;
+      _currentLoadingTransitionId = -1;
+      _isUpdatingState = false;
     }
   }
 
@@ -1996,6 +2006,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
     int? transitionId,
   }) async {
     try {
+      logger.log('Playing [${song['title']}] source=${song['resolvedSource']} url=$songUrl');
+
       // Final staleness check before we touch the audio player.
       // If another song was requested between the URL fetch and here, abort.
       if (_isStaleTransition(transitionId)) {
@@ -2114,6 +2126,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
       _lastError = e.toString();
       return false;
+    } finally {
+      _currentLoadingIndex = -1;
+      _currentLoadingTransitionId = -1;
+      _isUpdatingState = false;
     }
   }
 
@@ -2267,7 +2283,20 @@ class MusifyAudioHandler extends BaseAudioHandler {
       }
 
       final uri = Uri.parse(songUrl);
-      final audioSource = AudioSource.uri(uri, tag: tag);
+      Map<String, String>? headers;
+      if (!isOffline) {
+        if (uri.host.contains('googlevideo.com') || uri.host.contains('youtube.com')) {
+          headers = {
+            'User-Agent': 'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
+          };
+        } else if (uri.host.contains('saavncdn.com')) {
+          headers = {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)',
+            'Accept': '*/*',
+          };
+        }
+      }
+      final audioSource = AudioSource.uri(uri, headers: headers, tag: tag);
 
       if (!sponsorBlockSupport.value) {
         return audioSource;
