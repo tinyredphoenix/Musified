@@ -123,6 +123,28 @@ var sleepTimerNotifier = ValueNotifier<Duration?>(null);
 
 final announcementURL = ValueNotifier<String?>(null);
 
+// JioSaavn settings
+
+final jiosaavnEnabled = ValueNotifier<bool>(
+  Hive.box('settings').get('jiosaavnEnabled', defaultValue: true),
+);
+
+final jiosaavnQuality = ValueNotifier<String>(
+  Hive.box('settings').get('jiosaavnQuality', defaultValue: '320'),
+);
+
+final preferredSource = ValueNotifier<String>(
+  Hive.box('settings').get('preferredSource', defaultValue: 'auto'),
+);
+
+final downloadSource = ValueNotifier<String>(
+  Hive.box('settings').get('downloadSource', defaultValue: 'best'),
+);
+
+final downloadQuality = ValueNotifier<String>(
+  Hive.box('settings').get('downloadQuality', defaultValue: '320'),
+);
+
 void reloadSettingsFromStorage() {
   final settings = Hive.box('settings');
 
@@ -203,4 +225,10 @@ void reloadSettingsFromStorage() {
       restoredRepeatIndex < AudioServiceRepeatMode.values.length) {
     repeatNotifier.value = AudioServiceRepeatMode.values[restoredRepeatIndex];
   }
+
+  jiosaavnEnabled.value = settings.get('jiosaavnEnabled', defaultValue: true);
+  jiosaavnQuality.value = settings.get('jiosaavnQuality', defaultValue: '320');
+  preferredSource.value = settings.get('preferredSource', defaultValue: 'auto');
+  downloadSource.value = settings.get('downloadSource', defaultValue: 'best');
+  downloadQuality.value = settings.get('downloadQuality', defaultValue: '320');
 }

@@ -1345,7 +1345,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
         preloadUrl = null;
       } else {
         // fetchSongStreamUrl handles caching, freshness checks, and validation
-        preloadUrl = await fetchSongStreamUrl(ytid, nextSong['isLive'] ?? false)
+        preloadUrl = await fetchSongStreamUrl(nextSong, nextSong['isLive'] ?? false)
             .timeout(
               const Duration(seconds: 8),
               onTimeout: () {
@@ -1928,7 +1928,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
       );
 
       final onlineUrl = await fetchSongStreamUrl(
-        songData['ytid'],
+        songData,
         songData['isLive'] ?? false,
       );
 
@@ -1948,7 +1948,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
       return _getOfflineSongUrl(song);
     }
 
-    return fetchSongStreamUrl(song['ytid'], song['isLive'] ?? false);
+    return fetchSongStreamUrl(song, song['isLive'] ?? false);
   }
 
   Future<String?> _getOfflineSongUrl(Map song) async {
@@ -2083,7 +2083,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
           await invalidateSongStreamCache(songId);
 
           final refreshedUrl = await fetchSongStreamUrl(
-            songId,
+            song,
             song['isLive'] ?? false,
           );
 
@@ -2123,7 +2123,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     if (offlineMode.value) return false;
 
     final onlineUrl = await fetchSongStreamUrl(
-      song['ytid'],
+      song,
       song['isLive'] ?? false,
     );
     if (onlineUrl != null && onlineUrl.isNotEmpty) {

@@ -34,6 +34,7 @@ import 'package:musify/services/lyrics_manager.dart';
 import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/proxy_manager.dart';
 import 'package:musify/services/settings_manager.dart';
+import 'package:musify/services/source_resolver.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
@@ -641,7 +642,8 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
 }
 
 /// Resolves a playable stream URL for a song (cached when possible).
-Future<String?> fetchSongStreamUrl(String songId, bool isLive) async {
+Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
+  final songId = song['ytid']?.toString() ?? '';
   try {
     if (songId.isEmpty) {
       logger.log('fetchSongStreamUrl: songId is empty');
@@ -660,6 +662,16 @@ Future<String?> fetchSongStreamUrl(String songId, bool isLive) async {
     final cachedUrl = await _getCachedSongUrl(cacheKey, _cacheDuration);
     if (cachedUrl != null) {
       return cachedUrl;
+    }
+
+    // Try JioSaavn
+    if (jiosaavnEnabled.value) {
+      final saavnSource = await SourceResolver().resolveAudioSource(song);
+      if (saavnSource != null && saavnSource['url'] != null) {
+        final url = saavnSource['url'] as String;
+        unawaited(addOrUpdateData<String>('cache', cacheKey, url));
+        return url;
+      }
     }
 
     // Get fresh URL, reusing the stream already resolved for this song.
@@ -753,20 +765,37 @@ Future<bool> makeSongOffline(dynamic song) async {
     String? audioCodec;
     IOSink? fileStream;
     try {
-      final audioManifest = await fetchBestAudioStream(ytid);
-      if (audioManifest == null) {
-        logger.log('makeSongOffline: audioManifest is null for $ytid');
-        return false;
-      }
-      audioBitrateKbps = audioManifest.bitrate.kiloBitsPerSecond.round();
-      audioCodec = audioManifest.audioCodec;
+      final saavnSource = jiosaavnEnabled.value 
+          ? await SourceResolver().resolveAudioSource(offlineSong)
+          : null;
 
-      final stream = ytClient.videos.streamsClient.get(audioManifest);
-      fileStream = audioFile.openWrite();
-      await stream.pipe(fileStream);
-      await fileStream.flush();
-      await fileStream.close();
-      fileStream = null;
+      if (saavnSource != null && saavnSource['url'] != null) {
+        audioBitrateKbps = saavnSource['bitrate'] as int?;
+        audioCodec = saavnSource['format'] as String?;
+        final url = saavnSource['url'] as String;
+
+        final response = await http.Client().send(http.Request('GET', Uri.parse(url)));
+        fileStream = audioFile.openWrite();
+        await response.stream.pipe(fileStream);
+        await fileStream.flush();
+        await fileStream.close();
+        fileStream = null;
+      } else {
+        final audioManifest = await fetchBestAudioStream(ytid);
+        if (audioManifest == null) {
+          logger.log('makeSongOffline: audioManifest is null for $ytid');
+          return false;
+        }
+        audioBitrateKbps = audioManifest.bitrate.kiloBitsPerSecond.round();
+        audioCodec = audioManifest.audioCodec;
+
+        final stream = ytClient.videos.streamsClient.get(audioManifest);
+        fileStream = audioFile.openWrite();
+        await stream.pipe(fileStream);
+        await fileStream.flush();
+        await fileStream.close();
+        fileStream = null;
+      }
     } catch (e, stackTrace) {
       logger.log(
         'Error downloading audio file',
