@@ -171,7 +171,7 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
         if (!isUpdateChecked && kReleaseMode) {
           SchedulerBinding.instance.addPostFrameCallback((_) {
             if (!offlineMode.value) {
-              checkAppUpdates();
+              // checkAppUpdates();  // Disabled - Musified uses its own repo
             }
             isUpdateChecked = true;
           });

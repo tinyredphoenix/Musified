@@ -19,6 +19,8 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:io';
+
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
@@ -114,11 +116,12 @@ class SettingsPage extends StatelessWidget {
           FluentIcons.music_note_1_24_regular,
           onTap: () => _showAudioQualityPicker(context),
         ),
-        CustomBar(
-          context.l10n!.equalizer,
-          FluentIcons.data_histogram_24_regular,
-          onTap: () => context.push('/settings/equalizer'),
-        ),
+        if (Platform.isAndroid)
+          CustomBar(
+            context.l10n!.equalizer,
+            FluentIcons.data_histogram_24_regular,
+            onTap: () => context.push('/settings/equalizer'),
+          ),
         if (themeMode == ThemeMode.dark)
           CustomBar(
             context.l10n!.pureBlackTheme,

@@ -54,12 +54,14 @@ class MusifyAudioHandler extends BaseAudioHandler {
     _setupEventSubscriptions();
     _updatePlaybackState();
 
-    audioPlayer.setAndroidAudioAttributes(
-      const AndroidAudioAttributes(
-        contentType: AndroidAudioContentType.music,
-        usage: AndroidAudioUsage.media,
-      ),
-    );
+    if (Platform.isAndroid) {
+      audioPlayer.setAndroidAudioAttributes(
+        const AndroidAudioAttributes(
+          contentType: AndroidAudioContentType.music,
+          usage: AndroidAudioUsage.media,
+        ),
+      );
+    }
 
     _initialize();
   }
@@ -377,6 +379,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<bool> _ensureEqualizerConfigured({bool force = false}) async {
+    if (!Platform.isAndroid) return false;
     if (_equalizerInitialized) return true;
 
     final now = DateTime.now();

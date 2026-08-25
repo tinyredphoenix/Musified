@@ -19,6 +19,8 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:io';
+
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:material_ui/material_ui.dart';
@@ -151,7 +153,11 @@ class _EqualizerPageState extends State<EqualizerPage> {
   @override
   void initState() {
     super.initState();
-    _loadEqualizer();
+    if (Platform.isAndroid) {
+      _loadEqualizer();
+    } else {
+      _isLoading = false;
+    }
   }
 
   Future<void> _loadEqualizer() async {
@@ -193,6 +199,24 @@ class _EqualizerPageState extends State<EqualizerPage> {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
+    if (!Platform.isAndroid) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(context.l10n!.equalizer),
+        ),
+        body: Center(
+          child: Padding(
+            padding: commonSingleChildScrollViewPadding,
+            child: Text(
+              context.l10n!.equalizerAndroidOnly,
+              style: Theme.of(context).textTheme.bodyLarge,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
