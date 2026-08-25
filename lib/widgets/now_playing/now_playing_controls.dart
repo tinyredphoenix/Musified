@@ -239,7 +239,7 @@ class PlayerControlButtons extends StatelessWidget {
                 ? 0.75
                 : isTight
                 ? 0.85
-                : 0.92);
+                : 1.0);
         final miniControlSize =
             responsiveMiniIconSize *
             (isUltraTight
@@ -250,10 +250,10 @@ class PlayerControlButtons extends StatelessWidget {
         final playPadding = EdgeInsets.all(
           responsiveIconSize *
               (isUltraTight
-                  ? 0.30
+                  ? 0.35
                   : isTight
-                  ? 0.36
-                  : 0.45),
+                  ? 0.42
+                  : 0.50),
         );
 
         return Padding(

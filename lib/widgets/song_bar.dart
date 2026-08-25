@@ -451,12 +451,20 @@ class _SongBarState extends State<SongBar> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: _handleSongTap,
-        child: Padding(
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                width: 0.5,
+              ),
+            ),
+          ),
           padding:
               widget.barPadding ??
               const EdgeInsetsDirectional.symmetric(
-                vertical: 10,
-                horizontal: 12,
+                vertical: 12,
+                horizontal: 16,
               ),
           child: Row(
             children: [
@@ -488,6 +496,19 @@ class _SongBarState extends State<SongBar> {
                 ),
               ),
 
+              if (widget.showMusicDuration && widget.song['duration'] != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    formatDuration(widget.song['duration']),
+                    style: TextStyle(
+                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ),
+
               OverflowMenuButton<String>(
                 onSelected: (value) => _handleSongMenuAction(
                   context: context,
@@ -501,6 +522,9 @@ class _SongBarState extends State<SongBar> {
                   onRename: () => _handleRenameSong(context),
                 ),
                 itemBuilder: (context) => _buildMenuItems(context, colorScheme),
+                icon: FluentIcons.more_horizontal_24_regular,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                iconSize: 20,
               ),
             ],
           ),
@@ -531,9 +555,8 @@ class _SongBarState extends State<SongBar> {
   }
 
   Widget _buildAlbumArt(ColorScheme colorScheme) {
-    const size = 52.0;
-    final isDurationAvailable =
-        widget.showMusicDuration && widget.song['duration'] != null;
+    const size = 48.0;
+    const isDurationAvailable = false;
 
     return ValueListenableBuilder<bool>(
       valueListenable: _songDownloadStatus,
@@ -682,7 +705,7 @@ class _SongInfo extends StatelessWidget {
           title,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
             fontSize: 15,
             color: colorScheme.onSurface,
           ),
@@ -697,7 +720,7 @@ class _SongInfo extends StatelessWidget {
                 style: TextStyle(
                   fontWeight: FontWeight.w400,
                   fontSize: 13,
-                  color: colorScheme.onSurfaceVariant,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                 ),
               ),
             ),
@@ -708,22 +731,22 @@ class _SongInfo extends StatelessWidget {
                   '•',
                   style: TextStyle(
                     fontSize: 13,
-                    color: colorScheme.onSurfaceVariant,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                   ),
                 ),
               ),
               Icon(
                 FluentIcons.headphones_20_filled,
                 size: 12,
-                color: colorScheme.primary,
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
               ),
               const SizedBox(width: 3),
               Text(
                 plays!,
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w400,
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
                 ),
               ),
             ],

@@ -54,39 +54,52 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final miniIconSize = screenWidth < 360 ? 18.0 : 22.0;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      body: SafeArea(
-        child: StreamBuilder<MediaItem?>(
-          stream: audioHandler.mediaItem,
-          builder: (context, snapshot) {
-            if (snapshot.data == null || !snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            final metadata = snapshot.data!;
-            return Column(
-              children: [
-                _buildAppBar(context, colorScheme),
-                Expanded(
-                  child: isLargeScreen
-                      ? _DesktopLayout(
-                          metadata: metadata,
-                          size: size,
-                          adjustedIconSize: baseIconSize,
-                          adjustedMiniIconSize: miniIconSize,
-                          lyricsController: _lyricsController,
-                        )
-                      : _MobileLayout(
-                          metadata: metadata,
-                          size: size,
-                          adjustedIconSize: baseIconSize,
-                          adjustedMiniIconSize: miniIconSize,
-                          isLargeScreen: isLargeScreen,
-                          lyricsController: _lyricsController,
-                        ),
-                ),
-              ],
-            );
-          },
+      backgroundColor: Colors.transparent,
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              colorScheme.primary.withValues(alpha: 0.15),
+              colorScheme.surface,
+            ],
+            stops: const [0.0, 0.4],
+          ),
+        ),
+        child: SafeArea(
+          child: StreamBuilder<MediaItem?>(
+            stream: audioHandler.mediaItem,
+            builder: (context, snapshot) {
+              if (snapshot.data == null || !snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              final metadata = snapshot.data!;
+              return Column(
+                children: [
+                  _buildAppBar(context, colorScheme),
+                  Expanded(
+                    child: isLargeScreen
+                        ? _DesktopLayout(
+                            metadata: metadata,
+                            size: size,
+                            adjustedIconSize: baseIconSize,
+                            adjustedMiniIconSize: miniIconSize,
+                            lyricsController: _lyricsController,
+                          )
+                        : _MobileLayout(
+                            metadata: metadata,
+                            size: size,
+                            adjustedIconSize: baseIconSize,
+                            adjustedMiniIconSize: miniIconSize,
+                            isLargeScreen: isLargeScreen,
+                            lyricsController: _lyricsController,
+                          ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -211,7 +224,7 @@ class _MobileLayout extends StatelessWidget {
         children: [
           const SizedBox(height: 8),
           Expanded(
-            flex: 5,
+            flex: 7,
             child: Center(
               child: NowPlayingArtwork(
                 size: size,
@@ -226,8 +239,8 @@ class _MobileLayout extends StatelessWidget {
               child: NowPlayingControls(
                 size: size,
                 audioId: metadata.extras?['ytid'],
-                adjustedIconSize: adjustedIconSize,
-                adjustedMiniIconSize: adjustedMiniIconSize,
+                adjustedIconSize: adjustedIconSize * 1.1,
+                adjustedMiniIconSize: adjustedMiniIconSize * 1.1,
                 metadata: metadata,
               ),
             ),

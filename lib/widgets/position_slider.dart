@@ -97,21 +97,21 @@ class _PositionSliderState extends State<PositionSlider> {
     );
   }
 
-  static const _textStyle = TextStyle(fontSize: 15);
-
   Widget _buildPositionRow(BuildContext context, PositionData positionData) {
-    final positionText = formatDuration(
-      _isDragging ? _dragValue.toInt() : positionData.position.inSeconds,
-    );
-    final durationText = formatDuration(positionData.duration.inSeconds);
+    final positionSec = _isDragging ? _dragValue.toInt() : positionData.position.inSeconds;
+    final durationSec = positionData.duration.inSeconds;
+    final remainingSec = (durationSec - positionSec).clamp(0, durationSec);
+
+    final positionText = formatDuration(positionSec);
+    final remainingText = '-${formatDuration(remainingSec)}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(positionText, style: _textStyle),
-          Text(durationText, style: _textStyle),
+          Text(positionText, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8), fontWeight: FontWeight.w500)),
+          Text(remainingText, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8), fontWeight: FontWeight.w500)),
         ],
       ),
     );

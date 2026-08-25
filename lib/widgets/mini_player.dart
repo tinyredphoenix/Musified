@@ -20,6 +20,7 @@
  */
 
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
@@ -188,7 +189,7 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
             child: Container(
               height: MiniPlayer.playerHeight,
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh,
+                color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
                 boxShadow: [
                   BoxShadow(
@@ -200,41 +201,63 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Row(
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Stack(
                     children: [
-                      _ArtworkWidget(metadata: metadata),
-                      Expanded(
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          switchInCurve: Curves.easeIn,
-                          switchOutCurve: Curves.easeOut,
-                          layoutBuilder: (currentChild, previousChildren) =>
-                              Stack(
-                                alignment: Alignment.centerLeft,
-                                children: [
-                                  ...previousChildren,
-                                  if (currentChild != null) currentChild,
-                                ],
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Row(
+                          children: [
+                            _ArtworkWidget(metadata: metadata),
+                            Expanded(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 300),
+                                switchInCurve: Curves.easeIn,
+                                switchOutCurve: Curves.easeOut,
+                                layoutBuilder: (currentChild, previousChildren) =>
+                                    Stack(
+                                      alignment: Alignment.centerLeft,
+                                      children: [
+                                        ...previousChildren,
+                                        if (currentChild != null) currentChild,
+                                      ],
+                                    ),
+                                transitionBuilder: (child, animation) =>
+                                    FadeTransition(opacity: animation, child: child),
+                                child: KeyedSubtree(
+                                  key: ValueKey(metadata.id),
+                                  child: _MetadataWidget(
+                                    title: metadata.title,
+                                    artist: metadata.artist,
+                                    colorScheme: colorScheme,
+                                  ),
+                                ),
                               ),
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(opacity: animation, child: child),
-                          child: KeyedSubtree(
-                            key: ValueKey(metadata.id),
-                            child: _MetadataWidget(
-                              title: metadata.title,
-                              artist: metadata.artist,
+                            ),
+                            _ControlsWidget(
                               colorScheme: colorScheme,
+                              playbackState: state.playbackState,
+                              hasNext: widget.hasNext,
+                              progress: progress,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Positioned(
+                        top: 0,
+                        left: 12,
+                        right: 12,
+                        child: SizedBox(
+                          height: 1.5,
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: Colors.transparent,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              colorScheme.primary.withValues(alpha: 0.5),
                             ),
                           ),
                         ),
-                      ),
-                      _ControlsWidget(
-                        colorScheme: colorScheme,
-                        playbackState: state.playbackState,
-                        hasNext: widget.hasNext,
-                        progress: progress,
                       ),
                     ],
                   ),
@@ -254,27 +277,55 @@ class _ArtworkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final resolvedSource = metadata.extras?['resolvedSource'];
+    var sourceColor = Colors.transparent;
+    if (resolvedSource == 'jiosaavn') {
+      sourceColor = Colors.green;
+    } else if (resolvedSource == 'youtube') {
+      sourceColor = Colors.blue;
+    } else if (resolvedSource == 'offline') {
+      sourceColor = Colors.grey;
+    }
+
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Hero(
         tag: 'now_playing_artwork',
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(MiniPlayer._artworkRadius),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+        child: Stack(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(MiniPlayer._artworkRadius),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: SongArtworkWidget(
-            metadata: metadata,
-            size: MiniPlayer._artworkSize,
-            errorWidgetIconSize: 24,
-            borderRadius: MiniPlayer._artworkRadius,
-          ),
+              child: SongArtworkWidget(
+                metadata: metadata,
+                size: MiniPlayer._artworkSize,
+                errorWidgetIconSize: 24,
+                borderRadius: MiniPlayer._artworkRadius,
+              ),
+            ),
+            if (sourceColor != Colors.transparent)
+              Positioned(
+                top: -2,
+                left: -2,
+                child: Container(
+                  width: 10,
+                  height: 10,
+                  decoration: BoxDecoration(
+                    color: sourceColor,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
