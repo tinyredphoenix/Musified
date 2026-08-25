@@ -41,6 +41,7 @@ import 'package:musify/widgets/no_artwork_cube.dart';
 import 'package:musify/widgets/overflow_menu_button.dart';
 import 'package:musify/widgets/popup_menu_item.dart';
 import 'package:musify/widgets/rename_song_dialog.dart';
+import 'package:musify/widgets/download_picker_sheet.dart';
 
 List<PopupMenuEntry<String>> _buildSongMenuItems({
   required BuildContext context,
@@ -259,34 +260,49 @@ Future<void> _toggleSongOfflineStatus(
 ) async {
   final originalValue = songOfflineStatus.value;
 
-  try {
-    final bool success;
-    if (originalValue) {
-      success = await OfflinePlaylistService().removeSongFromOfflineAndResync(
+  if (originalValue) {
+    try {
+      final success = await OfflinePlaylistService().removeSongFromOfflineAndResync(
         ytid,
       );
       if (success && context.mounted) {
         showToast(context, context.l10n!.songRemovedFromOffline);
       }
-    } else {
-      songDownloadStatus.value = true;
-      success = await makeSongOffline(song);
-      if (success && context.mounted) {
-        showToast(context, context.l10n!.songAddedToOffline);
+      if (!success) {
+        songOfflineStatus.value = originalValue;
       }
-      songDownloadStatus.value = false;
-    }
-
-    if (!success) {
+    } catch (e) {
       songOfflineStatus.value = originalValue;
+      logger.log('Error removing offline status', error: e);
+      if (context.mounted) {
+        showToast(context, context.l10n!.error);
+      }
     }
-  } catch (e) {
-    songDownloadStatus.value = false;
-    songOfflineStatus.value = originalValue;
-    logger.log('Error toggling offline status', error: e);
-    if (context.mounted) {
-      showToast(context, context.l10n!.error);
-    }
+  } else {
+    unawaited(
+      showDownloadPicker(context, song as Map, (source, quality) async {
+        songDownloadStatus.value = true;
+        try {
+          final success = await makeSongOffline(song, source: source, quality: quality);
+          if (success && context.mounted) {
+            showToast(context, context.l10n!.songAddedToOffline);
+          }
+          if (!success) {
+            songOfflineStatus.value = originalValue;
+          } else {
+            songOfflineStatus.value = true;
+          }
+        } catch (e) {
+          songOfflineStatus.value = originalValue;
+          logger.log('Error making offline', error: e);
+          if (context.mounted) {
+            showToast(context, context.l10n!.error);
+          }
+        } finally {
+          songDownloadStatus.value = false;
+        }
+      }),
+    );
   }
 }
 

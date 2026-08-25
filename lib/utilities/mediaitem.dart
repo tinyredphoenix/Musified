@@ -35,6 +35,9 @@ Map mediaItemToMap(MediaItem mediaItem) {
     'highResImage': extras?['highResImage'] ?? mediaItem.artUri.toString(),
     'lowResImage': extras?['lowResImage'],
     'isLive': extras?['isLive'] ?? false,
+    'resolvedSource': extras?['resolvedSource'],
+    'resolvedBitrate': extras?['resolvedBitrate'],
+    'resolvedFormat': extras?['resolvedFormat'],
   };
 }
 
@@ -68,6 +71,9 @@ MediaItem mapToMediaItem(Map song) {
           (isOffline ? offlineSong['artworkPath'] : song['highResImage'])
               ?.toString() ??
           '',
+      'resolvedSource': song['resolvedSource'],
+      'resolvedBitrate': song['resolvedBitrate'],
+      'resolvedFormat': song['resolvedFormat'],
     },
   );
 }

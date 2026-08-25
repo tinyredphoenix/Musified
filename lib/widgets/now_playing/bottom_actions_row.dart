@@ -32,6 +32,7 @@ import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/mediaitem.dart';
 import 'package:musify/utilities/playlist_dialogs.dart';
 import 'package:musify/widgets/queue_list_view.dart';
+import 'package:musify/widgets/download_picker_sheet.dart';
 
 class BottomActionsRow extends StatefulWidget {
   const BottomActionsRow({
@@ -145,6 +146,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               onPressed: audioId == null
                   ? null
                   : () => _toggleOffline(
+                      context,
                       _songOfflineStatus,
                       audioId,
                       widget.metadata,
@@ -347,30 +349,41 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
 }
 
 Future<void> _toggleOffline(
+  BuildContext context,
   ValueNotifier<bool> status,
   String? audioId,
   MediaItem metadata,
 ) async {
   final originalValue = status.value;
-  status.value = !originalValue;
 
-  try {
-    final bool success;
-    if (originalValue) {
-      success =
+  if (originalValue) {
+    status.value = false;
+    try {
+      final success =
           !(audioId == null) &&
           await OfflinePlaylistService().removeSongFromOfflineAndResync(
             audioId,
           );
-    } else {
-      success = await makeSongOffline(mediaItemToMap(metadata));
-    }
-    if (!success) {
+      if (!success) {
+        status.value = originalValue;
+      }
+    } catch (e) {
       status.value = originalValue;
+      logger.log('Error toggling offline status', error: e);
     }
-  } catch (e) {
-    status.value = originalValue;
-    logger.log('Error toggling offline status', error: e);
+  } else {
+    unawaited(
+      showDownloadPicker(context, mediaItemToMap(metadata), (source, quality) async {
+        try {
+          final success = await makeSongOffline(mediaItemToMap(metadata), source: source, quality: quality);
+          if (success) {
+            status.value = true;
+          }
+        } catch (e) {
+          logger.log('Error toggling offline status', error: e);
+        }
+      }),
+    );
   }
 }
 

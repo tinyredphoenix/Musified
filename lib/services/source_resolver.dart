@@ -17,7 +17,7 @@ class SourceResolver {
   }
 
   /// Resolve the best audio source for a song.
-  Future<Map<String, dynamic>?> resolveAudioSource(Map song) async {
+  Future<Map<String, dynamic>?> resolveAudioSource(Map song, {String? quality}) async {
     if (!jiosaavnEnabled.value) return null;
     
     // Check if user prefers youtube exclusively
@@ -33,13 +33,13 @@ class SourceResolver {
       if (encryptedUrl.isNotEmpty) {
         final streamUrl = await _saavnService.getStreamUrl(
           encryptedUrl,
-          quality: jiosaavnQuality.value,
+          quality: quality ?? jiosaavnQuality.value,
         );
         if (streamUrl != null) {
           return {
             'url': streamUrl,
             'source': 'saavn',
-            'bitrate': int.tryParse(jiosaavnQuality.value) ?? 320,
+            'bitrate': int.tryParse(quality ?? jiosaavnQuality.value) ?? 320,
             'format': 'm4a',
             'saavnId': cached['saavnId'],
           };
@@ -72,14 +72,14 @@ class SourceResolver {
         final encryptedUrl = track['encrypted_media_url']?.toString() ?? '';
         final streamUrl = await _saavnService.getStreamUrl(
           encryptedUrl,
-          quality: jiosaavnQuality.value,
+          quality: quality ?? jiosaavnQuality.value,
         );
         
         if (streamUrl != null) {
           return {
             'url': streamUrl,
             'source': 'saavn',
-            'bitrate': int.tryParse(jiosaavnQuality.value) ?? 320,
+            'bitrate': int.tryParse(quality ?? jiosaavnQuality.value) ?? 320,
             'format': 'm4a',
             'saavnId': track['saavnId'],
           };

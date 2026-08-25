@@ -658,18 +658,31 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     const _cacheDuration = Duration(hours: 3);
     final cacheKey = 'song_${songId}_${audioQualitySetting.value}_url';
 
-    // Try to get from cache
-    final cachedUrl = await _getCachedSongUrl(cacheKey, _cacheDuration);
-    if (cachedUrl != null) {
-      return cachedUrl;
+    final forceSource = song['forceSource']?.toString();
+    
+    // Try to get from cache only if not forcing a source
+    if (forceSource == null) {
+      final cachedUrl = await _getCachedSongUrl(cacheKey, _cacheDuration);
+      if (cachedUrl != null) {
+        // If we got it from cache, we might not have the source info populated on the song map.
+        // It could be YouTube or JioSaavn.
+        // We will default to YouTube if not found.
+        song['resolvedSource'] ??= 'youtube';
+        return cachedUrl;
+      }
     }
 
     // Try JioSaavn
-    if (jiosaavnEnabled.value) {
+    if (jiosaavnEnabled.value && forceSource != 'youtube') {
       final saavnSource = await SourceResolver().resolveAudioSource(song);
       if (saavnSource != null && saavnSource['url'] != null) {
         final url = saavnSource['url'] as String;
-        unawaited(addOrUpdateData<String>('cache', cacheKey, url));
+        song['resolvedSource'] = 'jiosaavn';
+        song['resolvedBitrate'] = saavnSource['bitrate'];
+        song['resolvedFormat'] = saavnSource['format'];
+        if (forceSource == null) {
+          unawaited(addOrUpdateData<String>('cache', cacheKey, url));
+        }
         return url;
       }
     }
@@ -682,8 +695,13 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     }
 
     final url = selectedStream.url.toString();
+    song['resolvedSource'] = 'youtube';
+    song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
+    song['resolvedFormat'] = selectedStream.audioCodec;
 
-    unawaited(addOrUpdateData<String>('cache', cacheKey, url));
+    if (forceSource == null) {
+      unawaited(addOrUpdateData<String>('cache', cacheKey, url));
+    }
 
     return url;
   } on TimeoutException catch (_) {
@@ -736,7 +754,7 @@ Future<String?> getSongLyrics(String? artist, String title) async {
   return lyrics.value;
 }
 
-Future<bool> makeSongOffline(dynamic song) async {
+Future<bool> makeSongOffline(dynamic song, {String? source, String? quality}) async {
   try {
     final String? ytid = song['ytid'];
 

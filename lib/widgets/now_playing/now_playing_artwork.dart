@@ -25,6 +25,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
+import 'package:musify/main.dart';
 import 'package:musify/services/common_services.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/async_loader.dart';
@@ -181,105 +182,147 @@ class NowPlayingArtwork extends StatelessWidget {
   }
 }
 
-typedef _AudioQualityInfo = ({int bitrateKbps, String codec});
-
 String _normalizeCodec(String codec) => switch (codec) {
   final c when c.startsWith('opus') => 'Opus',
   final c when c.startsWith('mp4a') => 'AAC',
   final c => c,
 };
 
-/// Resolves once per song: reads the quality stored at download time for a
-/// downloaded song (no network, works offline), otherwise reads the stream
-/// resolved for playback. Returns null if there's nothing to show.
-Future<_AudioQualityInfo?> _resolveAudioQuality(String ytid) async {
-  final offlineSong = getOfflineSongByYtid(ytid);
-  final offlineBitrate = offlineSong['audioBitrateKbps'] as int?;
-  final offlineCodec = offlineSong['audioCodec'] as String?;
-  if (offlineBitrate != null && offlineCodec != null) {
-    return (bitrateKbps: offlineBitrate, codec: _normalizeCodec(offlineCodec));
-  }
-  if (offlineSong.isNotEmpty || offlineMode.value) return null;
-
-  // Free for a song that is playing: the stream it picked is already resolved
-  // and cached, so this reads it back instead of asking YouTube again.
-  final stream = await fetchBestAudioStream(ytid);
-  if (stream == null) return null;
-
-  return (
-    bitrateKbps: stream.bitrate.kiloBitsPerSecond.round(),
-    codec: _normalizeCodec(stream.audioCodec),
-  );
-}
-
-/// Shows the current song's audio bitrate/codec once it's resolved.
-///
-/// Resolves the info a single time per song (whenever [metadata]'s ytid
-/// changes) instead of watching anything, since the badge is a one-shot,
-/// purely cosmetic overlay. Reopening the screen resolves again, which is what
-/// makes it pick up a change of the setting without listening to it — the
-/// stream is cached per quality setting, so that costs nothing.
-class _AudioQualityBadge extends StatefulWidget {
+class _AudioQualityBadge extends StatelessWidget {
   const _AudioQualityBadge({required this.metadata});
   final MediaItem metadata;
 
-  @override
-  State<_AudioQualityBadge> createState() => _AudioQualityBadgeState();
-}
-
-class _AudioQualityBadgeState extends State<_AudioQualityBadge> {
-  String? _resolvedYtid;
-  Future<_AudioQualityInfo?>? _infoFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _resolveIfNeeded();
-  }
-
-  @override
-  void didUpdateWidget(_AudioQualityBadge oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _resolveIfNeeded();
-  }
-
-  void _resolveIfNeeded() {
-    final ytid = widget.metadata.extras?['ytid']?.toString();
-    if (ytid == _resolvedYtid) return;
-    _resolvedYtid = ytid;
-
-    final shouldResolve =
-        showAudioQualityBadge.value && ytid != null && ytid.isNotEmpty;
-    _infoFuture = shouldResolve ? _resolveAudioQuality(ytid) : null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final infoFuture = _infoFuture;
-    if (infoFuture == null) return const SizedBox.shrink();
-
-    return FutureBuilder<_AudioQualityInfo?>(
-      future: infoFuture,
-      builder: (context, snapshot) {
-        final info = snapshot.data;
-        if (info == null) return const SizedBox.shrink();
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            '${info.bitrateKbps} kbps • ${info.codec}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+  void _showSourcePicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        final currentSource = metadata.extras?['resolvedSource'] as String? ?? 'youtube';
+        final ytid = metadata.extras?['ytid']?.toString() ?? '';
+        final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
+        
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  child: Text(
+                    'Switch Audio Source',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                if (isOffline)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: Text('Playing offline - source switching disabled'),
+                  )
+                else ...[
+                  ListTile(
+                    leading: const Icon(FluentIcons.music_note_1_24_regular),
+                    title: const Text('JioSaavn'),
+                    subtitle: const Text('High Quality (AAC)'),
+                    trailing: currentSource == 'jiosaavn' 
+                        ? const Icon(Icons.check_circle, color: Colors.green)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (currentSource != 'jiosaavn') {
+                        _replayWithSource('jiosaavn');
+                      }
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(FluentIcons.video_clip_24_regular),
+                    title: const Text('YouTube'),
+                    subtitle: const Text('Standard Quality (Opus/AAC)'),
+                    trailing: currentSource == 'youtube' 
+                        ? const Icon(Icons.check_circle, color: Colors.blue)
+                        : null,
+                    onTap: () {
+                      Navigator.pop(context);
+                      if (currentSource != 'youtube') {
+                        _replayWithSource('youtube');
+                      }
+                    },
+                  ),
+                ],
+              ],
             ),
           ),
         );
       },
+    );
+  }
+
+  void _replayWithSource(String source) {
+    final currentSong = audioHandler.currentSong;
+    if (currentSong != null) {
+      currentSong['forceSource'] = source;
+      audioHandler.playSong(currentSong);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!showAudioQualityBadge.value) return const SizedBox.shrink();
+
+    final extras = metadata.extras ?? {};
+    final ytid = extras['ytid']?.toString() ?? '';
+    final offlineSong = getOfflineSongByYtid(ytid);
+    final isOffline = offlineSong.isNotEmpty;
+
+    String label;
+    Color color;
+    
+    if (isOffline) {
+      label = 'Offline';
+      color = Colors.grey;
+    } else {
+      final source = extras['resolvedSource'] as String? ?? 'youtube';
+      final bitrate = extras['resolvedBitrate'] as int?;
+      final format = extras['resolvedFormat'] as String?;
+      
+      final codecStr = format != null ? _normalizeCodec(format) : '';
+      final bitrateStr = bitrate != null ? '${bitrate}k' : '';
+      final qualityStr = [bitrateStr, codecStr].where((s) => s.isNotEmpty).join(' ');
+
+      if (source == 'jiosaavn') {
+        label = qualityStr.isNotEmpty ? 'JioSaavn $qualityStr' : 'JioSaavn';
+        color = Colors.green;
+      } else {
+        label = qualityStr.isNotEmpty ? 'YouTube $qualityStr' : 'YouTube';
+        color = Colors.blue;
+      }
+    }
+
+    return GestureDetector(
+      onTap: () => _showSourcePicker(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.8),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
     );
   }
 }

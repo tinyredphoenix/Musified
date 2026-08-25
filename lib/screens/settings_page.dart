@@ -68,6 +68,7 @@ class SettingsPage extends StatelessWidget {
               activatedColor,
               inactivatedColor,
             ),
+            if (!offlineMode.value) _buildAudioSourcesSection(context),
             if (!offlineMode.value) _buildOnlineFeaturesSection(context),
             _buildOthersSection(context),
             const SizedBox(height: 20),
@@ -221,6 +222,97 @@ class SettingsPage extends StatelessWidget {
             },
           ),
       ],
+    );
+  }
+
+  Widget _buildAudioSourcesSection(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: jiosaavnEnabled,
+      builder: (_, isSaavnEnabled, __) {
+        return Column(
+          children: [
+            const SectionHeader(
+              title: 'Audio Sources',
+              icon: FluentIcons.music_note_2_24_filled,
+            ),
+            CustomBar(
+              'JioSaavn High Quality',
+              FluentIcons.music_note_2_24_regular,
+              description: 'Use JioSaavn for 320kbps AAC when available',
+              trailing: Switch(
+                value: isSaavnEnabled,
+                onChanged: (value) {
+                  jiosaavnEnabled.value = value;
+                  addOrUpdateData<bool>('settings', 'jiosaavnEnabled', value);
+                  showToast(context, context.l10n!.settingChangedMsg);
+                },
+              ),
+            ),
+            if (isSaavnEnabled) ...[
+              ValueListenableBuilder<String>(
+                valueListenable: preferredSource,
+                builder: (_, value, __) {
+                  return CustomBar(
+                    'Streaming Source',
+                    FluentIcons.play_circle_24_regular,
+                    description: value == 'auto'
+                        ? 'Auto (Best Quality)'
+                        : (value == 'youtube'
+                            ? 'YouTube Only'
+                            : 'JioSaavn Only'),
+                    onTap: () => _showPreferredSourcePicker(context),
+                  );
+                },
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: jiosaavnQuality,
+                builder: (_, value, __) {
+                  return CustomBar(
+                    'JioSaavn Streaming Quality',
+                    FluentIcons.cellular_data_3_24_regular,
+                    description: value == '320'
+                        ? 'High (320 kbps)'
+                        : (value == '160'
+                            ? 'Medium (160 kbps)'
+                            : 'Low (96 kbps)'),
+                    onTap: () => _showJioSaavnQualityPicker(context),
+                  );
+                },
+              ),
+              ValueListenableBuilder<String>(
+                valueListenable: downloadSource,
+                builder: (_, value, __) {
+                  return CustomBar(
+                    'Download Source',
+                    FluentIcons.arrow_download_24_regular,
+                    description: value == 'best'
+                        ? 'Best Quality'
+                        : (value == 'youtube'
+                            ? 'YouTube Only'
+                            : 'JioSaavn Only'),
+                    onTap: () => _showDownloadSourcePicker(context),
+                  );
+                },
+              ),
+            ],
+            ValueListenableBuilder<String>(
+              valueListenable: downloadQuality,
+              builder: (_, value, __) {
+                return CustomBar(
+                  'Download Quality',
+                  FluentIcons.arrow_download_24_regular,
+                  description: value == '320'
+                      ? '320 kbps'
+                      : (value == '160'
+                          ? '160 kbps'
+                          : '128 kbps'),
+                  onTap: () => _showDownloadQualityPicker(context),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -828,5 +920,161 @@ class SettingsPage extends StatelessWidget {
         );
       }
     }
+  }
+
+  void _showPreferredSourcePicker(BuildContext context) {
+    final availableSources = ['auto', 'youtube', 'saavn'];
+    final sourceNames = [
+      'Auto (Best Quality)',
+      'YouTube Only',
+      'JioSaavn Only',
+    ];
+    const sourceIcons = [
+      FluentIcons.sparkle_24_regular,
+      FluentIcons.video_24_regular,
+      FluentIcons.music_note_1_24_regular,
+    ];
+
+    showCustomBottomSheet(
+      context,
+      ListView.builder(
+        shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: commonListViewBottomPadding,
+        itemCount: availableSources.length,
+        itemBuilder: (context, index) {
+          final source = availableSources[index];
+
+          return BottomSheetBar(
+            sourceNames[index],
+            () {
+              addOrUpdateData<String>('settings', 'preferredSource', source);
+              preferredSource.value = source;
+              showToast(context, context.l10n!.settingChangedMsg);
+              Navigator.pop(context);
+            },
+            preferredSource.value == source,
+            icon: sourceIcons[index],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showJioSaavnQualityPicker(BuildContext context) {
+    final availableQualities = ['96', '160', '320'];
+    final qualityNames = [
+      'Low (96 kbps)',
+      'Medium (160 kbps)',
+      'High (320 kbps)',
+    ];
+    const qualityIcons = [
+      FluentIcons.cellular_data_1_24_regular,
+      FluentIcons.cellular_data_2_24_regular,
+      FluentIcons.cellular_data_3_24_regular,
+    ];
+
+    showCustomBottomSheet(
+      context,
+      ListView.builder(
+        shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: commonListViewBottomPadding,
+        itemCount: availableQualities.length,
+        itemBuilder: (context, index) {
+          final quality = availableQualities[index];
+
+          return BottomSheetBar(
+            qualityNames[index],
+            () {
+              addOrUpdateData<String>('settings', 'jiosaavnQuality', quality);
+              jiosaavnQuality.value = quality;
+              showToast(context, context.l10n!.settingChangedMsg);
+              Navigator.pop(context);
+            },
+            jiosaavnQuality.value == quality,
+            icon: qualityIcons[index],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showDownloadSourcePicker(BuildContext context) {
+    final availableSources = ['best', 'youtube', 'saavn'];
+    final sourceNames = [
+      'Best Quality',
+      'YouTube Only',
+      'JioSaavn Only',
+    ];
+    const sourceIcons = [
+      FluentIcons.sparkle_24_regular,
+      FluentIcons.video_24_regular,
+      FluentIcons.music_note_1_24_regular,
+    ];
+
+    showCustomBottomSheet(
+      context,
+      ListView.builder(
+        shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: commonListViewBottomPadding,
+        itemCount: availableSources.length,
+        itemBuilder: (context, index) {
+          final source = availableSources[index];
+
+          return BottomSheetBar(
+            sourceNames[index],
+            () {
+              addOrUpdateData<String>('settings', 'downloadSource', source);
+              downloadSource.value = source;
+              showToast(context, context.l10n!.settingChangedMsg);
+              Navigator.pop(context);
+            },
+            downloadSource.value == source,
+            icon: sourceIcons[index],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showDownloadQualityPicker(BuildContext context) {
+    final availableQualities = ['128', '160', '320'];
+    final qualityNames = [
+      '128 kbps',
+      '160 kbps',
+      '320 kbps',
+    ];
+    const qualityIcons = [
+      FluentIcons.cellular_data_1_24_regular,
+      FluentIcons.cellular_data_2_24_regular,
+      FluentIcons.cellular_data_3_24_regular,
+    ];
+
+    showCustomBottomSheet(
+      context,
+      ListView.builder(
+        shrinkWrap: true,
+        physics: const BouncingScrollPhysics(),
+        padding: commonListViewBottomPadding,
+        itemCount: availableQualities.length,
+        itemBuilder: (context, index) {
+          final quality = availableQualities[index];
+
+          return BottomSheetBar(
+            qualityNames[index],
+            () {
+              addOrUpdateData<String>('settings', 'downloadQuality', quality);
+              downloadQuality.value = quality;
+              showToast(context, context.l10n!.settingChangedMsg);
+              Navigator.pop(context);
+            },
+            downloadQuality.value == quality,
+            icon: qualityIcons[index],
+          );
+        },
+      ),
+    );
   }
 }
