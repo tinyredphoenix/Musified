@@ -17,7 +17,7 @@ class DownloadPickerSheet extends StatefulWidget {
 
 class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
   late String _selectedSource = downloadSource.value;
-  late String _selectedQuality = downloadQuality.value;
+  late final String _selectedQuality = downloadQuality.value;
 
   @override
   Widget build(BuildContext context) {

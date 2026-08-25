@@ -19,7 +19,6 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
@@ -223,8 +222,8 @@ class _AudioQualityBadge extends StatelessWidget {
                   ),
                 ),
                 if (isOffline)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
                     child: Text('Playing offline - source switching disabled'),
                   )
                 else ...[

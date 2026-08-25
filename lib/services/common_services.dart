@@ -783,9 +783,10 @@ Future<bool> makeSongOffline(dynamic song, {String? source, String? quality}) as
     String? audioCodec;
     IOSink? fileStream;
     try {
-      final saavnSource = jiosaavnEnabled.value 
-          ? await SourceResolver().resolveAudioSource(offlineSong)
-          : null;
+      Map<String, dynamic>? saavnSource;
+      if (source != 'youtube' && jiosaavnEnabled.value) {
+        saavnSource = await SourceResolver().resolveAudioSource(offlineSong, quality: quality);
+      }
 
       if (saavnSource != null && saavnSource['url'] != null) {
         audioBitrateKbps = saavnSource['bitrate'] as int?;

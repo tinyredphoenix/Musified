@@ -33,6 +33,7 @@ import 'package:musify/services/common_services.dart';
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/io_service.dart';
 import 'package:musify/services/playlists_manager.dart';
+import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 
 class OfflinePlaylistService {
@@ -558,7 +559,7 @@ class OfflinePlaylistService {
           progressNotifier.value.completed++;
           progressNotifier.notifyListeners();
         } else {
-          final success = await makeSongOffline(song);
+          final success = await makeSongOffline(song, source: downloadSource.value, quality: downloadQuality.value);
           if (success) {
             progressNotifier.value.completed++;
           } else {
