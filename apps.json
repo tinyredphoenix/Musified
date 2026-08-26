@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
       "version": "12.2.0",
-      "versionDate": "2026-08-27T02:10:00Z",
-      "versionDescription": "Musified v12.2.0: Fixed YouTube double-song playback bug, resolved native successor race condition, instant karaoke lyrics seek, and pure iOS Apple Music UI.",
+      "versionDate": "2026-08-26T20:44:24Z",
+      "versionDescription": "Musified v12.2.0: Apple Music UI with YouTube Music & JioSaavn 320k lossless audio, karaoke synced lyrics, and OLED black theme.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/latest/download/Musified.ipa",
-      "size": 14247409
+      "size": 14220951
     }
   ]
 }
