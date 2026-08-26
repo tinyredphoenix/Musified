@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
       "version": "11.0.0",
-      "versionDate": "2026-08-26T18:50:00Z",
-      "versionDescription": "Musified v11.0.0: Removed all yellow text underlines, added full-screen player visible download button, restored downloaded music in library, refined YouTube source logo, fixed source switching fallback and live synced lyrics.",
+      "versionDate": "2026-08-26T18:57:38Z",
+      "versionDescription": "Musified v11.0.0: Apple Music UI with YouTube Music & JioSaavn 320k lossless audio, karaoke synced lyrics, and OLED black theme.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/latest/download/Musified.ipa",
-      "size": 14247955
+      "size": 14247285
     }
   ]
 }
