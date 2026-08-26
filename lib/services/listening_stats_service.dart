@@ -330,16 +330,17 @@ class ListeningStatsService {
     final numericSeconds = int.tryParse(text);
     if (numericSeconds != null) return Duration(seconds: numericSeconds);
 
-    final parts = text.split(':').map(int.tryParse).toList();
+    final parts = text.split(':').map((p) => int.tryParse(p.trim())).toList();
     if (parts.any((part) => part == null)) return null;
-    if (parts.length == 2) {
-      return Duration(minutes: parts[0]!, seconds: parts[1]!);
+    final validParts = parts.whereType<int>().toList();
+    if (validParts.length == 2) {
+      return Duration(minutes: validParts[0], seconds: validParts[1]);
     }
-    if (parts.length == 3) {
+    if (validParts.length == 3) {
       return Duration(
-        hours: parts[0]!,
-        minutes: parts[1]!,
-        seconds: parts[2]!,
+        hours: validParts[0],
+        minutes: validParts[1],
+        seconds: validParts[2],
       );
     }
 

@@ -246,7 +246,7 @@ Future<List> _getRecommendationsFromRecentlyPlayed() async {
 
   final sorted = scores.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  return sorted.take(15).map((e) => songMap[e.key]!).toList();
+  return sorted.take(15).map((e) => songMap[e.key]).whereType<Map>().toList();
 }
 
 Future<List> _getRecommendationsFromMixedSources() async {
@@ -263,8 +263,11 @@ Future<List> _getRecommendationsFromMixedSources() async {
 
   if (userCustomPlaylists.value.isNotEmpty) {
     for (final userPlaylist in userCustomPlaylists.value) {
-      final _list = List.from(userPlaylist['list'] as List)..shuffle();
-      playlistSongs.addAll(_list.take(5));
+      final rawList = userPlaylist['list'];
+      if (rawList is List && rawList.isNotEmpty) {
+        final list = List.from(rawList)..shuffle();
+        playlistSongs.addAll(list.take(5));
+      }
     }
   }
 

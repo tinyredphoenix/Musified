@@ -320,10 +320,15 @@ Future<({String message, bool success})> restoreData(
   final backupBytes = <String, Uint8List>{};
   final originalBytes = <String, Uint8List>{};
   for (final boxName in boxNames) {
-    final bytes = await _readPickedFile(selectedFiles[boxName]!);
+    final selectedFile = selectedFiles[boxName];
+    final boxPath = boxPaths[boxName];
+    if (selectedFile == null || boxPath == null) {
+      return (message: context.l10n.restoreError, success: false);
+    }
+    final bytes = await _readPickedFile(selectedFile);
     backupBytes[boxName] = bytes;
     originalBytes[boxName] = Uint8List.fromList(
-      await File(boxPaths[boxName]!).readAsBytes(),
+      await File(boxPath).readAsBytes(),
     );
   }
 
@@ -336,13 +341,18 @@ Future<({String message, bool success})> restoreData(
     }
 
     for (final boxName in boxNames) {
-      await _validateHiveBytes(boxName, backupBytes[boxName]!);
+      final bytes = backupBytes[boxName];
+      if (bytes != null) await _validateHiveBytes(boxName, bytes);
     }
 
     for (final boxName in boxNames) {
-      await _replaceHiveFile(boxPaths[boxName]!, backupBytes[boxName]!);
-      restoredBoxes.add(boxName);
-      logger.log('Restored $boxName');
+      final path = boxPaths[boxName];
+      final bytes = backupBytes[boxName];
+      if (path != null && bytes != null) {
+        await _replaceHiveFile(path, bytes);
+        restoredBoxes.add(boxName);
+        logger.log('Restored $boxName');
+      }
     }
 
     return (message: '${context.l10n.restoredSuccess}!', success: true);
@@ -350,7 +360,11 @@ Future<({String message, bool success})> restoreData(
     logger.log('Restore error', error: e, stackTrace: stackTrace);
     for (final boxName in restoredBoxes.reversed) {
       try {
-        await _replaceHiveFile(boxPaths[boxName]!, originalBytes[boxName]!);
+        final path = boxPaths[boxName];
+        final bytes = originalBytes[boxName];
+        if (path != null && bytes != null) {
+          await _replaceHiveFile(path, bytes);
+        }
       } catch (rollbackError, rollbackStackTrace) {
         logger.log(
           'Failed to roll back $boxName after restore error',

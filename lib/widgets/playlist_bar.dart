@@ -251,7 +251,9 @@ class PlaylistBar extends StatelessWidget {
                       if (!isFolder && (onDelete == null || !isUserCreated))
                         buildPopupMenuItem<String>(
                           value: 'like',
-                          icon: likeStatusToIconMapper[isLiked]!,
+                          icon: isLiked
+                              ? FluentIcons.heart_24_filled
+                              : FluentIcons.heart_24_regular,
                           label: isLiked
                               ? context.l10n.removeFromLikedPlaylists
                               : context.l10n.addToLikedPlaylists,

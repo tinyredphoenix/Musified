@@ -294,12 +294,13 @@ class _ArtistPageState extends State<ArtistPage> {
   Widget _buildHeaderSection() {
     final screenSize = MediaQuery.sizeOf(context);
     final isLandscape = screenSize.width > screenSize.height;
+    final artistMap = _artist ?? widget.artistData ?? const <String, dynamic>{};
 
     return Column(
       children: [
         PlaylistHeader(
           PlaylistCube(
-            _artist!,
+            artistMap,
             size: isLandscape
                 ? 250
                 : screenSize.width / commonPlaylistArtworkDivision,
@@ -308,8 +309,8 @@ class _ArtistPageState extends State<ArtistPage> {
           ),
           _artistTitle,
           isArtist: true,
-          monthlyListeners: _artist!['monthlyListeners']?.toString(),
-          description: _artist!['description']?.toString(),
+          monthlyListeners: artistMap['monthlyListeners']?.toString(),
+          description: artistMap['description']?.toString(),
         ),
         _buildPlaybackButtons(),
         const SizedBox(height: 12),
@@ -319,7 +320,7 @@ class _ArtistPageState extends State<ArtistPage> {
           children: [
             PlaylistLikeButton(
               playlistId: _resolvedArtistId,
-              playlistData: () => artistPlaylistData(_artist!, songs: const []),
+              playlistData: () => artistPlaylistData(artistMap, songs: const []),
             ),
             PlaylistAddToPlaylistButton(resolvePlaylist: _loadCatalog),
             // Downloading artist = downloading all its songs

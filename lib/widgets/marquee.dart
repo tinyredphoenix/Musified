@@ -88,8 +88,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
       try {
         // Check if content actually needs scrolling
         if (_scrollController.position.maxScrollExtent <= 0) {
-          await Future.delayed(const Duration(seconds: 1));
-          continue;
+          break;
         }
 
         await Future.delayed(widget.pauseDuration);

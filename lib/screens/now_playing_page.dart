@@ -89,10 +89,10 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             child: StreamBuilder<MediaItem?>(
               stream: audioHandler.mediaItem,
               builder: (context, snapshot) {
-                if (snapshot.data == null || !snapshot.hasData) {
+                final metadata = snapshot.data;
+                if (metadata == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                final metadata = snapshot.data!;
                 return Column(
                   children: [
                     _buildAppBar(context, colorScheme),

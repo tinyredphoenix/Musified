@@ -68,12 +68,10 @@ class OfflinePlaylistService {
   }
 
   ValueNotifier<DownloadProgress> getProgressNotifier(String playlistId) {
-    if (!downloadProgressNotifiers.containsKey(playlistId)) {
-      downloadProgressNotifiers[playlistId] = ValueNotifier<DownloadProgress>(
-        DownloadProgress(total: 0),
-      );
-    }
-    return downloadProgressNotifiers[playlistId]!;
+    return downloadProgressNotifiers.putIfAbsent(
+      playlistId,
+      () => ValueNotifier<DownloadProgress>(DownloadProgress(total: 0)),
+    );
   }
 
   bool isPlaylistDownloaded(String playlistId) {
