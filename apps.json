@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
       "version": "3.0.0",
-      "versionDate": "2026-08-26T11:15:00Z",
+      "versionDate": "2026-08-26T11:26:11Z",
       "versionDescription": "v3.0 release: music-only search filter, instant playback startup, 0ms home screen, accurate duration, and full Apple Music UI overhaul.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/download/v3.0/Musified.ipa",
-      "size": 14510831
+      "size": 14500537
     }
   ]
 }
