@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
       "version": "6.0.0",
-      "versionDate": "2026-08-26T16:51:36Z",
+      "versionDate": "2026-08-26T17:40:01Z",
       "versionDescription": "v6.0.0 release: full Apple Music UI overhaul, crystal-clear dynamic artwork upscaler, fast parallel stream resolver, OLED black theme, and karaoke synced lyrics.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/download/v6.0.0/Musified.ipa",
-      "size": 14212746
+      "size": 14212268
     }
   ]
 }
