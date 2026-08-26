@@ -61,10 +61,10 @@ class LyricsManager {
 
     if (cleanTitle.isEmpty) cleanTitle = title;
     final primaryArtist = artistName
-        .split(RegExp(r'[,&|/]'))
+        .split(RegExp('[,&|/]'))
         .first
-        .replaceAll(RegExp(r' - Topic', caseSensitive: false), '')
-        .replaceAll(RegExp(r'VEVO', caseSensitive: false), '')
+        .replaceAll(RegExp(' - Topic', caseSensitive: false), '')
+        .replaceAll(RegExp('VEVO', caseSensitive: false), '')
         .trim();
 
     // 1. Primary open lyrics catalog: LrcLib (exact query)

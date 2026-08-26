@@ -175,7 +175,6 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
               height: MiniPlayer.playerHeight,
               decoration: MusifiedStyle.solidElevated(
                 scheme: colorScheme,
-                radius: MiniPlayer._borderRadius,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),

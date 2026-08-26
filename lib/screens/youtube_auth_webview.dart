@@ -1,7 +1,7 @@
 import 'package:flutter/cupertino.dart';
-import 'package:webview_flutter/webview_flutter.dart';
-import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/main.dart' show logger;
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class YouTubeAuthWebView extends StatefulWidget {
   const YouTubeAuthWebView({super.key});
@@ -60,7 +60,7 @@ class _YouTubeAuthWebViewState extends State<YouTubeAuthWebView> {
       final musicCookies = await cookieManager.getCookies(domain: Uri.parse('https://music.youtube.com'));
       final googleCookies = await cookieManager.getCookies(domain: Uri.parse('https://google.com'));
       
-      final Map<String, String> cookiesMap = {};
+      final cookiesMap = <String, String>{};
       
       for (final cookie in [...googleCookies, ...youtubeCookies, ...musicCookies]) {
         cookiesMap[cookie.name] = cookie.value;

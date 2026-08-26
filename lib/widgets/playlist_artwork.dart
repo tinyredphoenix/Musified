@@ -20,7 +20,6 @@
  */
 
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:musify/utilities/artwork_provider.dart';
 import 'package:musify/widgets/no_artwork_cube.dart';
 

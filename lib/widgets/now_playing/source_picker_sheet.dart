@@ -1,3 +1,6 @@
+// ignore_for_file: unawaited_futures
+
+import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart' show Material, MaterialType;

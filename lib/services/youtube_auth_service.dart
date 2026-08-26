@@ -1,3 +1,5 @@
+// ignore_for_file: cascade_invocations
+
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -6,11 +8,11 @@ import 'package:http/http.dart' as http;
 import 'package:musify/main.dart' show logger;
 
 class YouTubeAuthService {
-  static final YouTubeAuthService _instance = YouTubeAuthService._internal();
 
   factory YouTubeAuthService() => _instance;
 
   YouTubeAuthService._internal();
+  static final YouTubeAuthService _instance = YouTubeAuthService._internal();
 
   final isSignedIn = ValueNotifier<bool>(false);
   final userName = ValueNotifier<String?>(null);
@@ -23,21 +25,21 @@ class YouTubeAuthService {
       final cookies = box.get('cookies');
       if (cookies == null || cookies is! Map) return {};
       
-      final Map<String, String> typedCookies = Map<String, String>.from(cookies);
+      final typedCookies = Map<String, String>.from(cookies);
       
       final cookieString = typedCookies.entries.map((e) => '${e.key}=${e.value}').join('; ');
       
-      String sapisid = typedCookies['SAPISID'] ?? typedCookies['__Secure-3PAPISID'] ?? '';
+      final sapisid = typedCookies['SAPISID'] ?? typedCookies['__Secure-3PAPISID'] ?? '';
       if (sapisid.isEmpty) return {};
 
-      final origin = 'https://music.youtube.com';
+      const origin = 'https://music.youtube.com';
       final timestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000).toString();
       final hashStr = '$timestamp $sapisid $origin';
       
       final bytes = utf8.encode(hashStr);
       final digest = sha1.convert(bytes);
       
-      final authHeader = 'SAPISIDHASH ${timestamp}_${digest.toString()}';
+      final authHeader = 'SAPISIDHASH ${timestamp}_$digest';
       
       return {
         'Cookie': cookieString,
@@ -57,7 +59,7 @@ class YouTubeAuthService {
         return;
       }
       
-      bool hasRequired = cookies.containsKey('SAPISID') || cookies.containsKey('__Secure-3PAPISID');
+      final hasRequired = cookies.containsKey('SAPISID') || cookies.containsKey('__Secure-3PAPISID');
       if (!hasRequired) {
         logger.log('Missing SAPISID or __Secure-3PAPISID cookie');
         return;
@@ -121,10 +123,10 @@ class YouTubeAuthService {
       headers['Content-Type'] = 'application/json';
       
       final body = jsonEncode({
-        "context": {
-          "client": {
-            "clientName": "WEB_REMIX",
-            "clientVersion": "1.20230508.01.00",
+        'context': {
+          'client': {
+            'clientName': 'WEB_REMIX',
+            'clientVersion': '1.20230508.01.00',
           }
         }
       });

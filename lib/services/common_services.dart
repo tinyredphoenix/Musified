@@ -27,6 +27,7 @@ import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:musify/constants/clients.dart';
 import 'package:musify/main.dart' show logger;
+import 'package:musify/services/artist_service.dart' show ytMusicClient;
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/io_service.dart';
 import 'package:musify/services/lyrics_manager.dart';
@@ -34,12 +35,11 @@ import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/proxy_manager.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/services/source_resolver.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
-import 'package:musify/services/artist_service.dart' show ytMusicClient;
-import 'package:musify/services/youtube_auth_service.dart';
-import 'package:musify/services/youtube_music_sync_service.dart';
 
 T _safeUserGet<T>(String key, T defaultValue) {
   try {

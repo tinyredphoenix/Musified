@@ -32,11 +32,11 @@ import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/proxy_manager.dart';
 import 'package:musify/services/settings_manager.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/formatter.dart';
-import 'package:musify/services/youtube_auth_service.dart';
-import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/utilities/playlist_utils.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 

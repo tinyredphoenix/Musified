@@ -52,7 +52,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _handleRefresh() async {
-    HapticFeedback.mediumImpact();
+    unawaited(HapticFeedback.mediumImpact());
     if (YouTubeAuthService().isSignedIn.value) {
       await YouTubeMusicSyncService().fullSync();
     }
@@ -94,7 +94,7 @@ class _HomePageState extends State<HomePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(
+            const SectionHeader(
               title: 'Favorites',
               icon: CupertinoIcons.heart_fill,
             ),
@@ -141,7 +141,7 @@ class _HomePageState extends State<HomePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(
+            const SectionHeader(
               title: 'Heavy Rotation',
               icon: CupertinoIcons.flame_fill,
             ),
@@ -199,7 +199,7 @@ class _HomePageState extends State<HomePage> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(
+            const SectionHeader(
               title: 'Playlists & Mixes',
               icon: CupertinoIcons.music_albums_fill,
             ),
@@ -333,7 +333,7 @@ class _HomeSongCard extends StatelessWidget {
                             fit: BoxFit.cover,
                             memCacheWidth: 280,
                             memCacheHeight: 280,
-                            errorWidget: (_, __, ___) => Container(
+                            errorWidget: (_, __, ___) => ColoredBox(
                               color: Theme.of(context)
                                   .colorScheme
                                   .surfaceContainerHighest,
@@ -343,7 +343,7 @@ class _HomeSongCard extends StatelessWidget {
                               ),
                             ),
                           )
-                        : Container(
+                        : ColoredBox(
                             color: Theme.of(context)
                                 .colorScheme
                                 .surfaceContainerHighest,

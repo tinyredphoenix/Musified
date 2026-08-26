@@ -33,7 +33,6 @@ import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/widgets/artist_bar.dart';
 import 'package:musify/widgets/confirmation_dialog.dart';
 import 'package:musify/widgets/custom_bar.dart';
@@ -459,7 +458,6 @@ class _SearchPageState extends State<SearchPage> {
               playlist['title'],
               playlistId: playlist['ytid'],
               playlistArtwork: playlist['image'],
-              cubeIcon: CupertinoIcons.list_bullet,
               borderRadius: borderRadius,
             ),
           ),

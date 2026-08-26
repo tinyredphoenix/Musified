@@ -1,3 +1,5 @@
+// ignore_for_file: unawaited_futures
+
 /*
  *     Copyright (C) 2026 Valeri Gokadze
  *
@@ -23,9 +25,9 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';

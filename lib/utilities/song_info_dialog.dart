@@ -1,3 +1,6 @@
+// ignore_for_file: omit_local_variable_types
+
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -61,7 +64,7 @@ void showSongInfoDialog(BuildContext context, Map song) async {
 
   final colorScheme = Theme.of(context).colorScheme;
 
-  showCupertinoModalPopup(
+  unawaited(showCupertinoModalPopup(
     context: context,
     builder: (context) => CupertinoActionSheet(
       title: Column(
@@ -119,7 +122,7 @@ void showSongInfoDialog(BuildContext context, Map song) async {
         child: const Text('Close'),
       ),
     ),
-  );
+  ));
 }
 
 Widget _infoRow(String label, String value, {bool isHighlight = false, Color? color}) {

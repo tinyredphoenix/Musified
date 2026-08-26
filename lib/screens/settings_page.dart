@@ -20,31 +20,28 @@
  */
 
 import 'dart:async';
-import 'package:audio_service/audio_service.dart';
-import 'package:go_router/go_router.dart';
+
 import 'package:flutter/cupertino.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hive/hive.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:musify/services/youtube_auth_service.dart';
-import 'package:musify/services/youtube_music_sync_service.dart';
-import 'package:musify/screens/youtube_auth_webview.dart';
 import 'package:musify/constants/app_constants.dart';
 import 'package:musify/constants/version.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/screens/search_page.dart';
+import 'package:musify/screens/youtube_auth_webview.dart';
 import 'package:musify/services/common_services.dart';
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/playlist_download_service.dart';
-import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/theme/app_colors.dart';
 import 'package:musify/theme/app_themes.dart';
 import 'package:musify/utilities/flutter_bottom_sheet.dart';
 import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/language_utils.dart';
-import 'package:musify/utilities/url_launcher.dart';
 import 'package:musify/widgets/bottom_sheet_bar.dart';
 import 'package:musify/widgets/confirmation_dialog.dart';
 import 'package:musify/widgets/custom_bar.dart';
@@ -96,9 +93,9 @@ class SettingsPage extends StatelessWidget {
                 icon: CupertinoIcons.music_note,
               ),
               Card(
-                margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                margin: const EdgeInsets.symmetric(vertical: 8),
                 child: Padding(
-                  padding: const EdgeInsets.all(16.0),
+                  padding: const EdgeInsets.all(16),
                   child: Column(
                     children: [
                       const Icon(CupertinoIcons.music_note_2, size: 48),
@@ -164,7 +161,7 @@ class SettingsPage extends StatelessWidget {
             ValueListenableBuilder<DateTime?>(
               valueListenable: YouTubeMusicSyncService().lastSyncTime,
               builder: (context, lastSync, _) {
-                String syncText = 'Never';
+                var syncText = 'Never';
                 if (lastSync != null) {
                   final diff = DateTime.now().difference(lastSync);
                   if (diff.inDays > 0) {
@@ -236,7 +233,7 @@ class SettingsPage extends StatelessWidget {
               },
             ),
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(16),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [

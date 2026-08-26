@@ -22,8 +22,8 @@
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
@@ -37,10 +37,8 @@ import 'package:musify/services/settings_manager.dart';
 import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/async_loader.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/offline_playlist_dialogs.dart';
-import 'package:musify/utilities/playlist_dialogs.dart';
 import 'package:musify/utilities/playlist_utils.dart';
 import 'package:musify/widgets/confirmation_dialog.dart';
 import 'package:musify/widgets/mini_player_bottom_space.dart';
@@ -92,7 +90,7 @@ class _LibraryPageState extends State<LibraryPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  const Text(
                     'Looking for Music?',
                     style: TextStyle(
                       fontSize: 22,
@@ -235,7 +233,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   builder: (context, playlists, _) {
                     if (playlists.isEmpty) {
                       return const Padding(
-                        padding: EdgeInsets.all(16.0),
+                        padding: EdgeInsets.all(16),
                         child: Text('No playlists found'),
                       );
                     }
@@ -358,196 +356,6 @@ class _LibraryPageState extends State<LibraryPage> {
     ];
   }
 
-  List<Widget> _buildUserPlaylistsSlivers() {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isOffline = offlineMode.value;
-
-    final rawOfflinePlaylists = offlinePlaylistService.offlinePlaylists.value;
-    final visibleOfflinePlaylists = rawOfflinePlaylists
-        .where((p) => p is Map && !PlaylistUtils.isArtistPlaylist(p))
-        .toList();
-    final folders = isOffline
-        ? userPlaylistFolders.value
-              .where(PlaylistUtils.folderHasOfflinePlaylists)
-              .toList()
-        : userPlaylistFolders.value;
-
-    final offlinePlaylistsNotInFolders =
-        PlaylistUtils.filterOfflinePlaylistsNotInFolders(
-          visibleOfflinePlaylists,
-          folders,
-        );
-
-    final offlineIdsNotInFolders = PlaylistUtils.offlinePlaylistIdsNotInFolders(
-      visibleOfflinePlaylists,
-      folders,
-    );
-
-    final allPlaylistsNotInFolders = getPlaylistsNotInFolders();
-    final playlistsNotInFolders = PlaylistUtils.excludePlaylistsWithIds(
-      allPlaylistsNotInFolders,
-      offlineIdsNotInFolders,
-    );
-
-    final hasFolders = folders.isNotEmpty;
-    final hasCustomPlaylists = playlistsNotInFolders.isNotEmpty;
-    final hasLibraryContent = !isOffline || hasFolders || hasCustomPlaylists;
-
-    final slivers = <Widget>[];
-
-    if (hasLibraryContent) {
-      slivers.add(
-        SliverToBoxAdapter(
-          child: Column(
-            children: [
-              SectionHeader(
-                title: context.l10n.customPlaylists,
-                icon: CupertinoIcons.music_albums_fill,
-                actionButton: isOffline
-                    ? null
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            onPressed: _showCreateFolderDialog,
-                            icon: Icon(
-                              CupertinoIcons.folder_badge_plus,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                            tooltip: context.l10n.createFolder,
-                          ),
-                          IconButton(
-                            padding: const EdgeInsets.symmetric(horizontal: 2),
-                            onPressed: () => showCreatePlaylistDialog(context),
-                            icon: Icon(
-                              CupertinoIcons.plus,
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-              if (!isOffline) ...[
-                ValueListenableBuilder<List>(
-                  valueListenable: userRecentlyPlayed,
-                  builder: (context, recents, _) {
-                    return PlaylistBar(
-                      context.l10n.recentlyPlayed,
-                      subtitle: '${recents.length} tracks',
-                      onPressed: () => NavigationManager.router.go(
-                        '/library/userSongs/recents',
-                      ),
-                      cubeIcon: CupertinoIcons.clock,
-                      borderRadius: commonCustomBarRadiusFirst,
-                      showBuildActions: false,
-                    );
-                  },
-                ),
-                ValueListenableBuilder<List>(
-                  valueListenable: userLikedSongsList,
-                  builder: (context, liked, _) {
-                    return PlaylistBar(
-                      context.l10n.likedSongs,
-                      subtitle: '${liked.length} tracks',
-                      onPressed: () => NavigationManager.router.go(
-                        '/library/userSongs/liked',
-                      ),
-                      cubeIcon: CupertinoIcons.heart,
-                      showBuildActions: false,
-                    );
-                  },
-                ),
-                ValueListenableBuilder<List>(
-                  valueListenable: userOfflineSongs,
-                  builder: (context, offline, _) {
-                    return PlaylistBar(
-                      context.l10n.offlineSongs,
-                      subtitle: '${offline.length} tracks',
-                      onPressed: () => NavigationManager.router.go(
-                        '/library/userSongs/offline',
-                      ),
-                      cubeIcon: CupertinoIcons.cloud_download,
-                      borderRadius: hasCustomPlaylists || hasFolders
-                          ? BorderRadius.zero
-                          : commonCustomBarRadiusLast,
-                      showBuildActions: false,
-                    );
-                  },
-                ),
-              ],
-            ],
-          ),
-        ),
-      );
-
-      if (hasFolders) {
-        slivers.add(_buildFolderSliverList(folders, hasCustomPlaylists));
-      }
-      if (hasCustomPlaylists) {
-        slivers.add(
-          _buildSliverPlaylistList(playlistsNotInFolders, hasItemsBefore: true),
-        );
-      }
-    }
-
-    final offlinePlaylists = offlinePlaylistsNotInFolders;
-
-    if (offlinePlaylists.isNotEmpty) {
-      slivers
-        ..add(
-          SliverToBoxAdapter(
-            child: SectionHeader(
-              title: context.l10n.offlinePlaylists,
-              icon: CupertinoIcons.cloud_download,
-            ),
-          ),
-        )
-        ..add(
-          _buildSliverPlaylistList(offlinePlaylists, isOfflinePlaylists: true),
-        );
-    }
-
-    if (!offlineMode.value && userPlaylists.value.isNotEmpty) {
-      slivers.add(
-        SliverToBoxAdapter(
-          child: Column(
-            children: [
-              SectionHeader(
-                title: context.l10n.addedPlaylists,
-                icon: CupertinoIcons.plus_circle_fill,
-                actionButton: IconButton(
-                  padding: const EdgeInsets.only(right: 5),
-                  onPressed: () => showCreatePlaylistDialog(context),
-                  icon: Icon(
-                    CupertinoIcons.plus,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              AsyncLoader<List<dynamic>>(
-                future: getUserPlaylistsNotInFolders(),
-                emptyWidget: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Text(
-                    context.l10n.noPlaylistsAdded,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                builder: _buildPlaylistListView,
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return slivers;
-  }
-
   List<Widget> _buildLikedPlaylistsSlivers() {
     final likedPlaylists = getLikedPlaylistItems();
     if (likedPlaylists.isEmpty) return [];
@@ -626,71 +434,6 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  Widget _buildFolderSliverList(List folders, bool hasPlaylistsAfter) {
-    return SliverList.builder(
-      itemCount: folders.length,
-      itemBuilder: (BuildContext context, index) {
-        final folder = folders[index];
-        final isLastFolder = index == folders.length - 1;
-        final borderRadius = isLastFolder && !hasPlaylistsAfter
-            ? commonCustomBarRadiusLast
-            : BorderRadius.zero;
-        return PlaylistBar(
-          folder['name'],
-          playlistData: folder,
-          borderRadius: borderRadius,
-          onDelete: () => _showDeleteFolderDialog(folder),
-        );
-      },
-    );
-  }
-
-  Widget _buildPlaylistListView(
-    BuildContext context,
-    List playlists, {
-    bool isOfflinePlaylists = false,
-    bool hasItemsAfter = false,
-    bool hasItemsBefore = false,
-  }) {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: playlists.length,
-      padding: hasItemsAfter ? EdgeInsets.zero : commonListViewBottomPadding,
-      itemBuilder: (BuildContext context, index) {
-        final playlist = playlists[index];
-        final borderRadius = getItemBorderRadius(
-          index,
-          playlists.length,
-          hasItemsBefore: hasItemsBefore,
-          hasItemsAfter: hasItemsAfter,
-        );
-        return PlaylistBar(
-          key: listItemKey('library_playlist', index, playlist),
-          playlist['title'],
-          playlistId: playlist['ytid'],
-          playlistArtwork: playlist['image'],
-          isAlbum: playlist['isAlbum'],
-          playlistData:
-              playlist['source'] == 'user-created' ||
-                  playlist['source'] == 'user-youtube' ||
-                  isOfflinePlaylists
-              ? playlist
-              : null,
-          onDelete:
-              playlist['source'] == 'user-created' ||
-                  playlist['source'] == 'user-youtube' ||
-                  isOfflinePlaylists
-              ? () => isOfflinePlaylists
-                    ? _showRemoveOfflinePlaylistDialog(playlist)
-                    : _showRemovePlaylistDialog(playlist)
-              : null,
-          borderRadius: borderRadius,
-        );
-      },
-    );
-  }
-
   void _showRemoveOfflinePlaylistDialog(Map playlist) {
     final playlistId = playlist['ytid']?.toString() ?? '';
     if (playlistId.isEmpty) return;
@@ -726,69 +469,6 @@ class _LibraryPageState extends State<LibraryPage> {
     },
   );
 
-  void _showCreateFolderDialog() => showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      var folderName = '';
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-
-      return CupertinoAlertDialog(
-        title: Text(context.l10n.createFolder),
-        content: Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: CupertinoTextField(
-            placeholder: context.l10n.folderName,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? CupertinoColors.tertiarySystemFill
-                  : CupertinoColors.systemGrey6,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            onChanged: (value) => folderName = value,
-          ),
-        ),
-        actions: [
-          CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.cancel),
-          ),
-          CupertinoDialogAction(
-            isDefaultAction: true,
-            onPressed: () {
-              if (folderName.trim().isNotEmpty) {
-                final result =
-                    createPlaylistFolder(folderName.trim(), context);
-                showToast(context, result);
-              } else {
-                showToast(context, context.l10n.enterFolderName);
-              }
-              Navigator.pop(context);
-            },
-            child: Text(context.l10n.create),
-          ),
-        ],
-      );
-    },
-  );
-
-  void _showDeleteFolderDialog(Map folder) => showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return ConfirmationDialog(
-        confirmationMessage: context.l10n.deleteFolderQuestion,
-        submitMessage: context.l10n.delete,
-        onCancel: () {
-          Navigator.of(context).pop();
-        },
-        onSubmit: () {
-          final result = deletePlaylistFolder(folder['id'], context);
-          Navigator.of(context).pop();
-          showToast(context, result);
-        },
-      );
-    },
-  );
 }
 
 int? _playlistCountFromTrackCount(dynamic trackCount) {

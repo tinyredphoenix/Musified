@@ -67,8 +67,8 @@ Widget buildPlaybackIconButton(
       String? semanticLabel;
 
       final isBufferingOrLoading =
-          (processingState == AudioProcessingState.loading ||
-              processingState == AudioProcessingState.buffering);
+          processingState == AudioProcessingState.loading ||
+              processingState == AudioProcessingState.buffering;
 
       if (isPlaying) {
         iconWidget = Icon(

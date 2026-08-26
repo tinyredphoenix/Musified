@@ -12,11 +12,11 @@ import 'package:musify/services/settings_manager.dart';
 import 'package:musify/services/youtube_auth_service.dart';
 
 class YouTubeMusicSyncService {
-  static final YouTubeMusicSyncService _instance = YouTubeMusicSyncService._internal();
 
   factory YouTubeMusicSyncService() => _instance;
 
   YouTubeMusicSyncService._internal();
+  static final YouTubeMusicSyncService _instance = YouTubeMusicSyncService._internal();
 
   static const _remixContext = {
     'client': {
@@ -116,7 +116,7 @@ class YouTubeMusicSyncService {
   String? _runsText(Map<String, dynamic>? node) {
     final runs = node?['runs'];
     if (runs is! List) return null;
-    return runs.map((run) => (run as Map)['text']?.toString() ?? '').join('');
+    return runs.map((run) => (run as Map)['text']?.toString() ?? '').join();
   }
 
   Iterable<Map<String, dynamic>> _findRenderers(dynamic node, String key) sync* {
@@ -156,8 +156,8 @@ class YouTubeMusicSyncService {
       final flexColumns = item['flexColumns'];
       if (flexColumns is! List) continue;
 
-      String title = '';
-      String artist = '';
+      var title = '';
+      var artist = '';
 
       if (flexColumns.isNotEmpty) {
         final col0 = flexColumns[0] as Map?;

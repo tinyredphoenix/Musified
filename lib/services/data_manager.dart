@@ -1,3 +1,5 @@
+// ignore_for_file: cascade_invocations
+
 /*
  *     Copyright (C) 2026 Valeri Gokadze
  *

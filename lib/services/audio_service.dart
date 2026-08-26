@@ -1,3 +1,5 @@
+// ignore_for_file: cascade_invocations
+
 /*
  *     Copyright (C) 2026 Valeri Gokadze
  *
@@ -200,7 +202,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   void _setupEventSubscriptions() {
-    _subscriptions.add(
+    _subscriptions
+      ..add(
       audioPlayer.playbackEventStream
           .throttleTime(const Duration(milliseconds: 100))
           .listen(
@@ -211,9 +214,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
               _logStreamError('Playback event stream error', error, stackTrace);
             },
           ),
-    );
-
-    _subscriptions.add(
+      )
+      ..add(
       audioPlayer.processingStateStream.distinct().listen(
         _handleProcessingStateChange,
         onError: (error, stackTrace) {
@@ -222,7 +224,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
       ),
     );
 
-    _subscriptions.add(
+    _subscriptions
+      ..add(
       audioPlayer.positionStream
           .throttleTime(const Duration(milliseconds: 250))
           .listen(
@@ -231,9 +234,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
               _logStreamError('Position stream error', error, stackTrace);
             },
           ),
-    );
-
-    _subscriptions.add(
+      )
+      ..add(
       audioPlayer.durationStream.listen(
         (duration) {
           final transitionInProgress = _currentLoadingTransitionId >= 0;
@@ -252,7 +254,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
       ),
     );
 
-    _subscriptions.add(
+    _subscriptions
+      ..add(
       audioPlayer.playerStateStream
           .distinct()
           .throttleTime(const Duration(milliseconds: 100))
@@ -269,9 +272,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
               _logStreamError('Player state stream error', error, stackTrace);
             },
           ),
-    );
-
-    _subscriptions.add(
+      )
+      ..add(
       Rx.combineLatest2(
             audioPlayer.currentIndexStream.distinct(),
             audioPlayer.sequenceStateStream.distinct(),
@@ -600,7 +602,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     if (audioPlayer.processingState == ProcessingState.completed) return;
     
     // Default to the physical audio stream duration
-    Duration? duration = audioPlayer.duration;
+    var duration = audioPlayer.duration;
     
     // If the stream comes from YouTube but the original JioSaavn track is shorter,
     // enforce the original track duration so we don't play YouTube compilations/intros.

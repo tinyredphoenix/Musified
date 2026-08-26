@@ -22,7 +22,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:musify/screens/artist_page.dart';
 import 'package:musify/screens/bottom_navigation_page.dart';
 import 'package:musify/screens/home_page.dart';

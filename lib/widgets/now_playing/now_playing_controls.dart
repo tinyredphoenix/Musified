@@ -96,7 +96,6 @@ class NowPlayingControls extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 44),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         MarqueeTextWidget(
@@ -304,7 +303,7 @@ class PlayerControlButtons extends StatelessWidget {
                 buttonConstraints,
                 buttonPadding,
               ),
-              SizedBox(width: buttonSpacing),
+              const SizedBox(width: buttonSpacing),
               Expanded(
                 child: Center(
                   child: _PlaybackControlsRow(
@@ -318,7 +317,7 @@ class PlayerControlButtons extends StatelessWidget {
                   ),
                 ),
               ),
-              SizedBox(width: buttonSpacing),
+              const SizedBox(width: buttonSpacing),
               _buildRepeatButton(
                 context,
                 colorScheme,

@@ -53,7 +53,7 @@ class _PlaylistAddToPlaylistButtonState
           child: SizedBox(
             width: 24,
             height: 24,
-            child: CupertinoActivityIndicator(radius: 10),
+            child: CupertinoActivityIndicator(),
           ),
         ),
       );

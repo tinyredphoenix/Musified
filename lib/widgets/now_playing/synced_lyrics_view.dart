@@ -6,9 +6,6 @@ import 'package:musify/main.dart' show logger, audioHandler;
 typedef LrcLine = ({Duration time, String text});
 
 class SyncedLyricsView extends StatefulWidget {
-  final MediaItem metadata;
-  final String lyrics;
-  final bool isActive;
 
   const SyncedLyricsView({
     super.key,
@@ -16,6 +13,9 @@ class SyncedLyricsView extends StatefulWidget {
     required this.lyrics,
     required this.isActive,
   });
+  final MediaItem metadata;
+  final String lyrics;
+  final bool isActive;
 
   @override
   State<SyncedLyricsView> createState() => _SyncedLyricsViewState();
@@ -53,7 +53,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     try {
       final lines = widget.lyrics.split('\n');
       final lrcRegex = RegExp(r'^\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)$');
-      final List<LrcLine> parsed = [];
+      final parsed = <LrcLine>[];
 
       for (final line in lines) {
         final match = lrcRegex.firstMatch(line.trim());
@@ -98,18 +98,16 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
       _syncToPosition(audioHandler.playbackState.value.position);
     }
     
-    _positionSub = AudioService.position.listen((position) {
-      _syncToPosition(position);
-    });
+    _positionSub = AudioService.position.listen(_syncToPosition);
   }
 
   void _syncToPosition(Duration position) {
     if (!mounted || _parsedLyrics == null) return;
 
-    int newIndex = -1;
+    var newIndex = -1;
     final lyrics = _parsedLyrics;
     if (lyrics != null) {
-      for (int i = 0; i < lyrics.length; i++) {
+      for (var i = 0; i < lyrics.length; i++) {
         // Look ahead slightly for karaoke effect (lead by 200ms)
         if (position.inMilliseconds + 200 >= lyrics[i].time.inMilliseconds) {
           newIndex = i;
@@ -137,7 +135,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   void _scrollToCurrentLine() {
     if (_scrollController.hasClients && _currentIndex >= 0) {
       // Assuming roughly 64px per item for scrolling math
-      final double targetOffset = (_currentIndex * 64.0).clamp(
+      final targetOffset = (_currentIndex * 64.0).clamp(
         0.0,
         _scrollController.position.maxScrollExtent,
       );
@@ -206,7 +204,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                 _scrollToCurrentLine();
               },
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 alignment: Alignment.center,
                 child: AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 300),

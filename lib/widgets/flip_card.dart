@@ -76,7 +76,7 @@ class _FlipCardState extends State<FlipCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: widget.onTapFlipping ? () => flipCard() : null,
+      onTap: widget.onTapFlipping ? flipCard : null,
       child: ValueListenableBuilder<bool>(
         valueListenable: widget.controller.isFront,
         builder: (context, showFront, _) {

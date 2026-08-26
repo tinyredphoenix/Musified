@@ -397,7 +397,6 @@ class PlaylistBar extends StatelessWidget {
       ...availableFolders.map(
         (folder) => PickerSheetAction(
           label: folder['name']?.toString() ?? '',
-          icon: CupertinoIcons.folder,
           onTap: () {
             if (playlistData != null) {
               movePlaylistToFolder(playlistData!, folder['id'], context);

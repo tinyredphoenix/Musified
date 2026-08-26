@@ -32,8 +32,8 @@ import 'package:musify/theme/musified_style.dart';
 import 'package:musify/utilities/async_loader.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/widgets/flip_card.dart';
-import 'package:musify/widgets/song_artwork.dart';
 import 'package:musify/widgets/now_playing/synced_lyrics_view.dart';
+import 'package:musify/widgets/song_artwork.dart';
 
 class NowPlayingArtwork extends StatelessWidget {
   const NowPlayingArtwork({

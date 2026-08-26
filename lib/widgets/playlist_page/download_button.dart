@@ -129,7 +129,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
                     child: SizedBox(
                       width: 24,
                       height: 24,
-                      child: CupertinoActivityIndicator(radius: 10),
+                      child: CupertinoActivityIndicator(),
                     ),
                   ),
                 );
