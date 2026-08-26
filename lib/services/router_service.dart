@@ -66,7 +66,7 @@ class NavigationManager {
       ),
     ];
 
-    router = GoRouter(
+    _router = GoRouter(
       navigatorKey: parentNavigatorKey,
       initialLocation: homePath,
       routes: routes,
@@ -107,7 +107,11 @@ class NavigationManager {
 
   static NavigationManager get instance => _instance;
 
-  static late final GoRouter router;
+  static late final GoRouter _router;
+  static GoRouter get router {
+    final _ = _instance;
+    return _router;
+  }
 
   static final GlobalKey<NavigatorState> parentNavigatorKey =
       GlobalKey<NavigatorState>();

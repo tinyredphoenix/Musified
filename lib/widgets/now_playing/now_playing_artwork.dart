@@ -117,7 +117,7 @@ class NowPlayingArtwork extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  context.l10n!.lyricsNotAvailable,
+                  context.l10n.lyricsNotAvailable,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
@@ -141,7 +141,7 @@ class NowPlayingArtwork extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  context.l10n!.lyricsNotAvailable,
+                  context.l10n.lyricsNotAvailable,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w500,
@@ -156,7 +156,7 @@ class NowPlayingArtwork extends StatelessWidget {
             padding: const EdgeInsets.all(24),
             physics: const BouncingScrollPhysics(),
             child: Text(
-              lyrics ?? context.l10n!.lyricsNotAvailable,
+              lyrics ?? context.l10n.lyricsNotAvailable,
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w500,

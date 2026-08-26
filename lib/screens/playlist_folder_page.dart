@@ -88,7 +88,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                       buildPopupMenuItem<String>(
                         value: 'add',
                         icon: FluentIcons.add_24_regular,
-                        label: context.l10n!.addPlaylist,
+                        label: context.l10n.addPlaylist,
                         colorScheme: Theme.of(context).colorScheme,
                         iconSize: 18,
                         spacing: 10,
@@ -96,7 +96,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                       buildPopupMenuItem<String>(
                         value: 'rename',
                         icon: FluentIcons.edit_24_regular,
-                        label: context.l10n!.editFolder,
+                        label: context.l10n.editFolder,
                         colorScheme: Theme.of(context).colorScheme,
                         iconSize: 18,
                         spacing: 10,
@@ -104,7 +104,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                       buildPopupMenuItem<String>(
                         value: 'delete',
                         icon: FluentIcons.delete_24_regular,
-                        label: context.l10n!.deleteFolder,
+                        label: context.l10n.deleteFolder,
                         colorScheme: Theme.of(context).colorScheme,
                         iconColor: Theme.of(context).colorScheme.error,
                         labelStyle: TextStyle(
@@ -218,8 +218,8 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                 const SizedBox(width: 6),
                 Text(
                   playlistCount == 1
-                      ? '1 ${context.l10n!.playlist.toLowerCase()}'
-                      : '$playlistCount ${context.l10n!.playlists.toLowerCase()}',
+                      ? '1 ${context.l10n.playlist.toLowerCase()}'
+                      : '$playlistCount ${context.l10n.playlists.toLowerCase()}',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: colorScheme.onSecondaryContainer,
                     fontWeight: FontWeight.w600,
@@ -248,7 +248,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              context.l10n!.emptyFolderMsg,
+              context.l10n.emptyFolderMsg,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
@@ -269,7 +269,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
     if (!mounted) return;
 
     if (candidates.isEmpty) {
-      showToast(context, context.l10n!.noPlaylistsAdded);
+      showToast(context, context.l10n.noPlaylistsAdded);
       return;
     }
 
@@ -292,7 +292,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
             ),
           ),
           title: Text(
-            context.l10n!.addPlaylist,
+            context.l10n.addPlaylist,
             style: TextStyle(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w600,
@@ -324,7 +324,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n!.cancel),
+              child: Text(context.l10n.cancel),
             ),
           ],
         );
@@ -336,8 +336,8 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
     showDialog(
       context: context,
       builder: (context) => ConfirmationDialog(
-        submitMessage: context.l10n!.remove,
-        confirmationMessage: context.l10n!.removeFromFolder,
+        submitMessage: context.l10n.remove,
+        confirmationMessage: context.l10n.removeFromFolder,
         onCancel: () => Navigator.of(context).pop(),
         onSubmit: () {
           Navigator.of(context).pop();
@@ -359,7 +359,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           size: 32,
         ),
         title: Text(
-          context.l10n!.editFolder,
+          context.l10n.editFolder,
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -367,7 +367,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
         ),
         content: TextFormField(
           decoration: InputDecoration(
-            labelText: context.l10n!.folderName,
+            labelText: context.l10n.folderName,
             prefixIcon: Icon(
               FluentIcons.text_field_20_regular,
               color: colorScheme.onSurfaceVariant,
@@ -384,7 +384,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              context.l10n!.cancel,
+              context.l10n.cancel,
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
           ),
@@ -402,7 +402,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
               }
             },
             icon: const Icon(FluentIcons.save_20_filled),
-            label: Text(context.l10n!.update),
+            label: Text(context.l10n.update),
           ),
         ],
       ),
@@ -413,8 +413,8 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
     showDialog(
       context: context,
       builder: (context) => ConfirmationDialog(
-        submitMessage: context.l10n!.delete,
-        confirmationMessage: context.l10n!.deleteFolderQuestion,
+        submitMessage: context.l10n.delete,
+        confirmationMessage: context.l10n.deleteFolderQuestion,
         onCancel: () => Navigator.of(context).pop(),
         onSubmit: () {
           Navigator.of(context).pop();

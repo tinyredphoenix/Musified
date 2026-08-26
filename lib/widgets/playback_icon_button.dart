@@ -57,7 +57,7 @@ Widget buildPlaybackIconButton(
           ),
         );
         onPressed = null;
-        semanticLabel = context.l10n!.loading;
+        semanticLabel = context.l10n.loading;
       } else if (processingState == AudioProcessingState.completed) {
         iconWidget = Icon(
           CupertinoIcons.arrow_counterclockwise,
@@ -65,7 +65,7 @@ Widget buildPlaybackIconButton(
           size: iconSize,
         );
         onPressed = () => audioHandler.playAgain();
-        semanticLabel = context.l10n!.replay;
+        semanticLabel = context.l10n.replay;
       } else {
         iconWidget = Icon(
           isPlaying
@@ -75,7 +75,7 @@ Widget buildPlaybackIconButton(
           size: iconSize,
         );
         onPressed = isPlaying ? audioHandler.pause : audioHandler.play;
-        semanticLabel = isPlaying ? context.l10n!.pause : context.l10n!.play;
+        semanticLabel = isPlaying ? context.l10n.pause : context.l10n.play;
       }
 
       return RawMaterialButton(

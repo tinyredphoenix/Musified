@@ -95,7 +95,7 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.timeMachine)),
+      appBar: AppBar(title: Text(context.l10n.timeMachine)),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -107,7 +107,7 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
             ),
             const SizedBox(height: 12),
             Text(
-              context.l10n!.noListeningStats,
+              context.l10n.noListeningStats,
               style: Theme.of(context).textTheme.titleMedium,
             ),
           ],
@@ -127,7 +127,7 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.timeMachine)),
+      appBar: AppBar(title: Text(context.l10n.timeMachine)),
       body: ListView.builder(
         padding: const EdgeInsets.fromLTRB(10, 0, 10, 24),
         scrollCacheExtent: const ScrollCacheExtent.pixels(500),
@@ -235,7 +235,7 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
     final totalSeconds = listeningStatsService.yearTotalSeconds;
 
     return _PeriodSection(
-      title: '${context.l10n!.annualRecap} $year',
+      title: '${context.l10n.annualRecap} $year',
       onShare: () => _shareRecap(
         context,
         key: _yearShareKey,
@@ -260,7 +260,7 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
             _ViewMoreButton(
               onPressed: () => _showMoreSongs(
                 context,
-                '${context.l10n!.annualRecap} $year',
+                '${context.l10n.annualRecap} $year',
                 songs,
               ),
             ),
@@ -292,16 +292,16 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
 
       final result = await SharePlus.instance.share(
         ShareParams(
-          title: context.l10n!.shareTimeMachineText,
-          subject: context.l10n!.shareTimeMachineText,
-          text: context.l10n!.shareTimeMachineText,
+          title: context.l10n.shareTimeMachineText,
+          subject: context.l10n.shareTimeMachineText,
+          text: context.l10n.shareTimeMachineText,
           files: [XFile(file.path, mimeType: 'image/png')],
           fileNameOverrides: [fileName],
         ),
       );
 
       if (result.status == ShareResultStatus.unavailable && context.mounted) {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n.error);
       }
     } catch (e, stackTrace) {
       logger.log(
@@ -309,7 +309,7 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
         error: e,
         stackTrace: stackTrace,
       );
-      if (context.mounted) showToast(context, context.l10n!.error);
+      if (context.mounted) showToast(context, context.l10n.error);
     }
   }
 
@@ -376,7 +376,7 @@ class _TimeMachinePageState extends State<TimeMachinePage> {
   Future<void> _playSongs(List<Map<String, dynamic>> songs, int index) async {
     if (songs.isEmpty) return;
     await audioHandler.playPlaylistSong(
-      playlist: {'title': context.l10n!.timeMachine, 'list': songs},
+      playlist: {'title': context.l10n.timeMachine, 'list': songs},
       songIndex: index,
     );
   }
@@ -445,7 +445,7 @@ class _PeriodSection extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  tooltip: context.l10n!.shareRecap,
+                  tooltip: context.l10n.shareRecap,
                   onPressed: onShare,
                   icon: Icon(
                     FluentIcons.share_24_regular,
@@ -477,7 +477,7 @@ class _ViewMoreButton extends StatelessWidget {
         child: FilledButton.tonalIcon(
           onPressed: onPressed,
           icon: const Icon(FluentIcons.more_horizontal_24_regular),
-          label: Text(context.l10n!.tapToView),
+          label: Text(context.l10n.tapToView),
         ),
       ),
     );

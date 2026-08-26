@@ -56,7 +56,7 @@ class SettingsPage extends StatelessWidget {
     final inactivatedColor = Theme.of(context).colorScheme.surfaceContainerHigh;
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.settings)),
+      appBar: AppBar(title: Text(context.l10n.settings)),
       body: SingleChildScrollView(
         padding: commonSingleChildScrollViewPadding,
         child: Column(
@@ -89,35 +89,35 @@ class SettingsPage extends StatelessWidget {
     return Column(
       children: [
         SectionHeader(
-          title: context.l10n!.preferences,
+          title: context.l10n.preferences,
           icon: FluentIcons.options_24_filled,
         ),
         CustomBar(
-          context.l10n!.accentColor,
+          context.l10n.accentColor,
           FluentIcons.color_24_regular,
           borderRadius: commonCustomBarRadiusFirst,
           onTap: () => _showAccentColorPicker(context),
         ),
         CustomBar(
-          context.l10n!.themeMode,
+          context.l10n.themeMode,
           FluentIcons.weather_sunny_28_regular,
           onTap: () => _showThemeModePicker(context),
         ),
         CustomBar(
-          context.l10n!.language,
+          context.l10n.language,
           FluentIcons.translate_24_regular,
           onTap: () => _showLanguagePicker(context),
         ),
         CustomBar(
-          context.l10n!.audioQuality,
+          context.l10n.audioQuality,
           FluentIcons.music_note_1_24_regular,
           onTap: () => _showAudioQualityPicker(context),
         ),
         if (themeMode == ThemeMode.dark)
           CustomBar(
-            context.l10n!.pureBlackTheme,
+            context.l10n.pureBlackTheme,
             FluentIcons.color_background_24_regular,
-            description: context.l10n!.pureBlackThemeDescription,
+            description: context.l10n.pureBlackThemeDescription,
             trailing: Switch(
               value: usePureBlackColor.value,
               onChanged: (value) => _togglePureBlack(context, value),
@@ -128,9 +128,9 @@ class SettingsPage extends StatelessWidget {
           valueListenable: showAudioQualityBadge,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n!.audioQualityBadge,
+              context.l10n.audioQualityBadge,
               FluentIcons.badge_24_regular,
-              description: context.l10n!.audioQualityBadgeDescription,
+              description: context.l10n.audioQualityBadgeDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) => _toggleAudioQualityBadge(context, value),
@@ -142,15 +142,15 @@ class SettingsPage extends StatelessWidget {
           valueListenable: useProxy,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n!.useProxy,
+              context.l10n.useProxy,
               FluentIcons.shield_24_regular,
-              description: context.l10n!.useProxyDescription,
+              description: context.l10n.useProxyDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) {
                   useProxy.value = value;
                   addOrUpdateData<bool>('settings', 'useProxy', value);
-                  showToast(context, context.l10n!.settingChangedMsg);
+                  showToast(context, context.l10n.settingChangedMsg);
                 },
               ),
             );
@@ -160,9 +160,9 @@ class SettingsPage extends StatelessWidget {
           valueListenable: wrappedEnabled,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n!.listeningStats,
+              context.l10n.listeningStats,
               FluentIcons.clock_24_regular,
-              description: context.l10n!.listeningStatsDescription,
+              description: context.l10n.listeningStatsDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) => _toggleWrapped(context, value),
@@ -174,9 +174,9 @@ class SettingsPage extends StatelessWidget {
           valueListenable: offlineMode,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n!.offlineMode,
+              context.l10n.offlineMode,
               FluentIcons.cloud_off_24_regular,
-              description: context.l10n!.offlineModeDescription,
+              description: context.l10n.offlineModeDescription,
               borderRadius: isOffline && isFdroidBuild
                   ? commonCustomBarRadiusLast
                   : BorderRadius.zero,
@@ -210,7 +210,7 @@ class SettingsPage extends StatelessWidget {
                 onChanged: (value) {
                   jiosaavnEnabled.value = value;
                   addOrUpdateData<bool>('settings', 'jiosaavnEnabled', value);
-                  showToast(context, context.l10n!.settingChangedMsg);
+                  showToast(context, context.l10n.settingChangedMsg);
                 },
               ),
             ),
@@ -291,7 +291,7 @@ class SettingsPage extends StatelessWidget {
             return CustomBar(
               'SponsorBlock',
               FluentIcons.cut_24_regular,
-              description: context.l10n!.sponsorBlockDescription,
+              description: context.l10n.sponsorBlockDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) => _toggleSponsorBlock(context, value),
@@ -303,14 +303,14 @@ class SettingsPage extends StatelessWidget {
           valueListenable: playNextSongAutomatically,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n!.automaticSongPicker,
+              context.l10n.automaticSongPicker,
               FluentIcons.music_note_2_play_20_regular,
-              description: context.l10n!.automaticSongPickerDescription,
+              description: context.l10n.automaticSongPickerDescription,
               trailing: Switch(
                 value: value,
                 onChanged: (value) {
                   _toggleAutoPlayNext(context, value);
-                  showToast(context, context.l10n!.settingChangedMsg);
+                  showToast(context, context.l10n.settingChangedMsg);
                 },
               ),
             );
@@ -320,9 +320,9 @@ class SettingsPage extends StatelessWidget {
           valueListenable: externalRecommendations,
           builder: (_, value, __) {
             return CustomBar(
-              context.l10n!.externalRecommendations,
+              context.l10n.externalRecommendations,
               FluentIcons.channel_share_24_regular,
-              description: context.l10n!.externalRecommendationsDescription,
+              description: context.l10n.externalRecommendationsDescription,
               borderRadius: commonCustomBarRadiusLast,
               trailing: Switch(
                 value: value,
@@ -342,99 +342,99 @@ class SettingsPage extends StatelessWidget {
     return Column(
       children: [
         SectionHeader(
-          title: context.l10n!.tools,
+          title: context.l10n.tools,
           icon: FluentIcons.toolbox_24_filled,
         ),
         CustomBar(
-          context.l10n!.clearCache,
+          context.l10n.clearCache,
           FluentIcons.broom_24_regular,
           borderRadius: commonCustomBarRadiusFirst,
           onTap: () async {
             final cleared = await clearCache();
             showToast(
               context,
-              cleared ? '${context.l10n!.cacheMsg}!' : context.l10n!.error,
+              cleared ? '${context.l10n.cacheMsg}!' : context.l10n.error,
             );
           },
         ),
         CustomBar(
-          context.l10n!.clearSearchHistory,
+          context.l10n.clearSearchHistory,
           FluentIcons.history_24_regular,
           onTap: () => _showConfirmationDialog(
             context: context,
-            confirmationMessage: context.l10n!.clearSearchHistoryQuestion,
+            confirmationMessage: context.l10n.clearSearchHistoryQuestion,
             onSubmit: () {
               searchHistoryNotifier.value = [];
               deleteData('user', 'searchHistory');
-              showToast(context, '${context.l10n!.searchHistoryMsg}!');
+              showToast(context, '${context.l10n.searchHistoryMsg}!');
             },
           ),
         ),
         CustomBar(
-          context.l10n!.clearRecentlyPlayed,
+          context.l10n.clearRecentlyPlayed,
           FluentIcons.receipt_play_24_regular,
           onTap: () => _showConfirmationDialog(
             context: context,
-            confirmationMessage: context.l10n!.clearRecentlyPlayedQuestion,
+            confirmationMessage: context.l10n.clearRecentlyPlayedQuestion,
             onSubmit: () {
               userRecentlyPlayed.value = [];
               deleteData('user', 'recentlyPlayedSongs');
-              showToast(context, '${context.l10n!.recentlyPlayedMsg}!');
+              showToast(context, '${context.l10n.recentlyPlayedMsg}!');
             },
           ),
         ),
         CustomBar(
-          context.l10n!.clearListeningStats,
+          context.l10n.clearListeningStats,
           FluentIcons.clock_24_regular,
           onTap: () => _showConfirmationDialog(
             context: context,
-            confirmationMessage: context.l10n!.clearListeningStatsQuestion,
-            submitMessage: context.l10n!.delete,
+            confirmationMessage: context.l10n.clearListeningStatsQuestion,
+            submitMessage: context.l10n.delete,
             isDangerous: true,
             onSubmit: () async {
               audioHandler.resetListeningStatsSession(flushStats: false);
               await listeningStatsService.clearStats();
               audioHandler.startListeningStatsSessionIfNeeded();
               if (context.mounted) {
-                showToast(context, '${context.l10n!.listeningStatsCleared}!');
+                showToast(context, '${context.l10n.listeningStatsCleared}!');
               }
             },
           ),
         ),
         CustomBar(
-          context.l10n!.deleteDownloads,
+          context.l10n.deleteDownloads,
           FluentIcons.delete_24_regular,
           onTap: () => _showConfirmationDialog(
             context: context,
-            confirmationMessage: context.l10n!.deleteDownloadsQuestion,
-            submitMessage: context.l10n!.delete,
+            confirmationMessage: context.l10n.deleteDownloadsQuestion,
+            submitMessage: context.l10n.delete,
             isDangerous: true,
             onSubmit: () async {
               try {
                 await offlinePlaylistService.deleteAllDownloads();
                 if (context.mounted) {
-                  showToast(context, context.l10n!.downloadsDeleted);
+                  showToast(context, context.l10n.downloadsDeleted);
                 }
               } catch (e) {
                 if (context.mounted) {
-                  showToast(context, context.l10n!.error);
+                  showToast(context, context.l10n.error);
                 }
               }
             },
           ),
         ),
         CustomBar(
-          context.l10n!.importSpotifyPlaylist,
+          context.l10n.importSpotifyPlaylist,
           FluentIcons.arrow_upload_24_regular,
           onTap: () => context.push('/settings/import-spotify-playlist'),
         ),
         CustomBar(
-          context.l10n!.backupUserData,
+          context.l10n.backupUserData,
           FluentIcons.cloud_sync_24_regular,
           onTap: () => _backupUserData(context),
         ),
         CustomBar(
-          context.l10n!.restoreUserData,
+          context.l10n.restoreUserData,
           FluentIcons.cloud_add_24_regular,
           onTap: () async {
             try {
@@ -478,7 +478,7 @@ class SettingsPage extends StatelessWidget {
               if (context.mounted) {
                 showToast(
                   context,
-                  context.l10n!.error,
+                  context.l10n.error,
                   icon: FluentIcons.error_circle_24_regular,
                 );
               }
@@ -494,24 +494,24 @@ class SettingsPage extends StatelessWidget {
     return Column(
       children: [
         SectionHeader(
-          title: context.l10n!.others,
+          title: context.l10n.others,
           icon: FluentIcons.more_circle_24_filled,
         ),
         CustomBar(
-          context.l10n!.licenses,
+          context.l10n.licenses,
           FluentIcons.document_24_regular,
           borderRadius: commonCustomBarRadiusFirst,
           onTap: () => NavigationManager.router.go('/settings/license'),
         ),
         CustomBar(
-          context.l10n!.translate,
+          context.l10n.translate,
           FluentIcons.translate_24_regular,
-          description: context.l10n!.translateDescription,
+          description: context.l10n.translateDescription,
           onTap: () =>
               launchURL(Uri.parse('https://crowdin.com/project/musify')),
         ),
         CustomBar(
-          '${context.l10n!.copyLogs} (${logger.getLogCount()})',
+          '${context.l10n.copyLogs} (${logger.getLogCount()})',
           FluentIcons.error_circle_24_regular,
           onTap: () async => showToast(context, await logger.copyLogs(context)),
         ),
@@ -557,7 +557,7 @@ class SettingsPage extends StatelessWidget {
                   newAccentColor: color,
                   useSystemColor: false,
                 );
-                showToast(context, context.l10n!.accentChangeMsg);
+                showToast(context, context.l10n.accentChangeMsg);
                 Navigator.pop(context);
               },
               child: AnimatedContainer(
@@ -604,9 +604,9 @@ class SettingsPage extends StatelessWidget {
         itemBuilder: (context, index) {
           final mode = availableModes[index];
           final modeNames = [
-            context.l10n!.themeModeSystem,
-            context.l10n!.themeModeLight,
-            context.l10n!.themeModeDark,
+            context.l10n.themeModeSystem,
+            context.l10n.themeModeLight,
+            context.l10n.themeModeDark,
           ];
 
           return BottomSheetBar(
@@ -653,7 +653,7 @@ class SettingsPage extends StatelessWidget {
               newLocaleFullCode,
             );
             Musify.updateAppState(context, newLocale: newLocale);
-            showToast(context, context.l10n!.languageMsg);
+            showToast(context, context.l10n.languageMsg);
             Navigator.pop(context);
           }, activeLanguageFullCode == newLocaleFullCode);
         },
@@ -664,9 +664,9 @@ class SettingsPage extends StatelessWidget {
   void _showAudioQualityPicker(BuildContext context) {
     final availableQualities = ['low', 'medium', 'high'];
     final qualityNames = [
-      context.l10n!.audioQualityLow,
-      context.l10n!.audioQualityMedium,
-      context.l10n!.audioQualityHigh,
+      context.l10n.audioQualityLow,
+      context.l10n.audioQualityMedium,
+      context.l10n.audioQualityHigh,
     ];
     const qualityIcons = [
       FluentIcons.speaker_1_24_regular,
@@ -689,7 +689,7 @@ class SettingsPage extends StatelessWidget {
             () {
               addOrUpdateData<String>('settings', 'audioQuality', quality);
               audioQualitySetting.value = quality;
-              showToast(context, context.l10n!.audioQualityMsg);
+              showToast(context, context.l10n.audioQualityMsg);
               Navigator.pop(context);
             },
             audioQualitySetting.value == quality,
@@ -705,13 +705,13 @@ class SettingsPage extends StatelessWidget {
     addOrUpdateData<bool>('settings', 'usePureBlackColor', value);
     usePureBlackColor.value = value;
     Musify.updateAppState(context);
-    showToast(context, context.l10n!.settingChangedMsg);
+    showToast(context, context.l10n.settingChangedMsg);
   }
 
   void _toggleAudioQualityBadge(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'showAudioQualityBadge', value);
     showAudioQualityBadge.value = value;
-    showToast(context, context.l10n!.settingChangedMsg);
+    showToast(context, context.l10n.settingChangedMsg);
   }
 
   Future<void> _toggleWrapped(BuildContext context, bool value) async {
@@ -730,7 +730,7 @@ class SettingsPage extends StatelessWidget {
       audioHandler.startListeningStatsSessionIfNeeded();
     }
     if (context.mounted) {
-      showToast(context, context.l10n!.settingChangedMsg);
+      showToast(context, context.l10n.settingChangedMsg);
     }
   }
 
@@ -741,25 +741,25 @@ class SettingsPage extends StatelessWidget {
     // Trigger router refresh and notify about the change
     NavigationManager.refreshRouter();
 
-    showToast(context, context.l10n!.settingChangedMsg);
+    showToast(context, context.l10n.settingChangedMsg);
   }
 
   void _toggleSponsorBlock(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'sponsorBlockSupport', value);
     sponsorBlockSupport.value = value;
-    showToast(context, context.l10n!.settingChangedMsg);
+    showToast(context, context.l10n.settingChangedMsg);
   }
 
   void _toggleAutoPlayNext(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'playNextSongAutomatically', value);
     playNextSongAutomatically.value = value;
-    showToast(context, context.l10n!.settingChangedMsg);
+    showToast(context, context.l10n.settingChangedMsg);
   }
 
   void _toggleExternalRecommendations(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'externalRecommendations', value);
     externalRecommendations.value = value;
-    showToast(context, context.l10n!.settingChangedMsg);
+    showToast(context, context.l10n.settingChangedMsg);
   }
 
   void _showConfirmationDialog({
@@ -773,7 +773,7 @@ class SettingsPage extends StatelessWidget {
       context: context,
       builder: (BuildContext context) {
         return ConfirmationDialog(
-          submitMessage: submitMessage ?? context.l10n!.clear,
+          submitMessage: submitMessage ?? context.l10n.clear,
           confirmationMessage: confirmationMessage,
           isDangerous: isDangerous,
           onCancel: () => Navigator.of(context).pop(),
@@ -801,7 +801,7 @@ class SettingsPage extends StatelessWidget {
       if (context.mounted) {
         showToast(
           context,
-          context.l10n!.error,
+          context.l10n.error,
           icon: FluentIcons.error_circle_24_regular,
         );
       }
@@ -836,7 +836,7 @@ class SettingsPage extends StatelessWidget {
             () {
               addOrUpdateData<String>('settings', 'preferredSource', source);
               preferredSource.value = source;
-              showToast(context, context.l10n!.settingChangedMsg);
+              showToast(context, context.l10n.settingChangedMsg);
               Navigator.pop(context);
             },
             preferredSource.value == source,
@@ -875,7 +875,7 @@ class SettingsPage extends StatelessWidget {
             () {
               addOrUpdateData<String>('settings', 'jiosaavnQuality', quality);
               jiosaavnQuality.value = quality;
-              showToast(context, context.l10n!.settingChangedMsg);
+              showToast(context, context.l10n.settingChangedMsg);
               Navigator.pop(context);
             },
             jiosaavnQuality.value == quality,
@@ -914,7 +914,7 @@ class SettingsPage extends StatelessWidget {
             () {
               addOrUpdateData<String>('settings', 'downloadSource', source);
               downloadSource.value = source;
-              showToast(context, context.l10n!.settingChangedMsg);
+              showToast(context, context.l10n.settingChangedMsg);
               Navigator.pop(context);
             },
             downloadSource.value == source,
@@ -953,7 +953,7 @@ class SettingsPage extends StatelessWidget {
             () {
               addOrUpdateData<String>('settings', 'downloadQuality', quality);
               downloadQuality.value = quality;
-              showToast(context, context.l10n!.settingChangedMsg);
+              showToast(context, context.l10n.settingChangedMsg);
               Navigator.pop(context);
             },
             downloadQuality.value == quality,

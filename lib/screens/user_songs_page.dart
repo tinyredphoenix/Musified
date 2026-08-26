@@ -83,7 +83,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
   Widget build(BuildContext context) {
     final title = getTitle(widget.page, context);
     final icon = getIcon(widget.page);
-    final isOfflineSongs = title == context.l10n!.offlineSongs;
+    final isOfflineSongs = title == context.l10n.offlineSongs;
 
     return Scaffold(
       appBar: AppBar(title: offlineMode.value ? Text(title) : null),
@@ -132,10 +132,10 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   String getTitle(String page, BuildContext context) {
     return switch (page) {
-      'liked' => context.l10n!.likedSongs,
-      'offline' => context.l10n!.offlineSongs,
-      'recents' => context.l10n!.recentlyPlayed,
-      _ => context.l10n!.playlist,
+      'liked' => context.l10n.likedSongs,
+      'offline' => context.l10n.offlineSongs,
+      'recents' => context.l10n.recentlyPlayed,
+      _ => context.l10n.playlist,
     };
   }
 
@@ -155,7 +155,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
     bool isOfflineSongs,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isRecentlyPlayed = title == context.l10n!.recentlyPlayed;
+    final isRecentlyPlayed = title == context.l10n.recentlyPlayed;
 
     return Column(
       children: [
@@ -172,7 +172,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                 Expanded(
                   child: FilledButton.icon(
                     icon: const Icon(FluentIcons.play_24_filled),
-                    label: Text(context.l10n!.play),
+                    label: Text(context.l10n.play),
                     onPressed: () {
                       final songsList = widget.page == 'liked'
                           ? userLikedSongsList.value
@@ -207,7 +207,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                       foregroundColor: colorScheme.onSecondaryContainer,
                     ),
                     icon: const Icon(FluentIcons.arrow_shuffle_24_filled),
-                    label: Text(context.l10n!.shuffle),
+                    label: Text(context.l10n.shuffle),
                     onPressed: () async {
                       final songs = widget.page == 'liked'
                           ? userLikedSongsList.value
@@ -260,7 +260,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
             controller: _searchController,
             focusNode: _searchFocusNode,
             onSearchChanged: (value) => _searchQueryNotifier.value = value,
-            labelText: context.l10n!.search,
+            labelText: context.l10n.search,
           ),
         ],
         const SizedBox(height: 16),
@@ -287,15 +287,15 @@ class _UserSongsPageState extends State<UserSongsPage> {
           context: context,
           builder: (BuildContext context) {
             return ConfirmationDialog(
-              confirmationMessage: context.l10n!.clearRecentlyPlayedQuestion,
-              submitMessage: context.l10n!.clear,
+              confirmationMessage: context.l10n.clearRecentlyPlayedQuestion,
+              submitMessage: context.l10n.clear,
               isDangerous: true,
               onCancel: () => Navigator.pop(context),
               onSubmit: () {
                 Navigator.pop(context);
                 userRecentlyPlayed.value = [];
                 addOrUpdateData<List>('user', 'recentlyPlayedSongs', []);
-                showToast(context, context.l10n!.recentlyPlayedMsg);
+                showToast(context, context.l10n.recentlyPlayedMsg);
               },
             );
           },
@@ -305,9 +305,9 @@ class _UserSongsPageState extends State<UserSongsPage> {
   }
 
   Widget buildSongList(String title) {
-    final isLikedSongs = title == context.l10n!.likedSongs;
-    final isRecentlyPlayed = title == context.l10n!.recentlyPlayed;
-    final isOfflineSongs = title == context.l10n!.offlineSongs;
+    final isLikedSongs = title == context.l10n.likedSongs;
+    final isRecentlyPlayed = title == context.l10n.recentlyPlayed;
+    final isOfflineSongs = title == context.l10n.offlineSongs;
 
     return ValueListenableBuilder<String>(
       valueListenable: _searchQueryNotifier,
@@ -340,7 +340,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
               : FluentIcons.text_bullet_list_24_filled;
           return EmptyPlaylistState(
             icon: emptyIcon,
-            message: context.l10n!.playlistEmpty,
+            message: context.l10n.playlistEmpty,
           );
         }
 
@@ -374,7 +374,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
     Map playlist, {
     bool isRecentSong = false,
   }) {
-    final isLikedSongs = playlist['title'] == context.l10n!.likedSongs;
+    final isLikedSongs = playlist['title'] == context.l10n.likedSongs;
 
     return SongBar(
       key: listItemKey('user_song', index, song),
@@ -403,10 +403,10 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   String _getSortTypeDisplayText(OfflineSortType type) {
     return switch (type) {
-      OfflineSortType.default_ => context.l10n!.default_,
-      OfflineSortType.title => context.l10n!.name,
-      OfflineSortType.artist => context.l10n!.artist,
-      OfflineSortType.dateAdded => context.l10n!.dateAdded,
+      OfflineSortType.default_ => context.l10n.default_,
+      OfflineSortType.title => context.l10n.name,
+      OfflineSortType.artist => context.l10n.artist,
+      OfflineSortType.dateAdded => context.l10n.dateAdded,
     };
   }
 

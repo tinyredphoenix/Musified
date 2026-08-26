@@ -110,7 +110,7 @@ class _ArtistPageState extends State<ArtistPage> {
     setState(() {
       _artistFuture = loaded;
     });
-    showToast(context, context.l10n!.error);
+    showToast(context, context.l10n.error);
   }
 
   @override
@@ -222,7 +222,7 @@ class _ArtistPageState extends State<ArtistPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
                   child: ArtistShelf(
-                    title: context.l10n!.albums,
+                    title: context.l10n.albums,
                     icon: FluentIcons.cd_16_regular,
                     items: _albums,
                     subtitleOf: _releaseSubtitle,
@@ -233,7 +233,7 @@ class _ArtistPageState extends State<ArtistPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
                   child: ArtistShelf(
-                    title: context.l10n!.singlesAndEps,
+                    title: context.l10n.singlesAndEps,
                     icon: FluentIcons.music_note_2_24_regular,
                     items: _singles,
                     subtitleOf: _releaseSubtitle,
@@ -244,7 +244,7 @@ class _ArtistPageState extends State<ArtistPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
                   child: ArtistShelf(
-                    title: context.l10n!.suggestedArtists,
+                    title: context.l10n.suggestedArtists,
                     icon: FluentIcons.person_24_regular,
                     items: _relatedArtists,
                     cubeIcon: FluentIcons.person_24_filled,
@@ -283,7 +283,7 @@ class _ArtistPageState extends State<ArtistPage> {
           // Not finding an artist is an answer, not a failure of the app.
           EmptyPlaylistState(
             icon: FluentIcons.person_24_filled,
-            message: context.l10n!.artistNotFound,
+            message: context.l10n.artistNotFound,
           ),
           const SliverMiniPlayerBottomSpace(),
         ],
@@ -333,7 +333,7 @@ class _ArtistPageState extends State<ArtistPage> {
               icon: const Icon(FluentIcons.arrow_sync_24_filled),
               iconSize: 24,
               onPressed: _refresh,
-              tooltip: context.l10n!.update,
+              tooltip: context.l10n.update,
             ),
           ],
         ),
@@ -360,7 +360,7 @@ class _ArtistPageState extends State<ArtistPage> {
       children: [
         const SizedBox(height: 24),
         SectionHeader(
-          title: context.l10n!.topSongs,
+          title: context.l10n.topSongs,
           icon: FluentIcons.music_note_2_24_filled,
         ),
         ListView.builder(
@@ -390,9 +390,9 @@ class _ArtistPageState extends State<ArtistPage> {
   String _releaseSubtitle(Map<String, dynamic> release) {
     final year = release['year']?.toString();
     final type = switch (release['releaseType']?.toString()) {
-      'single' => context.l10n!.single,
+      'single' => context.l10n.single,
       'ep' => 'EP',
-      _ => context.l10n!.album,
+      _ => context.l10n.album,
     };
     return year == null || year.isEmpty ? type : '$type • $year';
   }
@@ -450,7 +450,7 @@ class _ArtistPageState extends State<ArtistPage> {
 
       final songs = catalog?['list'] as List? ?? const [];
       if (songs.isEmpty) {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n.error);
         return;
       }
 

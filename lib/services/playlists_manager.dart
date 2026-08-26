@@ -235,26 +235,26 @@ Future<String> addUserPlaylist(String input, BuildContext context) async {
     playlistId = extractYoutubePlaylistId(input);
 
     if (playlistId == null) {
-      return '${context.l10n!.notYTlist}!';
+      return '${context.l10n.notYTlist}!';
     }
   }
 
   try {
     if (playlistExistsAnywhere(playlistId)) {
-      return '${context.l10n!.playlistAlreadyExists}!';
+      return '${context.l10n.playlistAlreadyExists}!';
     }
 
     final playlist = await ytClient.playlists.get(playlistId);
     if (playlist.title.isEmpty) {
-      return '${context.l10n!.invalidYouTubePlaylist}!';
+      return '${context.l10n.invalidYouTubePlaylist}!';
     }
 
     userPlaylists.value = [...userPlaylists.value, playlistId];
     unawaited(addOrUpdateData<List>('user', 'playlists', userPlaylists.value));
-    return '${context.l10n!.addedSuccess}!';
+    return '${context.l10n.addedSuccess}!';
   } catch (e, stackTrace) {
     logger.log('Error adding user playlist', error: e, stackTrace: stackTrace);
-    return '${context.l10n!.error}: $e';
+    return '${context.l10n.error}: $e';
   }
 }
 
@@ -277,7 +277,7 @@ Future<String> addUserPlaylist(String input, BuildContext context) async {
   unawaited(
     addOrUpdateData<List>('user', 'customPlaylists', userCustomPlaylists.value),
   );
-  return ('${context.l10n!.addedSuccess}!', newPlaylistId);
+  return ('${context.l10n.addedSuccess}!', newPlaylistId);
 }
 
 String addSongInCustomPlaylist(
@@ -295,7 +295,7 @@ String addSongInCustomPlaylist(
     if (playlistSongs.any(
       (playlistElement) => playlistElement['ytid'] == song['ytid'],
     )) {
-      return context.l10n!.songAlreadyInPlaylist;
+      return context.l10n.songAlreadyInPlaylist;
     }
     if (indexToInsert != null) {
       final safeIndex = indexToInsert.clamp(0, playlistSongs.length);
@@ -322,10 +322,10 @@ String addSongInCustomPlaylist(
     }
 
     offlinePlaylistService.checkAndAutoMarkOffline(customPlaylist);
-    return context.l10n!.songAdded;
+    return context.l10n.songAdded;
   } else {
     logger.log('Custom playlist not found for ytid: $playlistId');
-    return context.l10n!.error;
+    return context.l10n.error;
   }
 }
 
@@ -383,13 +383,13 @@ String addSongsInCustomPlaylist(
         );
       }
       offlinePlaylistService.checkAndAutoMarkOffline(customPlaylist);
-      return context.l10n!.addedSuccess;
+      return context.l10n.addedSuccess;
     } else {
-      return context.l10n!.songAlreadyInPlaylist;
+      return context.l10n.songAlreadyInPlaylist;
     }
   } else {
     logger.log('Custom playlist not found for ytid: $playlistId');
-    return context.l10n!.error;
+    return context.l10n.error;
   }
 }
 
@@ -643,7 +643,7 @@ bool _removePlaylistFromLikedPlaylists(String playlistId) {
 
 String createPlaylistFolder(String folderName, [BuildContext? context]) {
   if (folderName.trim().isEmpty) {
-    return context?.l10n?.enterFolderName ?? 'Please enter a folder name';
+    return context?.l10n.enterFolderName ?? 'Please enter a folder name';
   }
 
   final exists = userPlaylistFolders.value.any(
@@ -653,7 +653,7 @@ String createPlaylistFolder(String folderName, [BuildContext? context]) {
   );
 
   if (exists) {
-    return context?.l10n?.folderAlreadyExists ?? 'Folder already exists';
+    return context?.l10n.folderAlreadyExists ?? 'Folder already exists';
   }
 
   final newFolder = {
@@ -667,7 +667,7 @@ String createPlaylistFolder(String folderName, [BuildContext? context]) {
   unawaited(
     addOrUpdateData<List>('user', 'playlistFolders', userPlaylistFolders.value),
   );
-  return context?.l10n?.addedSuccess ?? 'Added successfully';
+  return context?.l10n.addedSuccess ?? 'Added successfully';
 }
 
 String renamePlaylistFolder(
@@ -676,14 +676,14 @@ String renamePlaylistFolder(
   BuildContext? context,
 ]) {
   if (newName.trim().isEmpty) {
-    return context?.l10n?.enterFolderName ?? 'Please enter a folder name';
+    return context?.l10n.enterFolderName ?? 'Please enter a folder name';
   }
 
   final updatedFolders = List<Map>.from(userPlaylistFolders.value);
   final folderIndex = updatedFolders.indexWhere((f) => f['id'] == folderId);
 
   if (folderIndex == -1) {
-    return context?.l10n?.error ?? 'Error';
+    return context?.l10n.error ?? 'Error';
   }
 
   final exists = updatedFolders.any(
@@ -693,7 +693,7 @@ String renamePlaylistFolder(
   );
 
   if (exists) {
-    return context?.l10n?.folderAlreadyExists ?? 'Folder already exists';
+    return context?.l10n.folderAlreadyExists ?? 'Folder already exists';
   }
 
   updatedFolders[folderIndex]['name'] = newName.trim();
@@ -702,7 +702,7 @@ String renamePlaylistFolder(
   unawaited(
     addOrUpdateData<List>('user', 'playlistFolders', userPlaylistFolders.value),
   );
-  return context?.l10n?.folderUpdated ?? 'Folder updated successfully';
+  return context?.l10n.folderUpdated ?? 'Folder updated successfully';
 }
 
 String movePlaylistToFolder(
@@ -744,7 +744,7 @@ String movePlaylistToFolder(
         logger.log(
           'Target folder with id $folderId not found for moving playlist',
         );
-        return context.l10n!.error;
+        return context.l10n.error;
       }
     } else {
       if (playlist['source'] == 'user-created') {
@@ -778,14 +778,14 @@ String movePlaylistToFolder(
     );
     unawaited(addOrUpdateData<List>('user', 'playlists', userPlaylists.value));
 
-    return '${context.l10n!.addedSuccess}!';
+    return '${context.l10n.addedSuccess}!';
   } catch (e, stackTrace) {
     logger.log(
       'Error moving playlist to folder',
       error: e,
       stackTrace: stackTrace,
     );
-    return context.l10n!.error;
+    return context.l10n.error;
   }
 }
 
@@ -842,16 +842,16 @@ String deletePlaylistFolder(String folderId, [BuildContext? context]) {
         addOrUpdateData<List>('user', 'playlists', userPlaylists.value),
       );
 
-      return context?.l10n?.folderDeleted ?? 'Folder deleted successfully';
+      return context?.l10n.folderDeleted ?? 'Folder deleted successfully';
     }
-    return context?.l10n?.error ?? 'Error';
+    return context?.l10n.error ?? 'Error';
   } catch (e, stackTrace) {
     logger.log(
       'Error deleting playlist folder',
       error: e,
       stackTrace: stackTrace,
     );
-    return context?.l10n?.error ?? 'Error';
+    return context?.l10n.error ?? 'Error';
   }
 }
 
@@ -1303,7 +1303,7 @@ Future updatePlaylistList(BuildContext context, String playlistId) async {
     unawaited(
       addOrUpdateData<List>('cache', 'playlistSongs$normalizedId', songList),
     );
-    showToast(context, context.l10n!.playlistUpdated);
+    showToast(context, context.l10n.playlistUpdated);
     return playlist;
   } catch (e, stackTrace) {
     logger.log(

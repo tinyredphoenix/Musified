@@ -35,7 +35,7 @@ class RadioStationsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.radioStations)),
+      appBar: AppBar(title: Text(context.l10n.radioStations)),
       body: ValueListenableBuilder(
         valueListenable: userLikedRadioStations,
         builder: (context, likedStations, _) {
@@ -45,7 +45,7 @@ class RadioStationsPage extends StatelessWidget {
           );
 
           if (stations.isEmpty) {
-            return Center(child: Text(context.l10n!.noRadioStations));
+            return Center(child: Text(context.l10n.noRadioStations));
           }
 
           return SingleChildScrollView(
@@ -68,7 +68,7 @@ class RadioStationsPage extends StatelessWidget {
                       );
 
                       if (!success && context.mounted) {
-                        showToast(context, context.l10n!.error);
+                        showToast(context, context.l10n.error);
                       }
                     },
                   ),

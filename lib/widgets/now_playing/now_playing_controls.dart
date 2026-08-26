@@ -315,7 +315,7 @@ class PlayerControlButtons extends StatelessWidget {
             color: value ? colorScheme.primary : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             size: size * 0.9,
           ),
-          tooltip: context.l10n!.shuffle,
+          tooltip: context.l10n.shuffle,
           constraints: buttonConstraints,
           padding: buttonPadding,
           style: IconButton.styleFrom(
@@ -362,7 +362,7 @@ class PlayerControlButtons extends StatelessWidget {
                     : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                 size: size * 0.9,
               ),
-              tooltip: context.l10n!.repeat,
+              tooltip: context.l10n.repeat,
               constraints: buttonConstraints,
               padding: buttonPadding,
               style: IconButton.styleFrom(
@@ -430,7 +430,7 @@ class _PlaybackControlsRow extends StatelessWidget {
                     isEnabled:
                         audioHandler.hasPrevious ||
                         repeatMode != AudioServiceRepeatMode.none,
-                    tooltip: context.l10n!.skipToPrevious,
+                    tooltip: context.l10n.skipToPrevious,
                     onPressed: () => audioHandler.skipToPrevious(),
                     colorScheme: colorScheme,
                     buttonConstraints: buttonConstraints,
@@ -451,7 +451,7 @@ class _PlaybackControlsRow extends StatelessWidget {
                     isEnabled:
                         audioHandler.hasNext ||
                         repeatMode == AudioServiceRepeatMode.one,
-                    tooltip: context.l10n!.skipToNext,
+                    tooltip: context.l10n.skipToNext,
                     onPressed: () => repeatMode == AudioServiceRepeatMode.one
                         ? audioHandler.playAgain()
                         : audioHandler.skipToNext(),

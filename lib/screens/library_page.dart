@@ -71,7 +71,7 @@ class _LibraryPageState extends State<LibraryPage> {
           !hasOfflineSongs) {
         final colorScheme = Theme.of(context).colorScheme;
         return Scaffold(
-          appBar: AppBar(title: Text(context.l10n!.library)),
+          appBar: AppBar(title: Text(context.l10n.library)),
           body: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -92,7 +92,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    context.l10n!.offlineMode,
+                    context.l10n.offlineMode,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       color: colorScheme.onSurface,
                       fontWeight: FontWeight.w600,
@@ -101,7 +101,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    context.l10n!.noOfflineLibraryContent,
+                    context.l10n.noOfflineLibraryContent,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -116,7 +116,7 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.library)),
+      appBar: AppBar(title: Text(context.l10n.library)),
       body: AnimatedBuilder(
         animation: Listenable.merge([
           pinnedPlaylistIds,
@@ -164,7 +164,7 @@ class _LibraryPageState extends State<LibraryPage> {
     return [
       SliverToBoxAdapter(
         child: SectionHeader(
-          title: context.l10n!.pinnedPlaylists,
+          title: context.l10n.pinnedPlaylists,
           icon: FluentIcons.pin_24_filled,
         ),
       ),
@@ -215,7 +215,7 @@ class _LibraryPageState extends State<LibraryPage> {
           child: Column(
             children: [
               SectionHeader(
-                title: context.l10n!.customPlaylists,
+                title: context.l10n.customPlaylists,
                 icon: FluentIcons.library_24_filled,
                 actionButton: isOffline
                     ? null
@@ -229,7 +229,7 @@ class _LibraryPageState extends State<LibraryPage> {
                               FluentIcons.folder_add_24_regular,
                               color: colorScheme.onSurfaceVariant,
                             ),
-                            tooltip: context.l10n!.createFolder,
+                            tooltip: context.l10n.createFolder,
                           ),
                           IconButton(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -244,7 +244,7 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
               if (!isOffline) ...[
                 PlaylistBar(
-                  context.l10n!.recentlyPlayed,
+                  context.l10n.recentlyPlayed,
                   onPressed: () =>
                       NavigationManager.router.go('/library/userSongs/recents'),
                   cubeIcon: FluentIcons.history_24_regular,
@@ -252,21 +252,21 @@ class _LibraryPageState extends State<LibraryPage> {
                   showBuildActions: false,
                 ),
                 PlaylistBar(
-                  context.l10n!.likedSongs,
+                  context.l10n.likedSongs,
                   onPressed: () =>
                       NavigationManager.router.go('/library/userSongs/liked'),
                   cubeIcon: FluentIcons.heart_24_regular,
                   showBuildActions: false,
                 ),
                 PlaylistBar(
-                  context.l10n!.offlineSongs,
+                  context.l10n.offlineSongs,
                   onPressed: () =>
                       NavigationManager.router.go('/library/userSongs/offline'),
                   cubeIcon: FluentIcons.cloud_off_24_regular,
                   showBuildActions: false,
                 ),
                 PlaylistBar(
-                  context.l10n!.radioStations,
+                  context.l10n.radioStations,
                   onPressed: () =>
                       NavigationManager.router.go('/library/radioStations'),
                   cubeIcon: FluentIcons.sound_source_24_regular,
@@ -298,7 +298,7 @@ class _LibraryPageState extends State<LibraryPage> {
         ..add(
           SliverToBoxAdapter(
             child: SectionHeader(
-              title: context.l10n!.offlinePlaylists,
+              title: context.l10n.offlinePlaylists,
               icon: FluentIcons.cloud_off_24_filled,
             ),
           ),
@@ -314,7 +314,7 @@ class _LibraryPageState extends State<LibraryPage> {
           child: Column(
             children: [
               SectionHeader(
-                title: context.l10n!.addedPlaylists,
+                title: context.l10n.addedPlaylists,
                 icon: FluentIcons.add_circle_24_filled,
                 actionButton: IconButton(
                   padding: const EdgeInsets.only(right: 5),
@@ -330,7 +330,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 emptyWidget: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Text(
-                    context.l10n!.noPlaylistsAdded,
+                    context.l10n.noPlaylistsAdded,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
@@ -354,7 +354,7 @@ class _LibraryPageState extends State<LibraryPage> {
     return [
       SliverToBoxAdapter(
         child: SectionHeader(
-          title: context.l10n!.likedPlaylists,
+          title: context.l10n.likedPlaylists,
           icon: FluentIcons.heart_24_filled,
         ),
       ),
@@ -368,7 +368,7 @@ class _LibraryPageState extends State<LibraryPage> {
     return [
       SliverToBoxAdapter(
         child: SectionHeader(
-          title: context.l10n!.artist,
+          title: context.l10n.artist,
           icon: FluentIcons.person_24_filled,
         ),
       ),
@@ -501,8 +501,8 @@ class _LibraryPageState extends State<LibraryPage> {
     context: context,
     builder: (BuildContext context) {
       return ConfirmationDialog(
-        confirmationMessage: context.l10n!.removePlaylistQuestion,
-        submitMessage: context.l10n!.remove,
+        confirmationMessage: context.l10n.removePlaylistQuestion,
+        submitMessage: context.l10n.remove,
         onCancel: () {
           Navigator.of(context).pop();
         },
@@ -513,7 +513,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
           if (playlistId.isEmpty) {
             logger.log('Playlist ID is missing, cannot remove playlist.');
-            showToast(context, context.l10n!.error);
+            showToast(context, context.l10n.error);
             return;
           }
 
@@ -547,7 +547,7 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         ),
         title: Text(
-          context.l10n!.createFolder,
+          context.l10n.createFolder,
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -555,8 +555,8 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
         content: TextField(
           decoration: InputDecoration(
-            labelText: context.l10n!.folderName,
-            hintText: context.l10n!.newFolder,
+            labelText: context.l10n.folderName,
+            hintText: context.l10n.newFolder,
             prefixIcon: Icon(
               FluentIcons.folder_20_regular,
               color: colorScheme.onSurfaceVariant,
@@ -579,7 +579,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            child: Text(context.l10n!.cancel),
+            child: Text(context.l10n.cancel),
           ),
           FilledButton.icon(
             onPressed: () {
@@ -587,12 +587,12 @@ class _LibraryPageState extends State<LibraryPage> {
                 final result = createPlaylistFolder(folderName.trim(), context);
                 showToast(context, result);
               } else {
-                showToast(context, context.l10n!.enterFolderName);
+                showToast(context, context.l10n.enterFolderName);
               }
               Navigator.pop(context);
             },
             icon: const Icon(FluentIcons.add_20_regular),
-            label: Text(context.l10n!.create),
+            label: Text(context.l10n.create),
           ),
         ],
       );
@@ -603,8 +603,8 @@ class _LibraryPageState extends State<LibraryPage> {
     context: context,
     builder: (BuildContext context) {
       return ConfirmationDialog(
-        confirmationMessage: context.l10n!.deleteFolderQuestion,
-        submitMessage: context.l10n!.delete,
+        confirmationMessage: context.l10n.deleteFolderQuestion,
+        submitMessage: context.l10n.delete,
         onCancel: () {
           Navigator.of(context).pop();
         },

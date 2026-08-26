@@ -54,7 +54,7 @@ class PlaylistActionButtons extends StatelessWidget {
               icon: isLoading
                   ? const _Spinner()
                   : const Icon(FluentIcons.play_24_filled),
-              label: Text(context.l10n!.play),
+              label: Text(context.l10n.play),
               onPressed: isLoading ? null : onPlay,
             ),
           ),
@@ -68,7 +68,7 @@ class PlaylistActionButtons extends StatelessWidget {
               icon: isLoading
                   ? const _Spinner()
                   : const Icon(FluentIcons.arrow_shuffle_24_filled),
-              label: Text(context.l10n!.shuffle),
+              label: Text(context.l10n.shuffle),
               onPressed: isLoading ? null : onShuffle,
             ),
           ),

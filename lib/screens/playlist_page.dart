@@ -165,7 +165,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         stackTrace: stackTrace,
       );
       if (mounted) {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n.error);
       }
     } finally {
       _isInitializingPlaylist = false;
@@ -247,15 +247,15 @@ class _PlaylistPageState extends State<PlaylistPage> {
                       },
                     ),
                   ] else if (_isArtistCatalogFailed)
-                    EmptyPlaylistState(message: context.l10n!.error)
+                    EmptyPlaylistState(message: context.l10n.error)
                   else
                     EmptyPlaylistState(
-                      message: context.l10n!.noSongsInPlaylist,
+                      message: context.l10n.noSongsInPlaylist,
                     ),
                   const SliverMiniPlayerBottomSpace(),
                 ],
               )
-            : EmptyPlaylistState(message: context.l10n!.error),
+            : EmptyPlaylistState(message: context.l10n.error),
       ),
     );
   }
@@ -268,7 +268,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     return IconButton(
       icon: const Icon(FluentIcons.arrow_left_24_regular),
       onPressed: () => Navigator.pop(context, widget.playlistData == _playlist),
-      tooltip: context.l10n!.back,
+      tooltip: context.l10n.back,
     );
   }
 
@@ -397,7 +397,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
             controller: _searchController,
             focusNode: _searchFocusNode,
             onSearchChanged: (value) => _searchQueryNotifier.value = value,
-            labelText: context.l10n!.search,
+            labelText: context.l10n.search,
           ),
         ],
         const SizedBox(height: 16),
@@ -417,7 +417,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
           final url = 'musify://playlist/custom/$encodedPlaylist';
           await Clipboard.setData(ClipboardData(text: url));
           if (mounted) {
-            showToast(context, context.l10n!.linkCopied);
+            showToast(context, context.l10n.linkCopied);
           }
         } catch (e, stackTrace) {
           logger.log(
@@ -426,11 +426,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
             stackTrace: stackTrace,
           );
           if (mounted) {
-            showToast(context, context.l10n!.error);
+            showToast(context, context.l10n.error);
           }
         }
       },
-      tooltip: context.l10n!.share,
+      tooltip: context.l10n.share,
     );
   }
 
@@ -439,7 +439,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
       icon: const Icon(FluentIcons.arrow_sync_24_filled),
       iconSize: 24,
       onPressed: _handleSyncPlaylist,
-      tooltip: context.l10n!.update,
+      tooltip: context.l10n.update,
     );
   }
 
@@ -459,7 +459,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
           if (resolvedPlaylistYtid == null ||
               resolvedPlaylistYtid.isEmpty ||
               resolvedPlaylistYtid == 'null') {
-            showToast(context, context.l10n!.error);
+            showToast(context, context.l10n.error);
             return;
           }
 
@@ -523,10 +523,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
             );
             _sortPlaylist(_sortType);
           });
-          showToast(context, context.l10n!.playlistUpdated);
+          showToast(context, context.l10n.playlistUpdated);
         }
       },
-      tooltip: context.l10n!.editPlaylist,
+      tooltip: context.l10n.editPlaylist,
     );
   }
 
@@ -550,7 +550,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     if (offlineMode.value &&
         offlinePlaylistService.isPlaylistDownloaded(playlistId)) {
       if (mounted) {
-        showToast(context, context.l10n!.removeOffline);
+        showToast(context, context.l10n.removeOffline);
       }
       return;
     }
@@ -572,7 +572,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         ? await getPlaylistInfoForWidget(playlistId, forceRefresh: true)
         : await updatePlaylistList(context, playlistId);
     if (updated?['catalogStatus'] == 'failed') {
-      if (mounted) showToast(context, context.l10n!.error);
+      if (mounted) showToast(context, context.l10n.error);
       return;
     }
     if (updated != null && mounted) {
@@ -584,7 +584,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         _sortPlaylist(_sortType);
       });
       if (isCachedPage) {
-        showToast(context, context.l10n!.playlistUpdated);
+        showToast(context, context.l10n.playlistUpdated);
       }
     }
   }
@@ -596,8 +596,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
       setState(() {});
       showToastWithButton(
         context,
-        context.l10n!.songRemoved,
-        context.l10n!.undo.toUpperCase(),
+        context.l10n.songRemoved,
+        context.l10n.undo.toUpperCase(),
         () {
           final result = addSongInCustomPlaylist(
             context,
@@ -605,7 +605,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
             songToRemove,
             indexToInsert: indexOfRemovedSong,
           );
-          if (result == context.l10n!.songAdded &&
+          if (result == context.l10n.songAdded &&
               !_originalPlaylistList.any(
                 (song) => song['ytid'] == songToRemove['ytid'],
               )) {
@@ -629,13 +629,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
   String _getSortTypeDisplayText(PlaylistSortType type) {
     switch (type) {
       case PlaylistSortType.default_:
-        return context.l10n!.default_;
+        return context.l10n.default_;
       case PlaylistSortType.title:
-        return context.l10n!.name;
+        return context.l10n.name;
       case PlaylistSortType.artist:
-        return context.l10n!.artist;
+        return context.l10n.artist;
       case PlaylistSortType.dateAdded:
-        return context.l10n!.dateAdded;
+        return context.l10n.dateAdded;
     }
   }
 

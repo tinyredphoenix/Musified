@@ -126,20 +126,20 @@ class OfflinePlaylistService {
     final playlistId = playlist['ytid'] as String? ?? playlist['title'];
 
     if (playlistId == null || playlistId.isEmpty) {
-      showToast(context, context.l10n!.error);
+      showToast(context, context.l10n.error);
       return;
     }
 
     // Check if already downloading
     if (isPlaylistDownloading(playlistId)) {
-      showToast(context, context.l10n!.alreadyDownloading);
+      showToast(context, context.l10n.alreadyDownloading);
       return;
     }
 
     // Initialize download state
     final songsList = playlist['list'] as List<dynamic>? ?? [];
     if (songsList.isEmpty) {
-      showToast(context, context.l10n!.playlistEmpty);
+      showToast(context, context.l10n.playlistEmpty);
       return;
     }
 
@@ -184,7 +184,7 @@ class OfflinePlaylistService {
       activeDownloads.remove(playlistId);
       cleanupProgressNotifier(playlistId);
       if (context.mounted) {
-        showToast(context, '${context.l10n!.error}: $e');
+        showToast(context, '${context.l10n.error}: $e');
       }
     }
   }
@@ -274,7 +274,7 @@ class OfflinePlaylistService {
         if (context.mounted) {
           showToast(
             context,
-            '${context.l10n!.playlistDownloaded}: ${progressNotifier.value.completed}/${songsList.length}',
+            '${context.l10n.playlistDownloaded}: ${progressNotifier.value.completed}/${songsList.length}',
           );
         }
       } else if (!progressNotifier.value.isCancelled) {
@@ -282,7 +282,7 @@ class OfflinePlaylistService {
         if (context.mounted) {
           showToast(
             context,
-            '${context.l10n!.downloadFailed}: ${progressNotifier.value.failed}/${songsList.length}',
+            '${context.l10n.downloadFailed}: ${progressNotifier.value.failed}/${songsList.length}',
           );
         }
       }
@@ -307,7 +307,7 @@ class OfflinePlaylistService {
       progressNotifier.notifyListeners();
 
       // Immediate visual feedback
-      showToast(context, context.l10n!.cancellingDownload);
+      showToast(context, context.l10n.cancellingDownload);
 
       const maxWaitTime = Duration(seconds: 30);
       final startTime = DateTime.now();
@@ -324,7 +324,7 @@ class OfflinePlaylistService {
         }
       }
 
-      showToast(context, context.l10n!.downloadCancelled);
+      showToast(context, context.l10n.downloadCancelled);
     } catch (e, stackTrace) {
       logger.log('Error cancelling download', error: e, stackTrace: stackTrace);
       // Force remove from active downloads and cleanup on error

@@ -59,19 +59,19 @@ class _EqualizerPageState extends State<EqualizerPage> {
   String _getPresetLocalizedName(BuildContext context, String presetId) {
     switch (presetId) {
       case 'balanced':
-        return context.l10n!.equalizerPresetBalanced;
+        return context.l10n.equalizerPresetBalanced;
       case 'bassBoost':
-        return context.l10n!.equalizerPresetBassBoost;
+        return context.l10n.equalizerPresetBassBoost;
       case 'trebleBoost':
-        return context.l10n!.equalizerPresetTrebleBoost;
+        return context.l10n.equalizerPresetTrebleBoost;
       case 'vocal':
-        return context.l10n!.equalizerPresetVocal;
+        return context.l10n.equalizerPresetVocal;
       case 'rock':
-        return context.l10n!.equalizerPresetRock;
+        return context.l10n.equalizerPresetRock;
       case 'pop':
-        return context.l10n!.equalizerPresetPop;
+        return context.l10n.equalizerPresetPop;
       case 'electronic':
-        return context.l10n!.equalizerPresetElectronic;
+        return context.l10n.equalizerPresetElectronic;
       default:
         return presetId;
     }
@@ -203,13 +203,13 @@ class _EqualizerPageState extends State<EqualizerPage> {
     if (!Platform.isAndroid) {
       return Scaffold(
         appBar: AppBar(
-          title: Text(context.l10n!.equalizer),
+          title: Text(context.l10n.equalizer),
         ),
         body: Center(
           child: Padding(
             padding: commonSingleChildScrollViewPadding,
             child: Text(
-              context.l10n!.equalizerAndroidOnly,
+              context.l10n.equalizerAndroidOnly,
               style: Theme.of(context).textTheme.bodyLarge,
               textAlign: TextAlign.center,
             ),
@@ -220,11 +220,11 @@ class _EqualizerPageState extends State<EqualizerPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(context.l10n!.equalizer),
+        title: Text(context.l10n.equalizer),
         actions: [
           IconButton(
             icon: const Icon(FluentIcons.arrow_clockwise_24_filled),
-            tooltip: context.l10n!.equalizerResetBands,
+            tooltip: context.l10n.equalizerResetBands,
             onPressed: () async {
               await audioHandler.resetEqualizerBands();
               final params = _params;
@@ -244,7 +244,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
               child: Padding(
                 padding: commonSingleChildScrollViewPadding,
                 child: Text(
-                  context.l10n!.equalizerInitFailed,
+                  context.l10n.equalizerInitFailed,
                   style: Theme.of(context).textTheme.bodyLarge,
                   textAlign: TextAlign.center,
                 ),
@@ -268,15 +268,15 @@ class _EqualizerPageState extends State<EqualizerPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                context.l10n!.equalizerEnable,
+                                context.l10n.equalizerEnable,
                                 style: Theme.of(context).textTheme.titleMedium
                                     ?.copyWith(color: colorScheme.onSurface),
                               ),
                               const SizedBox(height: 4),
                               Text(
                                 _enabled
-                                    ? context.l10n!.equalizerEnabledHint
-                                    : context.l10n!.equalizerDisabledHint,
+                                    ? context.l10n.equalizerEnabledHint
+                                    : context.l10n.equalizerDisabledHint,
                                 style: Theme.of(context).textTheme.bodySmall,
                               ),
                             ],
@@ -303,7 +303,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        context.l10n!.equalizerPresets,
+                        context.l10n.equalizerPresets,
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                       const SizedBox(height: 12),
@@ -347,7 +347,7 @@ class _EqualizerPageState extends State<EqualizerPage> {
                         child: Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            context.l10n!.equalizerBands,
+                            context.l10n.equalizerBands,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                         ),

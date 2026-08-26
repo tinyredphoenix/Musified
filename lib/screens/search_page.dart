@@ -198,7 +198,7 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).colorScheme.primary;
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.search)),
+      appBar: AppBar(title: Text(context.l10n.search)),
       body: SingleChildScrollView(
         padding: commonSingleChildScrollViewPadding,
         child: Column(
@@ -214,7 +214,7 @@ class _SearchPageState extends State<SearchPage> {
                     loadingProgressNotifier: _fetchingSongs,
                     controller: _searchBar,
                     focusNode: _inputNode,
-                    labelText: '${context.l10n!.search}...',
+                    labelText: '${context.l10n.search}...',
                     onChanged: (value) {
                       // debounce suggestions to avoid rapid API calls
                       _debounce?.cancel();
@@ -346,7 +346,7 @@ class _SearchPageState extends State<SearchPage> {
     if (_artistsSearchResult.isNotEmpty) {
       widgets.add(
         SectionTitle(
-          context.l10n!.artists,
+          context.l10n.artists,
           primaryColor,
           icon: FluentIcons.person_24_filled,
         ),
@@ -380,7 +380,7 @@ class _SearchPageState extends State<SearchPage> {
     if (_songsSearchResult.isNotEmpty) {
       widgets.add(
         SectionTitle(
-          context.l10n!.songs,
+          context.l10n.songs,
           primaryColor,
           icon: FluentIcons.music_note_1_24_filled,
         ),
@@ -409,7 +409,7 @@ class _SearchPageState extends State<SearchPage> {
     if (_albumsSearchResult.isNotEmpty) {
       widgets.add(
         SectionTitle(
-          context.l10n!.albums,
+          context.l10n.albums,
           primaryColor,
           icon: FluentIcons.album_24_filled,
         ),
@@ -441,7 +441,7 @@ class _SearchPageState extends State<SearchPage> {
     if (_playlistsSearchResult.isNotEmpty) {
       widgets.add(
         SectionTitle(
-          context.l10n!.playlists,
+          context.l10n.playlists,
           primaryColor,
           icon: FluentIcons.text_bullet_list_24_filled,
         ),
@@ -476,7 +476,7 @@ class _SearchPageState extends State<SearchPage> {
     if (_radioStationsSearchResult.isNotEmpty) {
       widgets.add(
         SectionTitle(
-          context.l10n!.radioStations,
+          context.l10n.radioStations,
           primaryColor,
           icon: FluentIcons.speaker_2_24_filled,
         ),
@@ -505,7 +505,7 @@ class _SearchPageState extends State<SearchPage> {
                   genre: station.genre,
                 );
                 if (!success && context.mounted) {
-                  showToast(context, context.l10n!.failedPlayingRadio);
+                  showToast(context, context.l10n.failedPlayingRadio);
                 }
               },
             ),
@@ -527,8 +527,8 @@ class _SearchPageState extends State<SearchPage> {
       context: context,
       builder: (BuildContext context) {
         return ConfirmationDialog(
-          confirmationMessage: context.l10n!.removeSearchQueryQuestion,
-          submitMessage: context.l10n!.confirm,
+          confirmationMessage: context.l10n.removeSearchQueryQuestion,
+          submitMessage: context.l10n.confirm,
           onCancel: () {
             Navigator.of(context).pop(false);
           },

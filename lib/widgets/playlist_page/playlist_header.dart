@@ -104,7 +104,7 @@ class PlaylistHeader extends StatelessWidget {
               if (isArtist)
                 _Chip(
                   icon: FluentIcons.person_16_regular,
-                  label: context.l10n!.artist,
+                  label: context.l10n.artist,
                   color: colorScheme.primaryContainer,
                   onColor: colorScheme.onPrimaryContainer,
                   theme: theme,
@@ -115,8 +115,8 @@ class PlaylistHeader extends StatelessWidget {
                       ? FluentIcons.cd_16_regular
                       : FluentIcons.apps_list_24_regular,
                   label: isAlbum!
-                      ? context.l10n!.album
-                      : context.l10n!.playlist,
+                      ? context.l10n.album
+                      : context.l10n.playlist,
                   color: colorScheme.primaryContainer,
                   onColor: colorScheme.onPrimaryContainer,
                   theme: theme,
@@ -124,7 +124,7 @@ class PlaylistHeader extends StatelessWidget {
               if (songsLength != null)
                 _Chip(
                   icon: FluentIcons.text_bullet_list_24_filled,
-                  label: '$songsLength ${context.l10n!.songs}',
+                  label: '$songsLength ${context.l10n.songs}',
                   color: colorScheme.secondaryContainer,
                   onColor: colorScheme.onSecondaryContainer,
                   theme: theme,
@@ -132,7 +132,7 @@ class PlaylistHeader extends StatelessWidget {
               if (monthlyListeners != null)
                 _Chip(
                   icon: FluentIcons.headphones_20_filled,
-                  label: '$monthlyListeners ${context.l10n!.monthlyListeners}',
+                  label: '$monthlyListeners ${context.l10n.monthlyListeners}',
                   color: colorScheme.secondaryContainer,
                   onColor: colorScheme.onSecondaryContainer,
                   theme: theme,

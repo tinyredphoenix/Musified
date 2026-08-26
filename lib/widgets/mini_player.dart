@@ -33,20 +33,22 @@ import 'package:musify/widgets/marquee.dart';
 import 'package:musify/widgets/song_artwork.dart';
 import 'package:rxdart/rxdart.dart';
 
-final Stream<FullPlayerState> _fullPlayerStateStream =
-    Rx.combineLatest3(
-          audioHandler.playbackStateStream,
-          audioHandler.queue.distinct(),
-          audioHandler.positionDataStream,
-          (PlaybackState state, List<MediaItem> queue, PositionData pos) =>
-              FullPlayerState(
-                playbackState: state,
-                queue: queue,
-                position: pos,
-              ),
-        )
-        .throttleTime(const Duration(milliseconds: 120), trailing: true)
-        .asBroadcastStream();
+Stream<FullPlayerState> get _fullPlayerStateStream {
+  if (!isAudioHandlerInitialized) return const Stream<FullPlayerState>.empty();
+  return Rx.combineLatest3(
+        audioHandler.playbackStateStream,
+        audioHandler.queue.distinct(),
+        audioHandler.positionDataStream,
+        (PlaybackState state, List<MediaItem> queue, PositionData pos) =>
+            FullPlayerState(
+              playbackState: state,
+              queue: queue,
+              position: pos,
+            ),
+      )
+      .throttleTime(const Duration(milliseconds: 120), trailing: true)
+      .asBroadcastStream();
+}
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -58,6 +60,7 @@ class MiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (!isAudioHandlerInitialized) return const SizedBox.shrink();
     final colorScheme = Theme.of(context).colorScheme;
 
     return AnimatedSize(

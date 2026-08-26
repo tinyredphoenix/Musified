@@ -34,7 +34,7 @@ class ShufflePlayButton extends StatelessWidget {
     return IconButton.filledTonal(
       icon: const Icon(FluentIcons.arrow_shuffle_24_regular),
       iconSize: 24,
-      tooltip: context.l10n!.shuffle,
+      tooltip: context.l10n.shuffle,
       onPressed: () async {
         if (songs.isEmpty) return;
         final shuffledSongs = List<Map>.from(songs.whereType<Map>());

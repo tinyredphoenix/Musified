@@ -63,7 +63,7 @@ class _PlaylistAddToPlaylistButtonState
       icon: const Icon(FluentIcons.album_add_24_regular),
       iconSize: 24,
       onPressed: _resolveAndAdd,
-      tooltip: context.l10n!.addToPlaylist,
+      tooltip: context.l10n.addToPlaylist,
     );
   }
 
@@ -75,7 +75,7 @@ class _PlaylistAddToPlaylistButtonState
     try {
       playlist = await widget.resolvePlaylist();
     } catch (_) {
-      if (mounted) showToast(context, context.l10n!.error);
+      if (mounted) showToast(context, context.l10n.error);
       return;
     } finally {
       if (mounted) setState(() => _isResolving = false);
@@ -83,13 +83,13 @@ class _PlaylistAddToPlaylistButtonState
     if (!mounted) return;
 
     if (playlist == null || playlist['list'] is! List) {
-      showToast(context, context.l10n!.error);
+      showToast(context, context.l10n.error);
       return;
     }
 
     final songs = playlist['list'] as List;
     if (songs.isEmpty) {
-      showToast(context, context.l10n!.noSongsInPlaylist);
+      showToast(context, context.l10n.noSongsInPlaylist);
       return;
     }
 

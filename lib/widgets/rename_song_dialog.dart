@@ -71,7 +71,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
         SnackBar(
           behavior: SnackBarBehavior.floating,
           margin: EdgeInsets.fromLTRB(16, 12, 16, bottomMargin),
-          content: Text(context.l10n!.fieldsNotEmpty),
+          content: Text(context.l10n.fieldsNotEmpty),
           duration: const Duration(seconds: 2),
         ),
       );
@@ -88,7 +88,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
 
     return AlertDialog(
       title: Text(
-        context.l10n!.renameSong,
+        context.l10n.renameSong,
         style: TextStyle(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w600,
@@ -101,7 +101,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
             TextField(
               controller: _titleController,
               decoration: InputDecoration(
-                labelText: context.l10n!.name,
+                labelText: context.l10n.name,
                 labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -118,7 +118,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
             TextField(
               controller: _artistController,
               decoration: InputDecoration(
-                labelText: context.l10n!.artist,
+                labelText: context.l10n.artist,
                 labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -144,7 +144,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: Text(context.l10n!.cancel),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: _handleRename,
@@ -154,7 +154,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: Text(context.l10n!.confirm),
+          child: Text(context.l10n.confirm),
         ),
       ],
     );

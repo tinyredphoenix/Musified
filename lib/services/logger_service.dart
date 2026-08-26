@@ -48,9 +48,9 @@ class Logger {
     try {
       if (_logs != '') {
         await Clipboard.setData(ClipboardData(text: _logs));
-        return '${context.l10n!.copyLogsSuccess}.';
+        return '${context.l10n.copyLogsSuccess}.';
       } else {
-        return '${context.l10n!.copyLogsNoLogs}.';
+        return '${context.l10n.copyLogsNoLogs}.';
       }
     } catch (e, stackTrace) {
       log('Error copying logs', error: e, stackTrace: stackTrace);

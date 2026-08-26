@@ -190,7 +190,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
       _NavigationItem(
         icon: CupertinoIcons.house,
         selectedIcon: CupertinoIcons.house_fill,
-        label: context.l10n?.home ?? 'Home',
+        label: context.l10n.home,
         shellIndex: 0,
       ),
     ];
@@ -201,7 +201,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
         _NavigationItem(
           icon: CupertinoIcons.search,
           selectedIcon: CupertinoIcons.search,
-          label: context.l10n?.search ?? 'Search',
+          label: context.l10n.search,
           shellIndex: 1,
         ),
       );
@@ -211,13 +211,13 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
       _NavigationItem(
         icon: CupertinoIcons.music_albums,
         selectedIcon: CupertinoIcons.music_albums_fill,
-        label: context.l10n?.library ?? 'Library',
+        label: context.l10n.library,
         shellIndex: 2,
       ),
       _NavigationItem(
         icon: CupertinoIcons.gear_alt,
         selectedIcon: CupertinoIcons.gear_alt_fill,
-        label: context.l10n?.settings ?? 'Settings',
+        label: context.l10n.settings,
         shellIndex: 3,
       ),
     ]);

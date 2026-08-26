@@ -55,7 +55,7 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
   bool canRemove = false,
   bool showGoToArtist = false,
 }) {
-  final l10n = context.l10n!;
+  final l10n = context.l10n;
   final playNextText = l10n.playNext;
   final addToQueueText = l10n.addToQueue;
   final removeFromLikedSongsText = l10n.removeFromLikedSongs;
@@ -182,7 +182,7 @@ Future<void> _handleSongMenuAction({
       await audioHandler.playNext(song);
       showToast(
         context,
-        context.l10n!.songAdded,
+        context.l10n.songAdded,
         duration: const Duration(seconds: 1),
       );
       break;
@@ -202,7 +202,7 @@ Future<void> _handleSongMenuAction({
       await audioHandler.addToQueue(song);
       showToast(
         context,
-        context.l10n!.songAdded,
+        context.l10n.songAdded,
         duration: const Duration(seconds: 1),
       );
       break;
@@ -212,8 +212,8 @@ Future<void> _handleSongMenuAction({
       showToast(
         context,
         newValue
-            ? context.l10n!.addedToLikedSongs
-            : context.l10n!.removedFromLikedSongs,
+            ? context.l10n.addedToLikedSongs
+            : context.l10n.removedFromLikedSongs,
         duration: const Duration(seconds: 1),
       );
       try {
@@ -266,7 +266,7 @@ Future<void> _toggleSongOfflineStatus(
         ytid,
       );
       if (success && context.mounted) {
-        showToast(context, context.l10n!.songRemovedFromOffline);
+        showToast(context, context.l10n.songRemovedFromOffline);
       }
       if (!success) {
         songOfflineStatus.value = originalValue;
@@ -275,7 +275,7 @@ Future<void> _toggleSongOfflineStatus(
       songOfflineStatus.value = originalValue;
       logger.log('Error removing offline status', error: e);
       if (context.mounted) {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n.error);
       }
     }
   } else {
@@ -285,7 +285,7 @@ Future<void> _toggleSongOfflineStatus(
         try {
           final success = await makeSongOffline(song, source: source, quality: quality);
           if (success && context.mounted) {
-            showToast(context, context.l10n!.songAddedToOffline);
+            showToast(context, context.l10n.songAddedToOffline);
           }
           if (!success) {
             songOfflineStatus.value = originalValue;
@@ -296,7 +296,7 @@ Future<void> _toggleSongOfflineStatus(
           songOfflineStatus.value = originalValue;
           logger.log('Error making offline', error: e);
           if (context.mounted) {
-            showToast(context, context.l10n!.error);
+            showToast(context, context.l10n.error);
           }
         } finally {
           songDownloadStatus.value = false;
@@ -638,7 +638,7 @@ class _SongBarState extends State<SongBar> {
             _songTitle = newTitle;
             _songArtist = newArtist;
           });
-          showToast(context, context.l10n!.settingChangedMsg);
+          showToast(context, context.l10n.settingChangedMsg);
         }
       } else if (widget.playlistId != null) {
         await renameSongInPlaylist(
@@ -654,14 +654,14 @@ class _SongBarState extends State<SongBar> {
             _songTitle = newTitle;
             _songArtist = newArtist;
           });
-          showToast(context, context.l10n!.settingChangedMsg);
+          showToast(context, context.l10n.settingChangedMsg);
           widget.onRenamed?.call();
         }
       }
     } catch (e, stackTrace) {
       logger.log('Error renaming song', error: e, stackTrace: stackTrace);
       if (context.mounted) {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n.error);
       }
     }
   }

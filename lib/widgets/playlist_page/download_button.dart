@@ -106,7 +106,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
               iconSize: 24,
               onPressed: () =>
                   showRemoveOfflinePlaylistDialog(context, playlistId),
-              tooltip: context.l10n!.removeOffline,
+              tooltip: context.l10n.removeOffline,
             );
           }
 
@@ -139,7 +139,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
                 icon: const Icon(FluentIcons.arrow_download_24_filled),
                 iconSize: 24,
                 onPressed: () => _download(context),
-                tooltip: context.l10n!.downloadPlaylist,
+                tooltip: context.l10n.downloadPlaylist,
               );
             },
           );
@@ -169,7 +169,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
               icon: const Icon(FluentIcons.dismiss_24_filled, size: 16),
               onPressed: () =>
                   offlinePlaylistService.cancelDownload(context, playlistId),
-              tooltip: context.l10n!.cancel,
+              tooltip: context.l10n.cancel,
             ),
         ],
       ),
@@ -184,7 +184,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
     try {
       playlist = await widget.resolvePlaylist();
     } catch (_) {
-      if (context.mounted) showToast(context, context.l10n!.error);
+      if (context.mounted) showToast(context, context.l10n.error);
       return;
     } finally {
       if (mounted) setState(() => _isResolving = false);
@@ -192,7 +192,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
     if (!context.mounted) return;
 
     if (playlist == null) {
-      showToast(context, context.l10n!.error);
+      showToast(context, context.l10n.error);
       return;
     }
 

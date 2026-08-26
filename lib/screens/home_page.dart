@@ -131,8 +131,8 @@ class _HomePageState extends State<HomePage> {
     if (playlists.isEmpty) return const SizedBox.shrink();
 
     final sectionTitle = showOnlyLiked
-        ? context.l10n!.backToFavorites
-        : context.l10n!.suggestedPlaylists;
+        ? context.l10n.backToFavorites
+        : context.l10n.suggestedPlaylists;
     final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
 
     return Column(
@@ -199,7 +199,7 @@ class _HomePageState extends State<HomePage> {
         return Column(
           children: [
             SectionHeader(
-              title: context.l10n!.timeMachine,
+              title: context.l10n.timeMachine,
               icon: FluentIcons.data_trending_24_filled,
             ),
             ListeningRecapCard(
@@ -215,7 +215,7 @@ class _HomePageState extends State<HomePage> {
                 child: FilledButton.tonalIcon(
                   onPressed: () => context.push('/home/timeMachine'),
                   icon: const Icon(FluentIcons.arrow_right_24_regular),
-                  label: Text(context.l10n!.listeningStats),
+                  label: Text(context.l10n.listeningStats),
                 ),
               ),
             ),
@@ -231,7 +231,7 @@ class _HomePageState extends State<HomePage> {
   ) async {
     if (songs.isEmpty) return;
     await audioHandler.playPlaylistSong(
-      playlist: {'title': context.l10n!.timeMachine, 'list': songs},
+      playlist: {'title': context.l10n.timeMachine, 'list': songs},
       songIndex: index,
     );
   }
@@ -240,7 +240,7 @@ class _HomePageState extends State<HomePage> {
     BuildContext context,
     List<dynamic> data,
   ) {
-    final recommendedTitle = context.l10n!.recommendedForYou;
+    final recommendedTitle = context.l10n.recommendedForYou;
 
     return Column(
       children: [

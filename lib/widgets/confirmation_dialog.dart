@@ -43,7 +43,7 @@ class ConfirmationDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     if (Theme.of(context).platform == TargetPlatform.iOS) {
       return CupertinoAlertDialog(
-        title: Text(context.l10n!.confirmation),
+        title: Text(context.l10n.confirmation),
         content: confirmationMessage != null
             ? Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -53,7 +53,7 @@ class ConfirmationDialog extends StatelessWidget {
         actions: [
           CupertinoDialogAction(
             onPressed: onCancel,
-            child: Text(context.l10n!.cancel),
+            child: Text(context.l10n.cancel),
           ),
           CupertinoDialogAction(
             isDestructiveAction: isDangerous,
@@ -75,7 +75,7 @@ class ConfirmationDialog extends StatelessWidget {
         size: 32,
       ),
       title: Text(
-        context.l10n!.confirmation,
+        context.l10n.confirmation,
         style: TextStyle(
           color: colorScheme.onSurface,
           fontWeight: FontWeight.w600,
@@ -98,7 +98,7 @@ class ConfirmationDialog extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
             ),
           ),
-          child: Text(context.l10n!.cancel),
+          child: Text(context.l10n.cancel),
         ),
         FilledButton(
           onPressed: onSubmit,

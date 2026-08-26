@@ -41,7 +41,7 @@ class ArtistBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final title = normalizeArtistDisplayTitle(
-      artist['title']?.toString() ?? context.l10n!.artist,
+      artist['title']?.toString() ?? context.l10n.artist,
     );
     final image = normalizeArtistThumbnailUrl(artist['image']?.toString());
 
@@ -73,7 +73,7 @@ class ArtistBar extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      context.l10n!.artist,
+                      context.l10n.artist,
                       style: TextStyle(
                         color: colorScheme.onSurfaceVariant,
                         fontSize: 12,

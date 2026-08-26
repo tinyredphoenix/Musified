@@ -102,13 +102,13 @@ class _PlaylistLikeButtonState extends State<PlaylistLikeButton> {
                 icon: icon,
                 iconSize: 24,
                 onPressed: _toggleLikeStatus,
-                tooltip: context.l10n!.removeFromLikedPlaylists,
+                tooltip: context.l10n.removeFromLikedPlaylists,
               )
             : IconButton.filledTonal(
                 icon: icon,
                 iconSize: 24,
                 onPressed: _toggleLikeStatus,
-                tooltip: context.l10n!.addToLikedPlaylists,
+                tooltip: context.l10n.addToLikedPlaylists,
               );
       },
     );

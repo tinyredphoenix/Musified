@@ -66,17 +66,17 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
   Future<void> _importPlaylist() async {
     if (_isImporting) return;
     if (_importRunning) {
-      showToast(context, context.l10n!.spotifyPlaylistAlreadyImporting);
+      showToast(context, context.l10n.spotifyPlaylistAlreadyImporting);
       return;
     }
     final playlistName = _playlistNameController.text.trim();
     if (playlistName.isEmpty) {
-      showToast(context, context.l10n!.enterPlaylistName);
+      showToast(context, context.l10n.enterPlaylistName);
       return;
     }
     final records = _parseCsv(_csvController.text);
     if (records.length < 2) {
-      showToast(context, context.l10n!.spotifyPlaylistEmpty);
+      showToast(context, context.l10n.spotifyPlaylistEmpty);
       return;
     }
 
@@ -97,7 +97,7 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
       (header) => header.contains('artist') && isNameColumn(header),
     );
     if (songIndex == -1 || artistIndex == -1) {
-      showToast(context, context.l10n!.spotifyPlaylistInvalid);
+      showToast(context, context.l10n.spotifyPlaylistInvalid);
       return;
     }
 
@@ -107,7 +107,7 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
           row[songIndex].trim().isNotEmpty;
     }).toList();
     if (songs.isEmpty) {
-      showToast(context, context.l10n!.spotifyPlaylistEmpty);
+      showToast(context, context.l10n.spotifyPlaylistEmpty);
       return;
     }
 
@@ -172,8 +172,8 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
     setState(() => _isImporting = false);
 
     final resultText = rateLimited
-        ? '${context.l10n!.spotifyPlaylistImportFailed}\n${context.l10n!.spotifyPlaylistImportResult(foundSongs.length, rows.length)}'
-        : context.l10n!.spotifyPlaylistImportResult(
+        ? '${context.l10n.spotifyPlaylistImportFailed}\n${context.l10n.spotifyPlaylistImportResult(foundSongs.length, rows.length)}'
+        : context.l10n.spotifyPlaylistImportResult(
             foundSongs.length,
             rows.length,
           );
@@ -185,8 +185,8 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
       if (mounted) {
         showToastWithButton(
           context,
-          '$resultText\n${context.l10n!.spotifyPlaylistMissingSongs}',
-          context.l10n!.copy,
+          '$resultText\n${context.l10n.spotifyPlaylistMissingSongs}',
+          context.l10n.copy,
           () => Clipboard.setData(ClipboardData(text: missingText)),
           duration: const Duration(seconds: 8),
           icon: FluentIcons.warning_24_regular,
@@ -319,34 +319,34 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: Text(context.l10n!.importSpotifyPlaylistTitle)),
+      appBar: AppBar(title: Text(context.l10n.importSpotifyPlaylistTitle)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(context.l10n!.importSpotifyPlaylistInstructions),
+            Text(context.l10n.importSpotifyPlaylistInstructions),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: () => launchURL(
                 Uri.parse('https://www.chosic.com/spotify-playlist-exporter/'),
               ),
               icon: const Icon(FluentIcons.open_24_regular),
-              label: Text(context.l10n!.openChosicExporter),
+              label: Text(context.l10n.openChosicExporter),
             ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: _isImporting ? null : _chooseFile,
               icon: const Icon(FluentIcons.document_add_24_regular),
-              label: Text(_fileName ?? context.l10n!.chooseCsvFile),
+              label: Text(_fileName ?? context.l10n.chooseCsvFile),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _playlistNameController,
               enabled: !_isImporting,
               decoration: InputDecoration(
-                labelText: '${context.l10n!.playlistName} *',
-                hintText: context.l10n!.spotifyPlaylistNameHint,
+                labelText: '${context.l10n.playlistName} *',
+                hintText: context.l10n.spotifyPlaylistNameHint,
                 filled: true,
                 fillColor: colorScheme.surfaceContainerHigh,
                 border: OutlineInputBorder(
@@ -362,8 +362,8 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
               minLines: 10,
               maxLines: 18,
               decoration: InputDecoration(
-                labelText: context.l10n!.pasteCsv,
-                hintText: context.l10n!.spotifyCsvHint,
+                labelText: context.l10n.pasteCsv,
+                hintText: context.l10n.spotifyCsvHint,
                 alignLabelWithHint: true,
                 filled: true,
                 fillColor: colorScheme.surfaceContainerHigh,
@@ -385,8 +385,8 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
                   : const Icon(FluentIcons.arrow_upload_24_regular),
               label: Text(
                 _isImporting
-                    ? context.l10n!.spotifyPlaylistImporting
-                    : context.l10n!.importPlaylist,
+                    ? context.l10n.spotifyPlaylistImporting
+                    : context.l10n.importPlaylist,
               ),
             ),
             if (_isImporting && _totalCount > 0) ...[
@@ -399,7 +399,7 @@ class _ImportSpotifyPlaylistPageState extends State<ImportSpotifyPlaylistPage> {
               ),
               const SizedBox(height: 8),
               Text(
-                context.l10n!.spotifyPlaylistProgress(
+                context.l10n.spotifyPlaylistProgress(
                   _processedCount,
                   _totalCount,
                 ),

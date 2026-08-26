@@ -186,7 +186,7 @@ class PlaylistBar extends StatelessWidget {
                                   pinnedPlaylistsLimit) {
                             showToast(
                               context,
-                              context.l10n!.pinnedPlaylistsLimit,
+                              context.l10n.pinnedPlaylistsLimit,
                             );
                           }
                         }
@@ -244,8 +244,8 @@ class PlaylistBar extends StatelessWidget {
                               ? FluentIcons.pin_off_24_regular
                               : FluentIcons.pin_24_regular,
                           label: isPinned
-                              ? context.l10n!.unpinFromLibrary
-                              : context.l10n!.pinToLibrary,
+                              ? context.l10n.unpinFromLibrary
+                              : context.l10n.pinToLibrary,
                           colorScheme: colorScheme,
                         ),
                       if (!isFolder && (onDelete == null || !isUserCreated))
@@ -253,22 +253,22 @@ class PlaylistBar extends StatelessWidget {
                           value: 'like',
                           icon: likeStatusToIconMapper[isLiked]!,
                           label: isLiked
-                              ? context.l10n!.removeFromLikedPlaylists
-                              : context.l10n!.addToLikedPlaylists,
+                              ? context.l10n.removeFromLikedPlaylists
+                              : context.l10n.addToLikedPlaylists,
                           colorScheme: colorScheme,
                         ),
                       if (_canAddToPlaylist)
                         buildPopupMenuItem<String>(
                           value: 'add_to_playlist',
                           icon: FluentIcons.album_add_24_regular,
-                          label: context.l10n!.addToPlaylist,
+                          label: context.l10n.addToPlaylist,
                           colorScheme: colorScheme,
                         ),
                       if (isOffline)
                         buildPopupMenuItem<String>(
                           value: 'remove_offline',
                           icon: FluentIcons.cloud_off_24_regular,
-                          label: context.l10n!.removeOffline,
+                          label: context.l10n.removeOffline,
                           colorScheme: colorScheme,
                           iconColor: colorScheme.error,
                         ),
@@ -279,7 +279,7 @@ class PlaylistBar extends StatelessWidget {
                         buildPopupMenuItem<String>(
                           value: 'moveToFolder',
                           icon: FluentIcons.folder_24_regular,
-                          label: context.l10n!.moveToFolder,
+                          label: context.l10n.moveToFolder,
                           colorScheme: colorScheme,
                         ),
                       if (playlistData != null &&
@@ -289,8 +289,8 @@ class PlaylistBar extends StatelessWidget {
                           value: 'edit',
                           icon: FluentIcons.edit_24_regular,
                           label: isFolder
-                              ? context.l10n!.editFolder
-                              : context.l10n!.editPlaylist,
+                              ? context.l10n.editFolder
+                              : context.l10n.editPlaylist,
                           colorScheme: colorScheme,
                         ),
                       if (onDelete != null)
@@ -298,8 +298,8 @@ class PlaylistBar extends StatelessWidget {
                           value: 'delete',
                           icon: FluentIcons.delete_24_regular,
                           label: isFolder
-                              ? context.l10n!.deleteFolder
-                              : context.l10n!.deletePlaylist,
+                              ? context.l10n.deleteFolder
+                              : context.l10n.deletePlaylist,
                           colorScheme: colorScheme,
                           iconColor: isFolder
                               ? colorScheme.error
@@ -371,7 +371,7 @@ class PlaylistBar extends StatelessWidget {
             ),
           ),
           title: Text(
-            context.l10n!.moveToFolder,
+            context.l10n.moveToFolder,
             style: TextStyle(
               color: colorScheme.onSurface,
               fontWeight: FontWeight.w600,
@@ -410,7 +410,7 @@ class PlaylistBar extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Text(
-                      context.l10n!.noFolders,
+                      context.l10n.noFolders,
                       style: TextStyle(color: colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
@@ -426,7 +426,7 @@ class PlaylistBar extends StatelessWidget {
                         icon: FluentIcons.library_24_regular,
                         iconColor: colorScheme.primary,
                         iconBgColor: colorScheme.primaryContainer,
-                        label: context.l10n!.library,
+                        label: context.l10n.library,
                         onTap: () {
                           Navigator.pop(context);
                           if (playlistData != null) {
@@ -471,7 +471,7 @@ class PlaylistBar extends StatelessWidget {
                   side: BorderSide(color: colorScheme.outline),
                 ),
                 child: Text(
-                  context.l10n!.cancel,
+                  context.l10n.cancel,
                   style: TextStyle(
                     color: colorScheme.onSurface,
                     fontWeight: FontWeight.w600,
@@ -508,8 +508,8 @@ class PlaylistBar extends StatelessWidget {
     final playlistCount = (playlistData!['playlists'] as List?)?.length ?? 0;
     return Text(
       playlistCount == 1
-          ? '1 ${context.l10n!.playlist.toLowerCase()}'
-          : '$playlistCount ${context.l10n!.playlists.toLowerCase()}',
+          ? '1 ${context.l10n.playlist.toLowerCase()}'
+          : '$playlistCount ${context.l10n.playlists.toLowerCase()}',
       style: TextStyle(
         color: Theme.of(context).colorScheme.onSurfaceVariant,
         fontSize: 12,
@@ -534,7 +534,7 @@ class PlaylistBar extends StatelessWidget {
       if (_resolvedPlaylistId == null ||
           _resolvedPlaylistId!.isEmpty ||
           _resolvedPlaylistId == 'null') {
-        showToast(context, context.l10n!.error);
+        showToast(context, context.l10n.error);
         return;
       }
 
@@ -552,7 +552,7 @@ class PlaylistBar extends StatelessWidget {
 
   Future<void> _handleAddPlaylistToPlaylist(BuildContext context) async {
     if (_resolvedPlaylistId == null) {
-      showToast(context, context.l10n!.error);
+      showToast(context, context.l10n.error);
       return;
     }
 
@@ -578,13 +578,13 @@ class PlaylistBar extends StatelessWidget {
       Navigator.pop(navContext);
 
       if (fullPlaylist == null || fullPlaylist['list'] == null) {
-        showToast(navContext, navContext.l10n!.error);
+        showToast(navContext, navContext.l10n.error);
         return;
       }
 
       final tracks = fullPlaylist['list'] as List<dynamic>;
       if (tracks.isEmpty) {
-        showToast(navContext, navContext.l10n!.noSongsInPlaylist);
+        showToast(navContext, navContext.l10n.noSongsInPlaylist);
         return;
       }
 
@@ -592,7 +592,7 @@ class PlaylistBar extends StatelessWidget {
     } catch (e) {
       if (navContext.mounted) {
         Navigator.pop(navContext);
-        showToast(navContext, navContext.l10n!.error);
+        showToast(navContext, navContext.l10n.error);
       }
     }
   }
@@ -623,7 +623,7 @@ class PlaylistBar extends StatelessWidget {
         unawaited(syncOfflinePlaylistMetadata(result));
 
         final appCtx = NavigationManager().context;
-        showToast(appCtx, appCtx.l10n!.playlistUpdated);
+        showToast(appCtx, appCtx.l10n.playlistUpdated);
       }
     }
   }
@@ -643,7 +643,7 @@ class PlaylistBar extends StatelessWidget {
           size: 32,
         ),
         title: Text(
-          context.l10n!.editFolder,
+          context.l10n.editFolder,
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -651,7 +651,7 @@ class PlaylistBar extends StatelessWidget {
         ),
         content: TextFormField(
           decoration: InputDecoration(
-            labelText: context.l10n!.folderName,
+            labelText: context.l10n.folderName,
             prefixIcon: Icon(
               FluentIcons.text_field_20_regular,
               color: colorScheme.onSurfaceVariant,
@@ -668,7 +668,7 @@ class PlaylistBar extends StatelessWidget {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text(
-              context.l10n!.cancel,
+              context.l10n.cancel,
               style: TextStyle(color: colorScheme.onSurfaceVariant),
             ),
           ),
@@ -683,7 +683,7 @@ class PlaylistBar extends StatelessWidget {
               showToast(context, result);
             },
             icon: const Icon(FluentIcons.save_20_regular),
-            label: Text(context.l10n!.update),
+            label: Text(context.l10n.update),
           ),
         ],
       ),

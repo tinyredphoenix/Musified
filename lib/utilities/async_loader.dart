@@ -29,7 +29,7 @@ Widget _defaultAsyncLoaderErrorBuilder(
   Object? error,
   StackTrace? stack,
 ) {
-  return Center(child: Text('${context.l10n!.error}!'));
+  return Center(child: Text('${context.l10n.error}!'));
 }
 
 /// A small helper that reduces boilerplate around common FutureBuilder

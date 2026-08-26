@@ -78,7 +78,7 @@ void showCreatePlaylistDialog(
               ),
             ),
             title: Text(
-              context.l10n!.addPlaylist,
+              context.l10n.addPlaylist,
               style: TextStyle(
                 color: colorScheme.onSurface,
                 fontWeight: FontWeight.w600,
@@ -187,7 +187,7 @@ void showCreatePlaylistDialog(
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      context.l10n!.custom,
+                                      context.l10n.custom,
                                       style: TextStyle(
                                         color: !isYouTubeMode
                                             ? colorScheme.onPrimaryContainer
@@ -209,7 +209,7 @@ void showCreatePlaylistDialog(
                   if (isYouTubeMode)
                     TextField(
                       decoration: InputDecoration(
-                        labelText: context.l10n!.youtubePlaylistLinkOrId,
+                        labelText: context.l10n.youtubePlaylistLinkOrId,
                         prefixIcon: Icon(
                           FluentIcons.link_20_regular,
                           color: colorScheme.onSurfaceVariant,
@@ -227,7 +227,7 @@ void showCreatePlaylistDialog(
                   else ...[
                     TextField(
                       decoration: InputDecoration(
-                        labelText: context.l10n!.customPlaylistName,
+                        labelText: context.l10n.customPlaylistName,
                         prefixIcon: Icon(
                           FluentIcons.text_field_20_regular,
                           color: colorScheme.onSurfaceVariant,
@@ -247,7 +247,7 @@ void showCreatePlaylistDialog(
                       const SizedBox(height: 12),
                       TextField(
                         decoration: InputDecoration(
-                          labelText: context.l10n!.customPlaylistImgUrl,
+                          labelText: context.l10n.customPlaylistImgUrl,
                           prefixIcon: Icon(
                             FluentIcons.image_20_regular,
                             color: colorScheme.onSurfaceVariant,
@@ -288,7 +288,7 @@ void showCreatePlaylistDialog(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: Text(context.l10n!.cancel),
+                child: Text(context.l10n.cancel),
               ),
               FilledButton.icon(
                 onPressed: () async {
@@ -329,12 +329,12 @@ void showCreatePlaylistDialog(
                   } else {
                     showToast(
                       context,
-                      '${context.l10n!.provideIdOrNameError}.',
+                      '${context.l10n.provideIdOrNameError}.',
                     );
                   }
                 },
                 icon: const Icon(FluentIcons.add_20_filled),
-                label: Text(context.l10n!.add),
+                label: Text(context.l10n.add),
               ),
             ],
           );
@@ -368,7 +368,7 @@ void showAddToPlaylistDialog(
           ),
         ),
         title: Text(
-          context.l10n!.addToPlaylist,
+          context.l10n.addToPlaylist,
           style: TextStyle(
             color: colorScheme.onSurface,
             fontWeight: FontWeight.w600,
@@ -402,7 +402,7 @@ void showAddToPlaylistDialog(
                     Padding(
                       padding: const EdgeInsets.symmetric(vertical: 32),
                       child: Text(
-                        context.l10n!.noCustomPlaylists,
+                        context.l10n.noCustomPlaylists,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
@@ -541,7 +541,7 @@ void showAddToPlaylistDialog(
         actionsAlignment: MainAxisAlignment.end,
         actions: [
           TextButton(
-            child: Text(context.l10n!.cancel),
+            child: Text(context.l10n.cancel),
             onPressed: () => Navigator.pop(context),
           ),
           FilledButton.icon(
@@ -554,7 +554,7 @@ void showAddToPlaylistDialog(
               );
             },
             icon: const Icon(FluentIcons.add_24_regular, size: 18),
-            label: Text(context.l10n!.addPlaylist),
+            label: Text(context.l10n.addPlaylist),
           ),
         ],
       );

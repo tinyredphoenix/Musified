@@ -25,7 +25,6 @@ import 'package:app_links/app_links.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:material_ui/material_ui.dart';
@@ -79,7 +78,7 @@ class Musify extends StatefulWidget {
     Color? newAccentColor,
     bool? useSystemColor,
   }) async {
-    context.findAncestorStateOfType<_MusifyState>()!.changeSettings(
+    context.findAncestorStateOfType<_MusifyState>()?.changeSettings(
       newThemeMode: newThemeMode,
       newLocale: newLocale,
       newAccentColor: newAccentColor,
@@ -182,31 +181,7 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
       );
     }
 
-    if (!isFdroidBuild) {
-      if (shouldWeCheckUpdates.value == true) {
-        if (!isUpdateChecked && kReleaseMode) {
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            if (!offlineMode.value) {
-              // checkAppUpdates();  // Disabled - Musified uses its own repo
-            }
-            isUpdateChecked = true;
-          });
-        }
-      } else {
-        if (shouldWeCheckUpdates.value == null) {
-          // show dialog that asks user if they want to enable update checks
-          SchedulerBinding.instance.addPostFrameCallback((_) {
-            showUpdateCheckDialog(NavigationManager().context);
-          });
-        } else {
-          SchedulerBinding.instance.addPostFrameCallback((_) async {
-            if (!offlineMode.value) {
-              await fetchAnnouncementOnly();
-            }
-          });
-        }
-      }
-    }
+
   }
 
   @override
@@ -477,7 +452,7 @@ void handleIncomingLink(Uri? uri) async {
     if (isDuplicate) {
       showToast(
         NavigationManager().context,
-        NavigationManager().context.l10n!.playlistAlreadyExists,
+        NavigationManager().context.l10n.playlistAlreadyExists,
       );
     } else {
       userCustomPlaylists.value = [...userCustomPlaylists.value, playlist];
@@ -490,7 +465,7 @@ void handleIncomingLink(Uri? uri) async {
       );
       showToast(
         NavigationManager().context,
-        '${NavigationManager().context.l10n!.addedSuccess}!',
+        '${NavigationManager().context.l10n.addedSuccess}!',
       );
     }
   } catch (e) {
@@ -501,6 +476,6 @@ void handleIncomingLink(Uri? uri) async {
 void _showPlaylistError() {
   showToast(
     NavigationManager().context,
-    NavigationManager().context.l10n!.failedToLoadPlaylist,
+    NavigationManager().context.l10n.failedToLoadPlaylist,
   );
 }
