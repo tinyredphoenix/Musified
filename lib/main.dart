@@ -194,28 +194,29 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
             ? Brightness.light
             : Brightness.dark,
       ),
-            child: CupertinoApp.router(
-        theme: CupertinoThemeData(
-          brightness: overlayBrightness,
-          primaryColor: const Color(0xFF007AFF),
-          scaffoldBackgroundColor: overlayBrightness == Brightness.dark
-              ? MusifiedStyle.oledBlack
-              : MusifiedStyle.lightCanvas,
-          barBackgroundColor: overlayBrightness == Brightness.dark
-              ? MusifiedStyle.elevated
-              : MusifiedStyle.lightElevated,
-          textTheme: const CupertinoTextThemeData(
-            textStyle: TextStyle(
-              fontFamily: '.SF Pro Text',
-              fontSize: 17,
-              decoration: TextDecoration.none,
-            ),
-          ),
-        ),
+      child: MaterialApp.router(
+        themeMode: themeMode,
+        theme: themes.light,
+        darkTheme: themes.dark,
         builder: (context, child) {
-          // Provide Material Theme as a fallback so Material widgets don't crash
-          return Theme(
-            data: overlayBrightness == Brightness.dark ? themes.dark : themes.light,
+          return CupertinoTheme(
+            data: CupertinoThemeData(
+              brightness: overlayBrightness,
+              primaryColor: const Color(0xFF007AFF),
+              scaffoldBackgroundColor: overlayBrightness == Brightness.dark
+                  ? MusifiedStyle.oledBlack
+                  : MusifiedStyle.lightCanvas,
+              barBackgroundColor: overlayBrightness == Brightness.dark
+                  ? MusifiedStyle.elevated
+                  : MusifiedStyle.lightElevated,
+              textTheme: const CupertinoTextThemeData(
+                textStyle: TextStyle(
+                  fontFamily: '.SF Pro Text',
+                  fontSize: 17,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
             child: DefaultTextStyle(
               style: const TextStyle(decoration: TextDecoration.none),
               child: child ?? const SizedBox.shrink(),

@@ -79,108 +79,79 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
           }
           _previousOfflineMode = isOfflineMode;
 
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final isLargeScreen = MediaQuery.of(context).size.width >= 600;
-              final items = _getNavigationItems(isOfflineMode);
+          final items = _getNavigationItems(isOfflineMode);
 
-              return Scaffold(
-                extendBody: true,
-                body: SafeArea(
-                  child: Row(
+          return Scaffold(
+            extendBody: true,
+            body: SafeArea(
+              child: StreamBuilder<bool>(
+                initialData: false,
+                stream: _miniPlayerVisibilityStream,
+                builder: (context, snapshot) {
+                  final mediaQuery = MediaQuery.of(context);
+                  final isMiniPlayerVisible = snapshot.data ?? false;
+                  final bottomPadding = !isMiniPlayerVisible
+                      ? mediaQuery.padding.bottom
+                      : mediaQuery.padding.bottom +
+                            miniPlayerTotalHeight;
+
+                  return Stack(
+                    alignment: Alignment.bottomCenter,
                     children: [
-                      if (isLargeScreen)
-                        NavigationRail(
-                          labelType: NavigationRailLabelType.selected,
-                          destinations: items
-                              .map(
-                                (item) => NavigationRailDestination(
-                                  icon: Icon(item.icon),
-                                  selectedIcon: Icon(item.selectedIcon),
-                                  label: Text(item.label),
-                                ),
-                              )
-                              .toList(),
-                          selectedIndex: _getCurrentIndex(items, isOfflineMode),
-                          onDestinationSelected: (index) =>
-                              _onTabTapped(index, items),
+                      MediaQuery(
+                        data: mediaQuery.copyWith(
+                          padding: mediaQuery.padding.copyWith(
+                            bottom: bottomPadding,
+                          ),
                         ),
-                      Expanded(
-                        child: StreamBuilder<bool>(
-                          initialData: false,
-                          stream: _miniPlayerVisibilityStream,
-                          builder: (context, snapshot) {
-                            final mediaQuery = MediaQuery.of(context);
-                            final isMiniPlayerVisible = snapshot.data ?? false;
-                            final bottomPadding = !isMiniPlayerVisible
-                                ? mediaQuery.padding.bottom
-                                : mediaQuery.padding.bottom +
-                                      miniPlayerTotalHeight;
-
-                            return Stack(
-                              alignment: Alignment.bottomCenter,
-                              children: [
-                                MediaQuery(
-                                  data: mediaQuery.copyWith(
-                                    padding: mediaQuery.padding.copyWith(
-                                      bottom: bottomPadding,
-                                    ),
-                                  ),
-                                  child: widget.child,
-                                ),
-                                const Padding(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 8,
-                                  ),
-                                  child: MiniPlayer(),
-                                ),
-                              ],
-                            );
-                          },
+                        child: widget.child,
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
                         ),
+                        child: MiniPlayer(),
                       ),
                     ],
+                  );
+                },
+              ),
+            ),
+            bottomNavigationBar: CupertinoTheme(
+              data: CupertinoThemeData(
+                brightness: Theme.of(context).brightness,
+                primaryColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: CupertinoTabBar(
+                currentIndex: _getCurrentIndex(items, isOfflineMode),
+                onTap: (index) => _onTabTapped(index, items),
+                activeColor: Theme.of(context).colorScheme.primary,
+                inactiveColor: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withValues(alpha: 0.55),
+                backgroundColor: Theme.of(context).colorScheme.surface,
+                iconSize: 24,
+                border: Border(
+                  top: BorderSide(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .outlineVariant,
+                    width: 0.5,
                   ),
                 ),
-                bottomNavigationBar: !isLargeScreen
-                    ? CupertinoTheme(
-                        data: CupertinoThemeData(
-                          brightness: Theme.of(context).brightness,
-                          primaryColor: Theme.of(context).colorScheme.primary,
-                        ),
-                        child: CupertinoTabBar(
-                          currentIndex: _getCurrentIndex(items, isOfflineMode),
-                          onTap: (index) => _onTabTapped(index, items),
-                          activeColor: Theme.of(context).colorScheme.primary,
-                          inactiveColor: Theme.of(context)
-                              .colorScheme
-                              .onSurfaceVariant
-                              .withValues(alpha: 0.55),
-                          backgroundColor: Theme.of(context).colorScheme.surface,
-                          iconSize: 24,
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outlineVariant,
-                              width: 0.5,
-                            ),
-                          ),
-                          items: items
-                              .map(
-                                (item) => BottomNavigationBarItem(
-                                  icon: Icon(item.icon),
-                                  activeIcon: Icon(item.selectedIcon),
-                                  label: item.label,
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      )
-                    : null,
-              );
-            },
+                items: items
+                    .map(
+                      (item) => BottomNavigationBarItem(
+                        icon: Icon(item.icon),
+                        activeIcon: Icon(item.selectedIcon),
+                        label: item.label,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
           );
         },
       ),
