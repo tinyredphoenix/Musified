@@ -38,6 +38,7 @@ import 'package:musify/services/source_resolver.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:musify/services/artist_service.dart' show ytMusicClient;
 import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/services/youtube_music_sync_service.dart';
 
@@ -231,13 +232,20 @@ Future<bool> _validateCachedUrl(String cachedUrl) async {
 
 Future<List> fetchSongsList(String searchQuery) async {
   try {
-    // If not in cache, perform the search
-    final List<Video> searchResults = await ytClient.search.search(searchQuery);
-    final songsList = searchResults
+    // 1. Search YouTube Music catalog for songs only (avoids news, vlogs, reactions)
+    final musicTracks = await ytMusicClient.music.searchSongs(searchQuery);
+    if (musicTracks.isNotEmpty) {
+      return musicTracks
+          .map((video) => returnSongLayout(0, video))
+          .toList();
+    }
+
+    // 2. Fallback: query YouTube with music filter suffix
+    final List<Video> searchResults =
+        await ytClient.search.search('$searchQuery audio');
+    return searchResults
         .map((video) => returnSongLayout(0, video))
         .toList();
-
-    return songsList;
   } catch (e, stackTrace) {
     logger.log('Error in fetchSongsList', error: e, stackTrace: stackTrace);
     return [];

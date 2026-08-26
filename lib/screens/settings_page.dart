@@ -30,6 +30,7 @@ import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/screens/youtube_auth_webview.dart';
 import 'package:musify/constants/app_constants.dart';
+import 'package:musify/constants/version.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/screens/search_page.dart';
@@ -655,6 +656,31 @@ class SettingsPage extends StatelessWidget {
               }
             }
           },
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 28),
+          child: Center(
+            child: Column(
+              children: [
+                Text(
+                  'Musified v$appVersion (Build 3)',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'YouTube Music + JioSaavn 320k Lossless',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ],
     );

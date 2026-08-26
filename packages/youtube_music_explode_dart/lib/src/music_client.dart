@@ -263,6 +263,42 @@ class MusicClient {
     return isValidating ? null : fallback;
   }
 
+  /// Searches the YouTube Music "Songs" catalog for [query], returning pure music tracks.
+  Future<List<Video>> searchSongs(String query, {int limit = 20}) async {
+    final normalizedQuery = query.trim();
+    if (normalizedQuery.isEmpty) return const [];
+
+    try {
+      final root = await _httpClient.sendPost('search', {
+        'context': _remixContext,
+        'query': normalizedQuery,
+        'params': _songsSearchParams,
+      }, validate: true);
+
+      final results = <Video>[];
+      for (final item in _findRenderers(
+        root,
+        'musicResponsiveListItemRenderer',
+      )) {
+        final videoId = _trackVideoId(item);
+        if (videoId == null) continue;
+
+        final title = _flexColumnText(item, 0);
+        if (title == null || title.isEmpty) continue;
+
+        final subtitleParts = _splitBullets(_flexColumnText(item, 1));
+        final artist = subtitleParts.isNotEmpty ? subtitleParts.first : '';
+
+        final video = _trackVideo(item, videoId, title, artist, null);
+        results.add(video);
+        if (results.length >= limit) break;
+      }
+      return results;
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// Splits a `Song • Artist • Album` style subtitle line on its bullet
   /// separators.
   List<String> _splitBullets(String? text) {
