@@ -553,7 +553,7 @@ class SettingsPage extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  'Musified v$appVersion (Build 3)',
+                  'Musified v$appVersion',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,

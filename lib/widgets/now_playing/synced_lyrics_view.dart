@@ -24,7 +24,6 @@ class SyncedLyricsView extends StatefulWidget {
 class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   List<LrcLine>? _parsedLyrics;
   StreamSubscription? _positionSub;
-  Duration _currentPosition = Duration.zero;
   final ScrollController _scrollController = ScrollController();
   int _currentIndex = -1;
 
@@ -93,13 +92,29 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   void _startListening() {
     _positionSub?.cancel();
-    // Using audioHandler.positionStream since positionDataStream is not a standard audio_service stream usually, or we can use AudioService.position
     _positionSub = AudioService.position.listen((position) {
-      if (!mounted) return;
-      setState(() {
-        _currentPosition = position;
-        _updateCurrentIndex();
-      });
+      if (!mounted || _parsedLyrics == null) return;
+
+      int newIndex = -1;
+      final lyrics = _parsedLyrics;
+      if (lyrics != null) {
+        for (int i = 0; i < lyrics.length; i++) {
+          if (position >= lyrics[i].time) {
+            newIndex = i;
+          } else {
+            break;
+          }
+        }
+      }
+
+      if (newIndex != _currentIndex && newIndex >= 0) {
+        if (mounted) {
+          setState(() {
+            _currentIndex = newIndex;
+          });
+          _scrollToCurrentLine();
+        }
+      }
     });
   }
 
@@ -108,31 +123,16 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     _positionSub = null;
   }
 
-  void _updateCurrentIndex() {
-    if (_parsedLyrics == null) return;
-    int newIndex = -1;
-    for (int i = 0; i < _parsedLyrics!.length; i++) {
-      if (_currentPosition >= _parsedLyrics![i].time) {
-        newIndex = i;
-      } else {
-        break;
-      }
-    }
-    
-    if (newIndex != _currentIndex && newIndex >= 0) {
-      _currentIndex = newIndex;
-      _scrollToCurrentLine();
-    }
-  }
-
   void _scrollToCurrentLine() {
     if (_scrollController.hasClients && _currentIndex >= 0) {
-      // Calculate approximate position
-      final double position = _currentIndex * 60.0; // Rough height per item
+      final double targetOffset = (_currentIndex * 58.0).clamp(
+        0.0,
+        _scrollController.position.maxScrollExtent,
+      );
       _scrollController.animateTo(
-        position,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+        targetOffset,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
       );
     }
   }
@@ -165,31 +165,44 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 100, horizontal: 24),
+      padding: const EdgeInsets.symmetric(vertical: 120, horizontal: 28),
       physics: const BouncingScrollPhysics(),
       itemCount: _parsedLyrics!.length,
       itemBuilder: (context, index) {
         final line = _parsedLyrics![index];
         final isCurrent = index == _currentIndex;
         final isPast = index < _currentIndex;
-        
-        final color = isCurrent 
-            ? Colors.white 
-            : (isPast ? Colors.white.withValues(alpha: 0.6) : Colors.white.withValues(alpha: 0.3));
 
         return GestureDetector(
           onTap: () {
             audioHandler.seek(line.time);
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12.0),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.symmetric(
+              vertical: isCurrent ? 16.0 : 10.0,
+            ),
             child: Text(
               line.text,
               style: TextStyle(
-                fontSize: isCurrent ? 24 : 20,
-                fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
-                color: color,
-                height: 1.4,
+                fontSize: isCurrent ? 26 : 21,
+                fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                color: isCurrent
+                    ? Colors.white
+                    : (isPast
+                        ? Colors.white.withValues(alpha: 0.55)
+                        : Colors.white.withValues(alpha: 0.28)),
+                height: 1.35,
+                shadows: isCurrent
+                    ? [
+                        Shadow(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
               ),
               textAlign: TextAlign.center,
             ),

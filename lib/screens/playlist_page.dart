@@ -255,7 +255,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
                   const SliverMiniPlayerBottomSpace(),
                 ],
               )
-            : EmptyPlaylistState(message: context.l10n.error),
+            : CustomScrollView(
+                slivers: [
+                  EmptyPlaylistState(message: context.l10n.error),
+                ],
+              ),
       ),
     );
   }

@@ -27,6 +27,7 @@ enum RotateSide { right, left, top, bottom }
 
 class FlipCardController {
   _FlipCardState? _state;
+  final ValueNotifier<bool> isFront = ValueNotifier<bool>(true);
 
   Future<void> flipcard() async {
     await _state?.flipCard();
@@ -98,6 +99,7 @@ class _FlipCardState extends State<FlipCard>
     if (_animationController.isAnimating) return;
     _startAngle = _targetAngle;
     _targetAngle = _targetAngle == 0 ? math.pi : 0;
+    widget.controller.isFront.value = _targetAngle == 0;
     await _animationController.forward(from: 0);
   }
 

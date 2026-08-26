@@ -26,6 +26,7 @@ import 'package:http/http.dart' as http;
 
 class LyricsManager {
   Future<String?> fetchLyrics(String artistName, String title) async {
+    // Aggressive cleaning of YouTube title metadata
     var cleanTitle = title
         .replaceAll(RegExp(r'\s*\(.*?video.*?\)', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*\[.*?video.*?\]', caseSensitive: false), '')
@@ -33,27 +34,59 @@ class LyricsManager {
         .replaceAll(RegExp(r'\s*\[.*?audio.*?\]', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*\(.*?lyrics.*?\)', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*\[.*?lyrics.*?\]', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(.*?official.*?\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\[.*?official.*?\]', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(.*?feat.*?\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(.*?ft\..*?\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\[.*?prod\..*?\]', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(.*?prod\..*?\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*4k|hd|8k|hq', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*lyrics', caseSensitive: false), '')
         .replaceAll(RegExp(r'\s*karaoke', caseSensitive: false), '')
         .trim();
 
-    if (cleanTitle.isEmpty) cleanTitle = title;
-    final primaryArtist = artistName.split(RegExp(r'[,&]')).first.trim();
+    if (cleanTitle.contains(' - ')) {
+      final parts = cleanTitle.split(' - ');
+      if (parts.length == 2) {
+        // Could be "Artist - Track" or "Track - Artist"
+        if (parts[0].toLowerCase().contains(artistName.toLowerCase())) {
+          cleanTitle = parts[1].trim();
+        } else if (parts[1].toLowerCase().contains(artistName.toLowerCase())) {
+          cleanTitle = parts[0].trim();
+        }
+      }
+    } else if (cleanTitle.contains(' | ')) {
+      cleanTitle = cleanTitle.split(' | ').first.trim();
+    }
 
-    // 1. Primary open lyrics catalog: LrcLib
+    if (cleanTitle.isEmpty) cleanTitle = title;
+    final primaryArtist = artistName
+        .split(RegExp(r'[,&|/]'))
+        .first
+        .replaceAll(RegExp(r' - Topic', caseSensitive: false), '')
+        .replaceAll(RegExp(r'VEVO', caseSensitive: false), '')
+        .trim();
+
+    // 1. Primary open lyrics catalog: LrcLib (exact query)
     final lrcLibLyrics = await _fetchLyricsFromLrcLib(primaryArtist, cleanTitle);
     if (lrcLibLyrics != null && lrcLibLyrics.isNotEmpty) {
       return lrcLibLyrics;
     }
 
-    // 2. LrcLib fuzzy search fallback
+    // 2. Try swapped or clean title search
     final lrcLibSearchLyrics =
         await _searchLyricsFromLrcLib('$cleanTitle $primaryArtist');
     if (lrcLibSearchLyrics != null && lrcLibSearchLyrics.isNotEmpty) {
       return lrcLibSearchLyrics;
     }
 
-    // 3. Fallbacks
+    // 3. Try searching with just clean title
+    final lrcLibTitleOnly = await _searchLyricsFromLrcLib(cleanTitle);
+    if (lrcLibTitleOnly != null && lrcLibTitleOnly.isNotEmpty) {
+      return lrcLibTitleOnly;
+    }
+
+    // 4. Fallbacks (plain text)
     final lyricsFromLyricsOvh = await _fetchLyricsFromLyricsOvh(
       primaryArtist,
       cleanTitle,
@@ -104,13 +137,19 @@ class LyricsManager {
       if (response.statusCode == 200) {
         final list = jsonDecode(response.body);
         if (list is List && list.isNotEmpty) {
+          // PASS 1: Prioritize synced karaoke lyrics
           for (final item in list) {
             if (item is Map) {
-              final plain = item['plainLyrics'] as String?;
               final synced = item['syncedLyrics'] as String?;
               if (synced != null && synced.trim().isNotEmpty) {
                 return synced.trim();
               }
+            }
+          }
+          // PASS 2: Fall back to plain lyrics
+          for (final item in list) {
+            if (item is Map) {
+              final plain = item['plainLyrics'] as String?;
               if (plain != null && plain.trim().isNotEmpty) {
                 return plain.trim();
               }

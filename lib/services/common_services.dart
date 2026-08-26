@@ -194,23 +194,7 @@ Future<String?> _getCachedSongUrl(
     return null;
   }
 
-  final cacheBox = await Hive.openBox('cache');
-  final cacheDate = cacheBox.get('${cacheKey}_date') as DateTime?;
-  final now = DateTime.now();
-  final isOld =
-      cacheDate != null && now.difference(cacheDate) > _cacheValidationDuration;
-
-  if (!isOld) {
-    return cachedUrl;
-  }
-
-  if (await _validateCachedUrl(cachedUrl)) {
-    return cachedUrl;
-  }
-
-  await deleteData('cache', cacheKey);
-  await deleteData('cache', '${cacheKey}_date');
-  return null;
+  return cachedUrl;
 }
 
 /// Checks if a cached URL still responds successfully.

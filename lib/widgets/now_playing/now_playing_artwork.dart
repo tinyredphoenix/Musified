@@ -161,10 +161,13 @@ class NowPlayingArtwork extends StatelessWidget {
               ],
             ),
           ),
-          builder: (context, lyrics) => SyncedLyricsView(
-            metadata: metadata,
-            lyrics: lyrics ?? context.l10n.lyricsNotAvailable,
-            isActive: true,
+          builder: (context, lyrics) => ValueListenableBuilder<bool>(
+            valueListenable: lyricsController.isFront,
+            builder: (context, isFront, _) => SyncedLyricsView(
+              metadata: metadata,
+              lyrics: lyrics ?? context.l10n.lyricsNotAvailable,
+              isActive: !isFront,
+            ),
           ),
         ),
       ),

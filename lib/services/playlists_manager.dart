@@ -35,6 +35,8 @@ import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/formatter.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/utilities/playlist_utils.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
@@ -1200,6 +1202,24 @@ Future<Map?> _fetchYouTubePlaylist(String id) async {
 
   // 4. Fetch from YouTube as a last resort.
   if (playlist == null) {
+    if (YouTubeAuthService().isSignedIn.value) {
+      try {
+        final ytTracks = await YouTubeMusicSyncService().fetchPlaylistTracks(id);
+        if (ytTracks.isNotEmpty) {
+          playlist = {
+            'ytid': id,
+            'title': 'YouTube Music Playlist',
+            'image': ytTracks.first['image'] ?? '',
+            'source': 'user-youtube',
+            'list': ytTracks,
+          };
+          _updateOnlineCache(playlist);
+          return playlist;
+        }
+      } catch (e) {
+        logger.log('Error fetching playlist in _fetchYouTubePlaylist via sync service: $e');
+      }
+    }
     try {
       final ytPlaylist = await ytClient.playlists.get(id);
       playlist = {
@@ -1259,15 +1279,34 @@ Future<List> getSongsFromPlaylist(
   final songList = await getData('cache', 'playlistSongs$playlistId') ?? [];
 
   if (songList.isEmpty) {
-    await for (final song in ytClient.playlists.getVideos(playlistId)) {
-      songList.add(
-        returnSongLayout(songList.length, song, playlistImage: playlistImage),
-      );
+    if (YouTubeAuthService().isSignedIn.value) {
+      try {
+        final ytTracks = await YouTubeMusicSyncService().fetchPlaylistTracks(playlistId.toString());
+        if (ytTracks.isNotEmpty) {
+          songList.addAll(ytTracks);
+        }
+      } catch (e) {
+        logger.log('Error fetching songs for playlist from YouTube Music: $e');
+      }
     }
 
-    unawaited(
-      addOrUpdateData<List>('cache', 'playlistSongs$playlistId', songList),
-    );
+    if (songList.isEmpty) {
+      try {
+        await for (final song in ytClient.playlists.getVideos(playlistId)) {
+          songList.add(
+            returnSongLayout(songList.length, song, playlistImage: playlistImage),
+          );
+        }
+      } catch (e) {
+        logger.log('Error fetching videos from ytClient: $e');
+      }
+    }
+
+    if (songList.isNotEmpty) {
+      unawaited(
+        addOrUpdateData<List>('cache', 'playlistSongs$playlistId', songList),
+      );
+    }
   }
 
   return songList;

@@ -38,6 +38,7 @@ import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/formatter.dart';
 import 'package:musify/utilities/playlist_dialogs.dart';
+import 'package:musify/utilities/song_info_dialog.dart';
 import 'package:musify/widgets/download_picker_sheet.dart';
 import 'package:musify/widgets/no_artwork_cube.dart';
 import 'package:musify/widgets/overflow_menu_button.dart';
@@ -164,6 +165,12 @@ List<PopupMenuEntry<String>> _buildSongMenuItems({
           },
         ),
       ),
+    buildPopupMenuItem<String>(
+      value: 'song_info',
+      icon: CupertinoIcons.info_circle,
+      label: 'Song Details',
+      colorScheme: colorScheme,
+    ),
   ];
 }
 
@@ -179,6 +186,9 @@ Future<void> _handleSongMenuAction({
   FutureOr<void> Function()? onRename,
 }) async {
   switch (value) {
+    case 'song_info':
+      showSongInfoDialog(context, song as Map);
+      break;
     case 'play_next':
       await audioHandler.playNext(song);
       showToast(
@@ -290,7 +300,15 @@ Future<void> _toggleSongOfflineStatus(
             quality: quality,
           );
           if (success && context.mounted) {
-            showToast(context, context.l10n.songAddedToOffline);
+            final offline = getOfflineSongByYtid(ytid);
+            final actualSource = offline['downloadSource'] == 'jiosaavn'
+                ? 'JioSaavn 320k'
+                : 'YouTube AAC';
+            final fallbackNotice = (source == 'saavn' || source == 'jiosaavn') &&
+                    offline['downloadSource'] == 'youtube'
+                ? ' (not on JioSaavn, saved via YouTube)'
+                : '';
+            showToast(context, 'Downloaded via $actualSource$fallbackNotice');
           }
           if (!success) {
             songOfflineStatus.value = originalValue;

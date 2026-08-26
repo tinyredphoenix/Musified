@@ -56,6 +56,15 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   @override
+  void initState() {
+    super.initState();
+    if (YouTubeAuthService().isSignedIn.value &&
+        YouTubeMusicSyncService().ytMusicPlaylists.value.isEmpty) {
+      unawaited(YouTubeMusicSyncService().syncPlaylists());
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     // Show offline mode message if there is no content
     if (offlineMode.value) {
@@ -195,7 +204,12 @@ class _LibraryPageState extends State<LibraryPage> {
                               if (id != null) {
                                 context.push(
                                   '/home/playlist/$id',
-                                  extra: {'title': title, 'image': image},
+                                  extra: {
+                                    'title': title,
+                                    'image': image,
+                                    'ytid': id,
+                                    'source': 'user-youtube',
+                                  },
                                 );
                               }
                             },

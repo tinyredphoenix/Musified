@@ -215,8 +215,11 @@ class YouTubeMusicSyncService {
 
   Future<List<Map<String, dynamic>>> fetchPlaylistTracks(String playlistId) async {
     try {
+      final browseId = playlistId.startsWith('VL') || playlistId.startsWith('FE')
+          ? playlistId
+          : 'VL$playlistId';
       final response = await _authenticatedPost('/browse', {
-        'browseId': 'VL$playlistId',
+        'browseId': browseId,
       });
       return _parseTrackRenderers(response);
     } catch (e) {

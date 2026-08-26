@@ -144,7 +144,7 @@ class NowPlayingControls extends StatelessWidget {
                       final isLiked = ytid != null && isSongAlreadyLiked(ytid);
                       return CupertinoButton(
                         padding: const EdgeInsets.all(8),
-                        minSize: 36,
+                        minimumSize: const Size(36, 36),
                         onPressed: () {
                           HapticFeedback.mediumImpact();
                           if (ytid != null) {
