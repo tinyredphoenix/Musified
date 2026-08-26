@@ -53,7 +53,11 @@ jobs:
             ${{ runner.os }}-deriveddata-
 
       - name: Install dependencies
-        run: flutter pub get
+        run: |
+          flutter pub get
+          cd ios
+          pod install
+          cd ..
 
       - name: Build iOS App (No Codesign)
         run: flutter build ios --release --no-codesign
