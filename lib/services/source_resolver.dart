@@ -8,7 +8,7 @@ import 'package:musify/utilities/track_matcher.dart';
 class SourceResolver {
   factory SourceResolver() => _instance;
   SourceResolver._();
-  
+
   static final SourceResolver _instance = SourceResolver._();
 
   final JioSaavnService _saavnService = JioSaavnService();
@@ -29,12 +29,15 @@ class SourceResolver {
   }
 
   /// Resolve the best audio source for a song.
-  Future<Map<String, dynamic>?> resolveAudioSource(Map song, {String? quality}) async {
+  Future<Map<String, dynamic>?> resolveAudioSource(
+    Map song, {
+    String? quality,
+  }) async {
     if (!jiosaavnEnabled.value) return null;
-    
-    // Check if user prefers youtube exclusively
-    if (preferredSource.value == 'youtube') return null;
 
+    // Source preference is applied by fetchSongStreamUrl. Keeping this
+    // resolver source-agnostic also lets the now-playing source picker force
+    // JioSaavn for one canonical YouTube track without changing its identity.
     final ytid = song['ytid']?.toString() ?? song['id']?.toString() ?? '';
     if (ytid.isEmpty) return null;
 
@@ -67,10 +70,7 @@ class SourceResolver {
     // Try query with artist first, then title-only fallback
     final title = song['title']?.toString() ?? '';
     final artist = song['artist']?.toString() ?? '';
-    final queries = <String>[
-      '$title $artist'.trim(),
-      title.trim(),
-    ];
+    final queries = <String>['$title $artist'.trim(), title.trim()];
 
     for (final query in queries) {
       if (query.isEmpty) continue;
@@ -97,16 +97,18 @@ class SourceResolver {
 
         if (isMatch) {
           unawaited(cacheMatch(ytid, track));
-          
+
           final encryptedUrl = track['encrypted_media_url']?.toString() ?? '';
           if (encryptedUrl.isEmpty) continue;
           final streamUrl = await _saavnService.getStreamUrl(
             encryptedUrl,
             quality: quality ?? jiosaavnQuality.value,
           );
-          
+
           if (streamUrl != null && streamUrl.isNotEmpty) {
-            logger.log('JioSaavn matched [${track['title']} by ${track['artist']}] for $ytid');
+            logger.log(
+              'JioSaavn matched [${track['title']} by ${track['artist']}] for $ytid',
+            );
             return {
               'url': streamUrl,
               'source': 'saavn',

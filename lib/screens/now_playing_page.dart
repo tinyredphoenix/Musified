@@ -22,7 +22,7 @@
 import 'dart:ui';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
 import 'package:musify/widgets/flip_card.dart';
@@ -126,21 +126,33 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        children: [
-          IconButton(
-            iconSize: 26,
-            icon: const Icon(FluentIcons.chevron_down_24_regular),
-            style: IconButton.styleFrom(
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
+      child: SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            IconButton(
+              iconSize: 22,
+              icon: const Icon(CupertinoIcons.chevron_down),
+              color: colorScheme.onSurface,
+              tooltip: 'Close player',
+              onPressed: () => Navigator.pop(context),
+            ),
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Now Playing',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.2,
+                  ),
+                ),
               ),
             ),
-            onPressed: () => Navigator.pop(context),
-          ),
-        ],
+            const SizedBox(width: 48),
+          ],
+        ),
       ),
     );
   }

@@ -93,7 +93,7 @@ class NowPlayingControls extends StatelessWidget {
                 children: [
                   MarqueeTextWidget(
                     text: metadata.title,
-                    fontColor: colorScheme.secondary,
+                    fontColor: colorScheme.onSurface,
                     fontSize: titleFontSize * fontScale,
                     fontWeight: FontWeight.bold,
                   ),
@@ -106,7 +106,7 @@ class NowPlayingControls extends StatelessWidget {
                           : null,
                       child: MarqueeTextWidget(
                         text: metadata.artist!,
-                        fontColor: colorScheme.onSurfaceVariant,
+                        fontColor: colorScheme.primary,
                         fontSize: artistFontSize * fontScale,
                         fontWeight: FontWeight.w500,
                       ),
@@ -312,7 +312,9 @@ class PlayerControlButtons extends StatelessWidget {
         return IconButton(
           icon: Icon(
             CupertinoIcons.shuffle,
-            color: value ? colorScheme.primary : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            color: value
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
             size: size * 0.9,
           ),
           tooltip: context.l10n.shuffle,

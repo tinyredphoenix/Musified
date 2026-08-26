@@ -23,7 +23,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:audio_service/audio_service.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/full_player_state.dart';
@@ -40,11 +40,7 @@ Stream<FullPlayerState> get _fullPlayerStateStream {
         audioHandler.queue.distinct(),
         audioHandler.positionDataStream,
         (PlaybackState state, List<MediaItem> queue, PositionData pos) =>
-            FullPlayerState(
-              playbackState: state,
-              queue: queue,
-              position: pos,
-            ),
+            FullPlayerState(playbackState: state, queue: queue, position: pos),
       )
       .throttleTime(const Duration(milliseconds: 120), trailing: true)
       .asBroadcastStream();
@@ -54,7 +50,7 @@ class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
   static const double playerHeight = 72;
-  static const double _borderRadius = 20;
+  static const double _borderRadius = 16;
   static const double _artworkSize = 52;
   static const double _artworkRadius = 14;
 
@@ -192,7 +188,7 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
             child: Container(
               height: MiniPlayer.playerHeight,
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.8),
+                color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.92),
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
                 boxShadow: [
                   BoxShadow(
@@ -218,8 +214,8 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                                 duration: const Duration(milliseconds: 300),
                                 switchInCurve: Curves.easeIn,
                                 switchOutCurve: Curves.easeOut,
-                                layoutBuilder: (currentChild, previousChildren) =>
-                                    Stack(
+                                layoutBuilder:
+                                    (currentChild, previousChildren) => Stack(
                                       alignment: Alignment.centerLeft,
                                       children: [
                                         ...previousChildren,
@@ -227,7 +223,10 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                                       ],
                                     ),
                                 transitionBuilder: (child, animation) =>
-                                    FadeTransition(opacity: animation, child: child),
+                                    FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    ),
                                 child: KeyedSubtree(
                                   key: ValueKey(metadata.id),
                                   child: _MetadataWidget(
@@ -324,7 +323,10 @@ class _ArtworkWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: sourceColor,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Theme.of(context).colorScheme.surface, width: 2),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.surface,
+                      width: 2,
+                    ),
                   ),
                 ),
               ),
@@ -420,7 +422,7 @@ class _ControlsWidget extends StatelessWidget {
             splashColor: Colors.transparent,
             highlightColor: Colors.transparent,
             icon: Icon(
-              FluentIcons.next_24_filled,
+              CupertinoIcons.forward_fill,
               color: colorScheme.onSurfaceVariant,
               size: 24,
             ),
@@ -468,12 +470,20 @@ class _CircularPlayButton extends StatelessWidget {
             ),
           ),
           if (isLoading)
-            SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.primary),
+            IconButton(
+              tooltip: 'Cancel loading',
+              onPressed: audioHandler.stop,
+              splashColor: Colors.transparent,
+              highlightColor: Colors.transparent,
+              icon: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    colorScheme.primary,
+                  ),
+                ),
               ),
             )
           else
@@ -485,10 +495,10 @@ class _CircularPlayButton extends StatelessWidget {
               highlightColor: Colors.transparent,
               icon: Icon(
                 isCompleted
-                    ? FluentIcons.arrow_counterclockwise_24_filled
+                    ? CupertinoIcons.arrow_counterclockwise
                     : (isPlaying
-                          ? FluentIcons.pause_16_filled
-                          : FluentIcons.play_16_filled),
+                          ? CupertinoIcons.pause_fill
+                          : CupertinoIcons.play_fill),
                 color: colorScheme.primary,
                 size: 22,
               ),

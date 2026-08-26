@@ -142,25 +142,35 @@ var sleepTimerNotifier = ValueNotifier<Duration?>(null);
 final announcementURL = ValueNotifier<String?>(null);
 
 // JioSaavn settings
+//
+// These previously called `Hive.box('settings')` directly instead of going
+// through `_safeBoxGet` like every other notifier in this file. That throws
+// a HiveError ("Box not found") if anything reads `.value` before/while Hive
+// finishes opening the settings box (or if Phase 1 in main.dart's
+// initialisation() ever fails on a given device) - and `jiosaavnEnabled` in
+// particular sits right in the song-resolution hot path (checked first, on
+// every single song play, before falling back to YouTube), so a stray throw
+// here silently kills playback for that call. Routed through the same safe
+// helper as everything else for consistency.
 
 final jiosaavnEnabled = ValueNotifier<bool>(
-  Hive.box('settings').get('jiosaavnEnabled', defaultValue: true),
+  _safeBoxGet<bool>('jiosaavnEnabled', true),
 );
 
 final jiosaavnQuality = ValueNotifier<String>(
-  Hive.box('settings').get('jiosaavnQuality', defaultValue: '320'),
+  _safeBoxGet<String>('jiosaavnQuality', '320'),
 );
 
 final preferredSource = ValueNotifier<String>(
-  Hive.box('settings').get('preferredSource', defaultValue: 'auto'),
+  _safeBoxGet<String>('preferredSource', 'auto'),
 );
 
 final downloadSource = ValueNotifier<String>(
-  Hive.box('settings').get('downloadSource', defaultValue: 'best'),
+  _safeBoxGet<String>('downloadSource', 'best'),
 );
 
 final downloadQuality = ValueNotifier<String>(
-  Hive.box('settings').get('downloadQuality', defaultValue: '320'),
+  _safeBoxGet<String>('downloadQuality', '320'),
 );
 
 void reloadSettingsFromStorage() {

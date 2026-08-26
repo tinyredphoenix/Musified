@@ -42,6 +42,17 @@ class SongArtworkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Artwork always comes from the source's largest thumbnail (e.g.
+    // YouTube's ~1280x720 maxresdefault.jpg / offline art saved at download
+    // resolution), no matter how small this widget is actually drawn - the
+    // mini player shows it at ~52dp. Without a cache size hint, both
+    // CachedNetworkImage and Image.file decode the artwork at full
+    // resolution on every rebuild, which is exactly the stutter and
+    // "loading" delay on every song change. Bound the decode target to
+    // roughly what will actually be painted (in physical pixels).
+    final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final cacheDimension = (size * devicePixelRatio).round().clamp(64, 800);
+
     return metadata.artUri?.scheme == 'file'
         ? SizedBox(
             width: size,
@@ -51,6 +62,8 @@ class SongArtworkWidget extends StatelessWidget {
               child: Image.file(
                 File(metadata.extras?['artWorkPath']),
                 fit: BoxFit.cover,
+                cacheWidth: cacheDimension,
+                cacheHeight: cacheDimension,
               ),
             ),
           )
@@ -58,6 +71,8 @@ class SongArtworkWidget extends StatelessWidget {
             width: size,
             height: size,
             imageUrl: metadata.artUri.toString(),
+            memCacheWidth: cacheDimension,
+            memCacheHeight: cacheDimension,
             imageBuilder: (context, imageProvider) => ClipRRect(
               borderRadius: BorderRadius.circular(borderRadius),
               child: Image(image: imageProvider, fit: BoxFit.cover),

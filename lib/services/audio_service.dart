@@ -415,7 +415,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
               MediaAction.seekForward,
               MediaAction.seekBackward,
             },
-            androidCompactActionIndices: const [0, 1, 3],
             processingState: newProcessingState,
             playing: isPlaying,
             updatePosition: currentPosition,
@@ -1012,7 +1011,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
             MediaAction.seekForward,
             MediaAction.seekBackward,
           },
-          androidCompactActionIndices: const [0, 1, 3],
           processingState: AudioProcessingState.loading,
           queueIndex:
               queueIndex ??
@@ -1177,8 +1175,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
         preloadUrl = null;
       } else {
         // fetchSongStreamUrl handles caching, freshness checks, and validation
-        preloadUrl = await fetchSongStreamUrl(nextSong, nextSong['isLive'] ?? false)
-            .timeout(
+        preloadUrl =
+            await fetchSongStreamUrl(
+              nextSong,
+              nextSong['isLive'] ?? false,
+            ).timeout(
               const Duration(seconds: 8),
               onTimeout: () {
                 logger.log('Preload timeout for song $ytid');
@@ -1460,7 +1461,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
           MediaAction.seekForward,
           MediaAction.seekBackward,
         },
-        androidCompactActionIndices: const [0, 1, 3],
         processingState: AudioProcessingState.ready,
         queueIndex: 0,
         updateTime: DateTime.now(),
@@ -1650,6 +1650,17 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<bool> playSong(Map song, {String? mediaId, int? transitionId}) async {
+    final ownsTransition = transitionId == null;
+    final effectiveTransitionId = transitionId ?? ++_songTransitionCounter;
+    if (ownsTransition) {
+      _currentLoadingTransitionId = effectiveTransitionId;
+      _currentLoadingIndex = _queueList.indexWhere(
+        (candidate) =>
+            candidate['queueEntryId'] == song['queueEntryId'] ||
+            candidate['ytid']?.toString() == song['ytid']?.toString(),
+      );
+    }
+
     try {
       final songData = cloneMap(song);
 
@@ -1670,19 +1681,25 @@ class MusifyAudioHandler extends BaseAudioHandler {
         logger.log('stop error', error: e, stackTrace: st);
       });
       if (audioPlayer.playing) {
-        listeningStatsService.recordListeningSessionProgress(
-          wasPlaying: true,
-        );
+        listeningStatsService.recordListeningSessionProgress(wasPlaying: true);
       }
       // Resolve source in parallel with stop; stale check after both
-      final playbackFuture = _resolvePlaybackSource(songData);
+      final playbackFuture = _resolvePlaybackSource(songData).timeout(
+        const Duration(seconds: 14),
+        onTimeout: () {
+          logger.log(
+            'Playback source resolution timed out for ${songData['ytid']}',
+          );
+          return null;
+        },
+      );
       await stopFuture;
       final playback = await playbackFuture;
 
       // Abort if a newer song was requested while we were fetching the stream URL.
       // This is the primary guard against the race condition where a slow streaming
       // load overrides a song the user already switched to.
-      if (_isStaleTransition(transitionId)) {
+      if (_isStaleTransition(effectiveTransitionId)) {
         logger.log(
           'Song load superseded by newer request, aborting: ${songData['ytid']}',
         );
@@ -1694,6 +1711,24 @@ class MusifyAudioHandler extends BaseAudioHandler {
         return false;
       }
 
+      // Persist the resolved source on the queue entry for this canonical
+      // ytid. The URL is intentionally not part of the song identity; only
+      // the source/quality metadata follows the track between services.
+      final queueSong = _queueList.cast<Map?>().firstWhere(
+        (candidate) =>
+            candidate?['queueEntryId'] == song['queueEntryId'] ||
+            (song['queueEntryId'] == null &&
+                candidate?['ytid']?.toString() == songData['ytid']?.toString()),
+        orElse: () => null,
+      );
+      if (queueSong != null) {
+        queueSong
+          ..['resolvedSource'] = songData['resolvedSource']
+          ..['resolvedBitrate'] = songData['resolvedBitrate']
+          ..['resolvedFormat'] = songData['resolvedFormat'];
+        _updateQueueMediaItems();
+      }
+
       final audioSource = await buildAudioSource(
         songData,
         playback.songUrl,
@@ -1701,7 +1736,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
       );
 
       // Check again after building the audio source (SponsorBlock fetch can also be slow).
-      if (_isStaleTransition(transitionId)) {
+      if (_isStaleTransition(effectiveTransitionId)) {
         logger.log(
           'Song load superseded after building audio source, aborting: ${songData['ytid']}',
         );
@@ -1714,7 +1749,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
         return false;
       }
 
-      logger.log('Playing [${songData['title']}] source=${songData['resolvedSource']} url=${playback.songUrl}');
+      logger.log(
+        'Playing [${songData['title']}] source=${songData['resolvedSource']} url=${playback.songUrl}',
+      );
 
       return await _setAudioSourceAndPlay(
         songData,
@@ -1722,16 +1759,19 @@ class MusifyAudioHandler extends BaseAudioHandler {
         playback.songUrl,
         playback.isOffline,
         mediaId: mediaId,
-        transitionId: transitionId,
+        transitionId: effectiveTransitionId,
       );
     } catch (e, stackTrace) {
       logger.log('Error playing song', error: e, stackTrace: stackTrace);
       _lastError = e.toString();
       return false;
     } finally {
-      _currentLoadingIndex = -1;
-      _currentLoadingTransitionId = -1;
       _isUpdatingState = false;
+      if (ownsTransition &&
+          _currentLoadingTransitionId == effectiveTransitionId) {
+        _currentLoadingIndex = -1;
+        _currentLoadingTransitionId = -1;
+      }
     }
   }
 
@@ -1744,7 +1784,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
       return null;
     }
 
-    final songUrl = await _getPlaybackUrl(songData, isOffline);
+    final songUrl = await _getPlaybackUrl(
+      songData,
+      isOffline,
+    ).timeout(const Duration(seconds: 14));
 
     if (songUrl == null || songUrl.isEmpty) {
       if (!isOffline) {
@@ -1784,6 +1827,33 @@ class MusifyAudioHandler extends BaseAudioHandler {
     }
 
     return _PlaybackSource(songUrl: songUrl, isOffline: isOffline);
+  }
+
+  /// Re-resolves the current canonical track using one source. The ytid and
+  /// queue entry stay unchanged, so switching between YouTube and JioSaavn
+  /// cannot create a duplicate track or attach the wrong artwork/history.
+  Future<bool> switchSource(String source) async {
+    if (source != 'youtube' && source != 'jiosaavn') return false;
+    final song = currentSong;
+    if (song == null || _songYtid(song) == null) return false;
+
+    final transitionId = ++_songTransitionCounter;
+    _currentLoadingIndex = _currentQueueIndex;
+    _currentLoadingTransitionId = transitionId;
+    final request = cloneMap(song)..['forceSource'] = source;
+    final mediaId = _getMediaItemForQueue(song).id;
+    try {
+      return await playSong(
+        request,
+        mediaId: mediaId,
+        transitionId: transitionId,
+      );
+    } finally {
+      if (_currentLoadingTransitionId == transitionId) {
+        _currentLoadingIndex = -1;
+        _currentLoadingTransitionId = -1;
+      }
+    }
   }
 
   Future<String?> _getPlaybackUrl(Map song, bool isOffline) async {
@@ -1836,7 +1906,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
     int? transitionId,
   }) async {
     try {
-      logger.log('Playing [${song['title']}] source=${song['resolvedSource']} url=$songUrl');
+      logger.log(
+        'Playing [${song['title']}] source=${song['resolvedSource']} url=$songUrl',
+      );
 
       // Final staleness check before we touch the audio player.
       // If another song was requested between the URL fetch and here, abort.
@@ -1857,7 +1929,12 @@ class MusifyAudioHandler extends BaseAudioHandler {
       // could have loaded and started playing while we were buffering/setting up.
       // If so, stop the source we just loaded and yield to the newer song.
       if (_isStaleTransition(transitionId)) {
-        unawaited(audioPlayer.stop());
+        // Only stop if our source is still installed. A newer transition may
+        // already have swapped in its source; stopping unconditionally here
+        // would make the new track appear to pause immediately.
+        if (identical(audioPlayer.audioSource, audioSource)) {
+          unawaited(audioPlayer.stop());
+        }
         return false;
       }
 
@@ -1876,15 +1953,25 @@ class MusifyAudioHandler extends BaseAudioHandler {
           wasPlaying: wasPlayingBeforeSwap,
         )
         ..startListeningSession(song, duration: audioPlayer.duration);
-      await audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
-        logger.log('Error starting playback', error: e, stackTrace: stackTrace);
-        _lastError = e.toString();
-      });
+      // just_audio's play() future completes when playback stops, not when it
+      // starts. Awaiting it kept transitions in a loading state for the whole
+      // song and allowed a later request to race the old one.
+      unawaited(
+        audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
+          logger.log(
+            'Error starting playback',
+            error: e,
+            stackTrace: stackTrace,
+          );
+          _lastError = e.toString();
+        }),
+      );
       unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));
 
       if (!isOffline) {
+        final source = song['resolvedSource']?.toString() ?? 'youtube';
         final cacheKey =
-            'song_${song['ytid']}_${audioQualitySetting.value}_url';
+            'song_${song['ytid']}_${audioQualitySetting.value}_${source}_url';
         unawaited(addOrUpdateData<String>('cache', cacheKey, songUrl));
       }
 
@@ -1957,8 +2044,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
       _lastError = e.toString();
       return false;
     } finally {
-      _currentLoadingIndex = -1;
-      _currentLoadingTransitionId = -1;
       _isUpdatingState = false;
     }
   }
@@ -1971,10 +2056,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     // Do not attempt any network calls when offline mode is enabled.
     if (offlineMode.value) return false;
 
-    final onlineUrl = await fetchSongStreamUrl(
-      song,
-      song['isLive'] ?? false,
-    );
+    final onlineUrl = await fetchSongStreamUrl(song, song['isLive'] ?? false);
     if (onlineUrl != null && onlineUrl.isNotEmpty) {
       final onlineSource = await buildAudioSource(song, onlineUrl, false);
       if (onlineSource != null) {
@@ -2071,14 +2153,16 @@ class MusifyAudioHandler extends BaseAudioHandler {
         wasPlaying: wasPlayingBeforeSwap,
       );
 
-      await audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
-        logger.log(
-          'Error starting radio playback',
-          error: e,
-          stackTrace: stackTrace,
-        );
-        _lastError = e.toString();
-      });
+      unawaited(
+        audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
+          logger.log(
+            'Error starting radio playback',
+            error: e,
+            stackTrace: stackTrace,
+          );
+          _lastError = e.toString();
+        }),
+      );
 
       _updatePlaybackState();
       return true;
@@ -2115,13 +2199,16 @@ class MusifyAudioHandler extends BaseAudioHandler {
       final uri = Uri.parse(songUrl);
       Map<String, String>? headers;
       if (!isOffline) {
-        if (uri.host.contains('googlevideo.com') || uri.host.contains('youtube.com')) {
+        if (uri.host.contains('googlevideo.com') ||
+            uri.host.contains('youtube.com')) {
           headers = {
-            'User-Agent': 'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
+            'User-Agent':
+                'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
           };
         } else if (uri.host.contains('saavncdn.com')) {
           headers = {
-            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)',
+            'User-Agent':
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)',
             'Accept': '*/*',
           };
         }

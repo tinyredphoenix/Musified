@@ -19,6 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/services/settings_manager.dart';
@@ -130,21 +131,21 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     cardTheme: base.cardTheme.copyWith(
       elevation: 0,
       color: cardBgColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
     appBarTheme: base.appBarTheme.copyWith(
       backgroundColor: bgColor,
-      foregroundColor: effectiveColorScheme.primary,
+      foregroundColor: effectiveColorScheme.onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: true,
+      centerTitle: false,
       titleTextStyle: TextStyle(
-        fontSize: 22,
+        fontSize: 34,
         fontWeight: FontWeight.w700,
-        color: effectiveColorScheme.primary,
-        letterSpacing: -0.5,
+        color: effectiveColorScheme.onSurface,
+        letterSpacing: -1.1,
       ),
-      toolbarHeight: 56,
+      toolbarHeight: 62,
       iconTheme: IconThemeData(
         color: effectiveColorScheme.onSurfaceVariant,
         size: 24,
@@ -157,7 +158,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     listTileTheme: base.listTileTheme.copyWith(
       textColor: effectiveColorScheme.primary,
       iconColor: effectiveColorScheme.primary,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     sliderTheme: base.sliderTheme.copyWith(
       year2023: false,
@@ -169,7 +170,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
           ? colorScheme.surfaceContainerLow
           : (isPureBlack ? pureBlackElevated : null),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
     ),
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
@@ -181,7 +182,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
                 ? pureBlackContainerHigh
                 : colorScheme.surfaceContainerHigh),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
       ),
       contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
@@ -190,20 +191,17 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       backgroundColor: isLight
           ? colorScheme.surfaceContainerLow
           : (isPureBlack ? pureBlackContainer : null),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     ),
     navigationBarTheme: base.navigationBarTheme.copyWith(
       backgroundColor: bgColor?.withValues(alpha: 0.85),
       elevation: 0,
-      height: 49,
+      height: 66,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       indicatorColor: Colors.transparent,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return IconThemeData(
-            color: effectiveColorScheme.primary,
-            size: 24,
-          );
+          return IconThemeData(color: effectiveColorScheme.primary, size: 24);
         }
         return IconThemeData(
           color: effectiveColorScheme.onSurfaceVariant,
@@ -214,13 +212,13 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         if (states.contains(WidgetState.selected)) {
           return TextStyle(
             color: effectiveColorScheme.primary,
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: FontWeight.w600,
           );
         }
         return TextStyle(
           color: effectiveColorScheme.onSurfaceVariant,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w500,
         );
       }),
@@ -268,6 +266,12 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       elevation: 2,
       actionTextColor: effectiveColorScheme.secondary,
+    ),
+    pageTransitionsTheme: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+      },
     ),
     visualDensity: VisualDensity.adaptivePlatformDensity,
     useMaterial3: true,

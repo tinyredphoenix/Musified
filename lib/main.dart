@@ -228,7 +228,11 @@ void main() async {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, color: Colors.redAccent, size: 44),
+              const Icon(
+                Icons.error_outline,
+                color: Colors.redAccent,
+                size: 44,
+              ),
               const SizedBox(height: 12),
               const Text(
                 'Musified Notice',
@@ -242,7 +246,11 @@ void main() async {
               const SizedBox(height: 8),
               SelectableText(
                 '${details.exception}\n\n${details.stack?.toString().split('\n').take(12).join('\n') ?? ''}',
-                style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace'),
+                style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 11,
+                  fontFamily: 'monospace',
+                ),
                 textAlign: TextAlign.left,
               ),
             ],
@@ -254,11 +262,26 @@ void main() async {
 
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
-    logger.log('FlutterError', error: details.exception, stackTrace: details.stack);
+    logger.log(
+      'FlutterError',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
   };
 
   try {
-    await initialisation().timeout(const Duration(seconds: 4));
+    // NOTE: this used to be capped at 4 seconds. On a real iOS device
+    // (especially cold-start / first launch / debug builds), opening the
+    // Hive boxes + AudioService.init() (which does real native work: audio
+    // session config, MPRemoteCommandCenter/MPNowPlayingInfoCenter setup)
+    // can legitimately take longer than that. When the old 4s timeout fired,
+    // runApp() was called while `_audioHandlerInstance` was still null, so
+    // any UI built in that window (e.g. tapping play) would find the player
+    // "not ready" - looking exactly like songs silently refusing to play
+    // right after opening the app. The slow AudioService.init() call itself
+    // is now bounded (see Phase 3 below) so 12s here is just a last-resort
+    // safety net, not something we expect to actually hit.
+    await initialisation().timeout(const Duration(seconds: 12));
   } catch (e, st) {
     logger.log('initialisation error or timeout: $e', stackTrace: st);
   }
@@ -309,16 +332,23 @@ Future<void> initialisation() async {
   }
 
   try {
+    // Bounded so a slow/stuck native AudioService setup can never stall the
+    // whole app: if it doesn't finish in time we fall through to the plain
+    // MusifyAudioHandler() below (no system media integration, but songs
+    // still play), instead of leaving `_audioHandlerInstance` null forever.
     _audioHandlerInstance = await AudioService.init(
       builder: MusifyAudioHandler.new,
       config: const AudioServiceConfig(
-        androidNotificationChannelId: 'com.tinyred.musified',
-        androidNotificationChannelName: 'Musified',
-        androidNotificationIcon: 'drawable/ic_launcher_foreground',
-        androidShowNotificationBadge: true,
-        androidStopForegroundOnPause: false,
+        // iOS uses the system Now Playing/remote command surfaces. Keep the
+        // shared configuration platform-neutral; notification fields for a
+        // different platform are intentionally not part of this target.
+        artDownscaleWidth: 1200,
+        artDownscaleHeight: 1200,
+        preloadArtwork: true,
+        fastForwardInterval: Duration(seconds: 15),
+        rewindInterval: Duration(seconds: 15),
       ),
-    );
+    ).timeout(const Duration(seconds: 9));
   } catch (e, stackTrace) {
     logger.log('AudioService init error', error: e, stackTrace: stackTrace);
     // Fallback: create handler directly so UI never sees a LateError.

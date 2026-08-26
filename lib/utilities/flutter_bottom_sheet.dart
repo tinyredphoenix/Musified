@@ -25,13 +25,8 @@ import 'package:material_ui/material_ui.dart';
 PersistentBottomSheetController? _currentBottomSheetController;
 bool _isIOSSheetOpen = false;
 
-/// Shows a bottom sheet that feels native on each platform.
-/// On iOS it uses a Cupertino modal popup with blur, on Android it keeps
-/// the Material persistent bottom sheet.
-dynamic showCustomBottomSheet(
-  BuildContext context,
-  Widget content,
-) {
+/// Shows a bottom sheet using the iOS presentation style.
+dynamic showCustomBottomSheet(BuildContext context, Widget content) {
   final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
   final size = MediaQuery.sizeOf(context);
   final colorScheme = Theme.of(context).colorScheme;

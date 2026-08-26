@@ -51,9 +51,14 @@ MediaItem mapToMediaItem(Map song) {
   final artUri = isOffline && offlineSong['artworkPath'] != null
       ? Uri.file(offlineSong['artworkPath'].toString())
       : Uri.parse(song['highResImage'].toString());
+  // ytid is the canonical track identity shared by YouTube and JioSaavn.
+  // Provider URLs, source labels, and queue-entry ids must never change it.
+  final stableId = (ytid == null || ytid.isEmpty)
+      ? song['id'].toString()
+      : ytid;
 
   return MediaItem(
-    id: song['id'].toString(),
+    id: stableId,
     artist: song['artist'].toString().trim(),
     title: song['title'].toString(),
     artUri: artUri,

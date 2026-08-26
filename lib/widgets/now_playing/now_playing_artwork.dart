@@ -19,9 +19,11 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
@@ -183,90 +185,72 @@ class AudioQualityBadge extends StatelessWidget {
   final MediaItem metadata;
 
   void _showSourcePicker(BuildContext context) {
-    showModalBottomSheet(
+    final currentSource =
+        metadata.extras?['resolvedSource'] as String? ?? 'youtube';
+    final ytid = metadata.extras?['ytid']?.toString() ?? '';
+    final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
+
+    showCupertinoModalPopup<void>(
       context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        final currentSource = metadata.extras?['resolvedSource'] as String? ?? 'youtube';
-        final ytid = metadata.extras?['ytid']?.toString() ?? '';
-        final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
-        
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                  child: Text(
-                    'Switch Audio Source',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
-                ),
-                if (isOffline)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Text('Playing offline - source switching disabled'),
-                  )
-                else ...[
-                  ListTile(
-                    leading: const Icon(FluentIcons.music_note_1_24_regular),
-                    title: const Text('JioSaavn'),
-                    subtitle: const Text('High Quality (AAC)'),
-                    trailing: currentSource == 'jiosaavn' 
-                        ? const Icon(Icons.check_circle, color: Colors.green)
-                        : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (currentSource != 'jiosaavn') {
-                        _replayWithSource('jiosaavn');
-                      }
-                    },
-                  ),
-                  ListTile(
-                    leading: const Icon(FluentIcons.video_clip_24_regular),
-                    title: const Text('YouTube'),
-                    subtitle: const Text('Standard Quality (Opus/AAC)'),
-                    trailing: currentSource == 'youtube' 
-                        ? const Icon(Icons.check_circle, color: Colors.blue)
-                        : null,
-                    onTap: () {
-                      Navigator.pop(context);
-                      if (currentSource != 'youtube') {
-                        _replayWithSource('youtube');
-                      }
-                    },
-                  ),
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Audio source'),
+        message: Text(
+          isOffline
+              ? 'Downloaded tracks use the local file.'
+              : 'Choose the service for this same track.',
+        ),
+        actions: [
+          if (!isOffline)
+            CupertinoActionSheetAction(
+              isDefaultAction: currentSource == 'jiosaavn',
+              onPressed: () {
+                Navigator.pop(context);
+                if (currentSource != 'jiosaavn') {
+                  _replayWithSource('jiosaavn');
+                }
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.music_note_2, size: 18),
+                  SizedBox(width: 8),
+                  Text('JioSaavn · AAC'),
                 ],
-              ],
+              ),
             ),
-          ),
-        );
-      },
+          if (!isOffline)
+            CupertinoActionSheetAction(
+              isDefaultAction: currentSource == 'youtube',
+              onPressed: () {
+                Navigator.pop(context);
+                if (currentSource != 'youtube') {
+                  _replayWithSource('youtube');
+                }
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.play_rectangle, size: 18),
+                  SizedBox(width: 8),
+                  Text('YouTube · Opus/AAC'),
+                ],
+              ),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
     );
   }
 
   void _replayWithSource(String source) {
-    final currentSong = audioHandler.currentSong;
-    if (currentSong != null) {
-      currentSong['forceSource'] = source;
-      audioHandler.playSong(currentSong);
-    }
+    unawaited(audioHandler.switchSource(source));
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!showAudioQualityBadge.value) return const SizedBox.shrink();
-
     final extras = metadata.extras ?? {};
     final ytid = extras['ytid']?.toString() ?? '';
     final offlineSong = getOfflineSongByYtid(ytid);
@@ -274,25 +258,27 @@ class AudioQualityBadge extends StatelessWidget {
 
     String label;
     Color color;
-    
+
     if (isOffline) {
       label = 'Offline';
-      color = Colors.grey;
+      color = Theme.of(context).colorScheme.onSurfaceVariant;
     } else {
       final source = extras['resolvedSource'] as String? ?? 'youtube';
       final bitrate = extras['resolvedBitrate'] as int?;
       final format = extras['resolvedFormat'] as String?;
-      
+
       final codecStr = format != null ? _normalizeCodec(format) : '';
       final bitrateStr = bitrate != null ? '${bitrate}k' : '';
-      final qualityStr = [bitrateStr, codecStr].where((s) => s.isNotEmpty).join(' ');
+      final qualityStr = showAudioQualityBadge.value
+          ? [bitrateStr, codecStr].where((s) => s.isNotEmpty).join(' ')
+          : '';
 
       if (source == 'jiosaavn') {
         label = qualityStr.isNotEmpty ? 'JioSaavn $qualityStr' : 'JioSaavn';
-        color = Colors.green;
+        color = Theme.of(context).colorScheme.primary;
       } else {
         label = qualityStr.isNotEmpty ? 'YouTube $qualityStr' : 'YouTube';
-        color = Colors.blue;
+        color = Theme.of(context).colorScheme.primary;
       }
     }
 
@@ -308,13 +294,12 @@ class AudioQualityBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const Icon(CupertinoIcons.waveform, size: 13, color: Colors.white),
+            const SizedBox(width: 5),
             Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
             const SizedBox(width: 6),
             Text(
