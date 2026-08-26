@@ -68,6 +68,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
   bool _pendingPlaybackStateUpdate = false;
   int _songTransitionCounter = 0;
 
+  bool _isSeeking = false;
+  Duration? _pendingSeekPosition;
+
   bool _completionEventPending = false;
   bool _completionHandlerLoadStarted = false;
 
@@ -587,34 +590,28 @@ class MusifyAudioHandler extends BaseAudioHandler {
     unawaited(
       Future.microtask(() async {
         try {
-          // Only add songs if we're still playing
-          if (!audioPlayer.playing) {
-            return;
-          }
-
           final baseSong = _getCurrentSongForRecommendations();
           if (baseSong == null) {
             return;
           }
 
+          final ytid = baseSong['ytid']?.toString();
+          if (ytid == null || ytid.isEmpty) return;
+
           // Fetch similar songs silently in the background
-          await getSimilarSong(baseSong['ytid']).timeout(
-            const Duration(seconds: 10),
+          await getSimilarSong(ytid).timeout(
+            const Duration(seconds: 8),
             onTimeout: () {
               logger.log('Background song fetch timed out');
             },
           );
 
-          // If we got a recommendation, add it to the queue
-          // But only if still playing (user might have paused during fetch)
-          if (!audioPlayer.playing) {
-            return;
-          }
-
           if (nextRecommendedSong != null) {
             final songToAdd = nextRecommendedSong;
             nextRecommendedSong = null;
-            await _insertRecommendedSong(songToAdd);
+            if (songToAdd != null) {
+              await _insertRecommendedSong(songToAdd);
+            }
           }
         } catch (e, stackTrace) {
           logger.log(
@@ -1605,14 +1602,57 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> seek(Duration position) async {
+    final effectiveDuration =
+        mediaItem.valueOrNull?.duration ?? audioPlayer.duration;
+    var target = position;
+    if (target < Duration.zero) {
+      target = Duration.zero;
+    } else if (effectiveDuration != null &&
+        effectiveDuration > const Duration(seconds: 1)) {
+      final maxSeek = effectiveDuration - const Duration(milliseconds: 500);
+      if (target > maxSeek) {
+        target = maxSeek;
+      }
+    }
+
+    if (_isSeeking) {
+      _pendingSeekPosition = target;
+      return;
+    }
+
+    _isSeeking = true;
+    _pendingSeekPosition = null;
+
     try {
+      final wasPlaying = audioPlayer.playing;
       listeningStatsService.recordListeningSessionProgress(
-        wasPlaying: audioPlayer.playing,
+        wasPlaying: wasPlaying,
       );
-      await audioPlayer.seek(position);
+
+      // Perform seek with a 2.5 second timeout so a dropped native AVPlayer callback never hangs the isolate
+      await audioPlayer.seek(target).timeout(
+        const Duration(milliseconds: 2500),
+        onTimeout: () {
+          logger.log('audioPlayer.seek timed out on iOS AVPlayer');
+        },
+      );
+
+      // Verify that if audio was playing, AVPlayer continues playing after seek
+      if (wasPlaying && !audioPlayer.playing) {
+        await audioPlayer.play();
+      }
+
       unawaited(listeningStatsService.flush());
+      _updatePlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error in seek()', error: e, stackTrace: stackTrace);
+    } finally {
+      _isSeeking = false;
+      final nextSeek = _pendingSeekPosition;
+      _pendingSeekPosition = null;
+      if (nextSeek != null) {
+        unawaited(seek(nextSeek));
+      }
     }
   }
 
@@ -1705,15 +1745,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
         includeMediaItem: true,
         mediaId: mediaId,
       );
-      // Cut previous audio immediately without blocking URL fetch
-      final stopFuture = audioPlayer.stop().catchError((e, st) {
-        logger.log('stop error', error: e, stackTrace: st);
-      });
       if (audioPlayer.playing) {
         listeningStatsService.recordListeningSessionProgress(wasPlaying: true);
       }
-      // Resolve source in parallel with stop; stale check after both
-      final playbackFuture = _resolvePlaybackSource(songData).timeout(
+      final playback = await _resolvePlaybackSource(songData).timeout(
         const Duration(seconds: 14),
         onTimeout: () {
           logger.log(
@@ -1722,8 +1757,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
           return null;
         },
       );
-      await stopFuture;
-      final playback = await playbackFuture;
 
       // Abort if a newer song was requested while we were fetching the stream URL.
       // This is the primary guard against the race condition where a slow streaming
@@ -2349,10 +2382,29 @@ class MusifyAudioHandler extends BaseAudioHandler {
       } else if (repeatNotifier.value == AudioServiceRepeatMode.all &&
           _queueList.isNotEmpty) {
         await _playFromQueue(0);
-      } else if (playNextSongAutomatically.value &&
-          _currentLoadingIndex == -1) {
-        // At end of queue with auto-play enabled - trigger background fetch
-        unawaited(_backgroundAddSongsToQueue());
+      } else if (playNextSongAutomatically.value) {
+        final baseSong = _getCurrentSongForRecommendations();
+        if (baseSong != null) {
+          final ytid = baseSong['ytid']?.toString();
+          if (ytid != null && ytid.isNotEmpty) {
+            await getSimilarSong(ytid).timeout(
+              const Duration(seconds: 6),
+              onTimeout: () {
+                logger.log('Auto-play similar song fetch timed out');
+              },
+            );
+            if (nextRecommendedSong != null) {
+              final songToAdd = nextRecommendedSong;
+              nextRecommendedSong = null;
+              if (songToAdd != null) {
+                await _insertRecommendedSong(songToAdd);
+                if (_currentQueueIndex < _queueList.length - 1) {
+                  await _playFromQueue(_currentQueueIndex + 1);
+                }
+              }
+            }
+          }
+        }
       }
 
       _cleanupOldPreloadedSongs();
