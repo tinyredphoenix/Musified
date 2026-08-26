@@ -837,13 +837,19 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       return cachedUrl;
     }
 
-    // Try JioSaavn only when it is an allowed source. The timeout is short so
-    // an unavailable match never makes the play button feel dead.
+    // Try JioSaavn only when it is an allowed source. If YouTube is also an allowed
+    // source, resolve both concurrently so if JioSaavn doesn't have the track, YouTube
+    // starts playing immediately without waiting 4+ seconds.
     if (jiosaavnEnabled.value && sources.contains('jiosaavn')) {
+      Future<AudioOnlyStreamInfo?>? parallelYtFuture;
+      if (sources.contains('youtube')) {
+        parallelYtFuture = fetchBestAudioStream(songId);
+      }
+
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
-            .timeout(const Duration(seconds: 4), onTimeout: () => null);
+            .timeout(const Duration(milliseconds: 1500), onTimeout: () => null);
         if (saavnSource != null && saavnSource['url'] != null) {
           final url = saavnSource['url'] as String;
           if (url.isNotEmpty) {
@@ -864,6 +870,23 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
         logger.log('JioSaavn search result not found or empty url');
       } catch (e) {
         logger.log('JioSaavn resolve error: $e');
+      }
+
+      if (parallelYtFuture != null) {
+        final selectedStream = await parallelYtFuture;
+        if (selectedStream != null) {
+          final url = selectedStream.url.toString();
+          logger.log('YouTube stream result found: host=${Uri.tryParse(url)?.host}');
+          song['resolvedSource'] = 'youtube';
+          song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
+          song['resolvedFormat'] = selectedStream.audioCodec;
+          await _cacheResolvedStream(songId, 'youtube', url, {
+            'bitrate': selectedStream.bitrate.kiloBitsPerSecond.round(),
+            'format': selectedStream.audioCodec,
+          });
+          logger.log('Final URL resolved via youtube');
+          return url;
+        }
       }
     }
 

@@ -328,24 +328,6 @@ class SettingsPage extends StatelessWidget {
           },
         ),
         ValueListenableBuilder<bool>(
-          valueListenable: useProxy,
-          builder: (_, value, __) {
-            return CustomBar(
-              context.l10n.useProxy,
-              FluentIcons.shield_24_regular,
-              description: context.l10n.useProxyDescription,
-              trailing: Switch(
-                value: value,
-                onChanged: (value) {
-                  useProxy.value = value;
-                  addOrUpdateData<bool>('settings', 'useProxy', value);
-                  showToast(context, context.l10n.settingChangedMsg);
-                },
-              ),
-            );
-          },
-        ),
-        ValueListenableBuilder<bool>(
           valueListenable: wrappedEnabled,
           builder: (_, value, __) {
             return CustomBar(

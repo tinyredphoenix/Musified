@@ -78,14 +78,14 @@ class _PositionSliderState extends State<PositionSlider> {
                 processingState == AudioProcessingState.ready ||
                 processingState == AudioProcessingState.completed;
             final metadataDuration = mediaSnapshot.data?.duration;
-            // During a source transition just_audio can briefly expose the
-            // previous track's duration. Prefer the current MediaItem until
-            // the new source is ready, preventing 2-minute songs from
-            // showing as 4-minute tracks and producing an empty tail.
-            final displayDuration =
-                (mediaChanged || !isSettled) && metadataDuration != null
+            // The metadata duration is canonical from YouTube/JioSaavn catalog.
+            // On iOS CoreAudio, HE-AAC/SBR stream timescales often cause AVPlayer to report
+            // exactly double the duration. Prefer the canonical metadata duration.
+            final displayDuration = (metadataDuration != null && metadataDuration > Duration.zero)
                 ? metadataDuration
-                : _positionData.duration;
+                : (_positionData.duration > Duration.zero
+                    ? _positionData.duration
+                    : Duration.zero);
             final displayPositionData = PositionData(
               processingState == AudioProcessingState.loading
                   ? Duration.zero

@@ -156,8 +156,8 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           if (!_isRadioStation)
             _buildActionButton(
               context: context,
-              icon: FluentIcons.cloud_arrow_down_24_regular,
-              activeIcon: FluentIcons.cloud_off_24_filled,
+              icon: CupertinoIcons.arrow_down_circle,
+              activeIcon: CupertinoIcons.arrow_down_circle_fill,
               colorScheme: colorScheme,
               size: responsiveIconSize,
               statusNotifier: _songOfflineStatus,
@@ -177,7 +177,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           if (!offlineMode.value && !_isRadioStation)
             _buildSimpleActionButton(
               context: context,
-              icon: FluentIcons.album_add_24_regular,
+              icon: CupertinoIcons.plus_square_on_square,
               colorScheme: colorScheme,
               size: responsiveIconSize,
               onPressed: () => showAddToPlaylistDialog(
@@ -189,7 +189,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           if (queue.isNotEmpty && !_isRadioStation && !widget.isLargeScreen)
             _buildSimpleActionButton(
               context: context,
-              icon: FluentIcons.apps_list_24_filled,
+              icon: CupertinoIcons.list_bullet,
               colorScheme: colorScheme,
               size: responsiveIconSize,
               onPressed: () => showCustomBottomSheet(
@@ -202,7 +202,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
             if (!_isRadioStation)
               _buildSimpleActionButton(
                 context: context,
-                icon: FluentIcons.text_quote_24_regular,
+                icon: CupertinoIcons.quote_bubble,
                 colorScheme: colorScheme,
                 size: responsiveIconSize,
                 onPressed: widget.lyricsController.flipcard,
@@ -210,12 +210,12 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               ),
             _buildActionButton(
               context: context,
-              icon: FluentIcons.heart_24_regular,
-              activeIcon: FluentIcons.heart_24_filled,
+              icon: CupertinoIcons.heart,
+              activeIcon: CupertinoIcons.heart_fill,
               colorScheme: colorScheme,
               size: responsiveIconSize,
               statusNotifier: _songLikeStatus,
-              activeColor: colorScheme.primary,
+              activeColor: CupertinoColors.systemPink,
               onPressed: () async {
                 final id = _audioId;
                 if (id == null) return;
@@ -352,8 +352,8 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           },
           child: Icon(
             isActive
-                ? FluentIcons.timer_24_filled
-                : FluentIcons.timer_24_regular,
+                ? CupertinoIcons.timer_fill
+                : CupertinoIcons.timer,
             color: isActive
                 ? colorScheme.primary
                 : colorScheme.onSurfaceVariant,

@@ -255,9 +255,9 @@ class _MobileLayout extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
           Expanded(
-            flex: 7,
+            flex: 5,
             child: Center(
               child: NowPlayingArtwork(
                 size: size,
@@ -268,7 +268,7 @@ class _MobileLayout extends StatelessWidget {
           ),
           if (!isLive)
             Expanded(
-              flex: 4,
+              flex: 5,
               child: NowPlayingControls(
                 size: size,
                 audioId: metadata.extras?['ytid'],

@@ -250,6 +250,16 @@ class MusifyAudioHandler extends BaseAudioHandler {
       _queueList.map(_getMediaItemForQueue).toList(growable: false);
 
   bool _shouldUpdateDuration(Duration? currentDuration, Duration nextDuration) {
+    if (currentDuration != null && currentDuration > Duration.zero) {
+      final ratio = nextDuration.inMilliseconds / currentDuration.inMilliseconds;
+      // Detect iOS CoreAudio / AVPlayer HE-AAC SBR timescale doubling (e.g. 22.05kHz vs 44.1kHz)
+      if (ratio > 1.7 && ratio < 2.3) {
+        return false;
+      }
+      if (ratio > 0.4 && ratio < 0.6) {
+        return false;
+      }
+    }
     return currentDuration == null ||
         !durationEquals(currentDuration, nextDuration);
   }

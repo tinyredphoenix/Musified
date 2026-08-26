@@ -23,6 +23,7 @@ import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -281,30 +282,24 @@ class PlayerControlButtons extends StatelessWidget {
     return ValueListenableBuilder<bool>(
       valueListenable: shuffleNotifier,
       builder: (_, value, __) {
-        return IconButton(
-          icon: Icon(
-            CupertinoIcons.shuffle,
-            color: value
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-            size: size * 0.9,
-          ),
-          tooltip: context.l10n.shuffle,
-          constraints: buttonConstraints,
+        return CupertinoButton(
           padding: buttonPadding,
-          style: IconButton.styleFrom(
-            backgroundColor: value
-                ? colorScheme.primary.withValues(alpha: 0.15)
-                : Colors.transparent,
-            shape: const CircleBorder(),
-          ),
+          minimumSize: Size(buttonConstraints.minWidth, buttonConstraints.minHeight),
           onPressed: () {
+            HapticFeedback.selectionClick();
             audioHandler.setShuffleMode(
               value
                   ? AudioServiceShuffleMode.none
                   : AudioServiceShuffleMode.all,
             );
           },
+          child: Icon(
+            CupertinoIcons.shuffle,
+            color: value
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+            size: size * 0.9,
+          ),
         );
       },
     );
@@ -320,45 +315,35 @@ class PlayerControlButtons extends StatelessWidget {
     return StreamBuilder<List<MediaItem>>(
       stream: audioHandler.queue,
       builder: (context, snapshot) {
-        final queue = snapshot.data ?? [];
         return ValueListenableBuilder<AudioServiceRepeatMode>(
           valueListenable: repeatNotifier,
           builder: (_, repeatMode, __) {
-            final isActive = repeatMode != AudioServiceRepeatMode.none;
+            final isEnabled = repeatMode != AudioServiceRepeatMode.none;
+            final isRepeatOne = repeatMode == AudioServiceRepeatMode.one;
 
-            return IconButton(
-              icon: Icon(
-                repeatMode == AudioServiceRepeatMode.one
-                    ? CupertinoIcons.repeat_1
-                    : CupertinoIcons.repeat,
-                color: isActive
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                size: size * 0.9,
-              ),
-              tooltip: context.l10n.repeat,
-              constraints: buttonConstraints,
+            return CupertinoButton(
               padding: buttonPadding,
-              style: IconButton.styleFrom(
-                backgroundColor: isActive
-                    ? colorScheme.primary.withValues(alpha: 0.15)
-                    : Colors.transparent,
-                shape: const CircleBorder(),
-              ),
+              minimumSize: Size(buttonConstraints.minWidth, buttonConstraints.minHeight),
               onPressed: () {
-                final AudioServiceRepeatMode newMode;
-                if (repeatMode == AudioServiceRepeatMode.none) {
-                  newMode = queue.length <= 1
-                      ? AudioServiceRepeatMode.one
-                      : AudioServiceRepeatMode.all;
-                } else if (repeatMode == AudioServiceRepeatMode.all) {
-                  newMode = AudioServiceRepeatMode.one;
-                } else {
-                  newMode = AudioServiceRepeatMode.none;
-                }
+                HapticFeedback.selectionClick();
+                final newMode = switch (repeatMode) {
+                  AudioServiceRepeatMode.none => AudioServiceRepeatMode.all,
+                  AudioServiceRepeatMode.all => AudioServiceRepeatMode.one,
+                  AudioServiceRepeatMode.one => AudioServiceRepeatMode.none,
+                  _ => AudioServiceRepeatMode.none,
+                };
                 repeatNotifier.value = newMode;
                 audioHandler.setRepeatMode(newMode);
               },
+              child: Icon(
+                isRepeatOne
+                    ? CupertinoIcons.repeat_1
+                    : CupertinoIcons.repeat,
+                color: isEnabled
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                size: size * 0.9,
+              ),
             );
           },
         );
@@ -473,7 +458,12 @@ class _PlaybackControlButton extends StatelessWidget {
     return CupertinoButton(
       padding: buttonPadding,
       minimumSize: Size(minButtonSize, minButtonSize),
-      onPressed: isEnabled ? onPressed : null,
+      onPressed: isEnabled
+          ? () {
+              HapticFeedback.selectionClick();
+              onPressed();
+            }
+          : null,
       child: Icon(
         icon,
         color: isEnabled

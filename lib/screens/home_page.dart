@@ -21,106 +21,54 @@
 
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:musify/services/youtube_auth_service.dart';
-import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
-import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/services/common_services.dart';
-import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/async_loader.dart';
-import 'package:musify/utilities/listening_stats_utils.dart';
-import 'package:musify/widgets/listening_recap_card.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/widgets/mini_player_bottom_space.dart';
 import 'package:musify/widgets/playlist_cube.dart';
 import 'package:musify/widgets/section_header.dart';
-import 'package:musify/widgets/song_bar.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  _HomePageState createState() => _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  late Future<List<dynamic>> _suggestedPlaylistsFuture;
-  late Future<List<dynamic>> _recommendedSongsFuture;
-  late Future<List<Map<String, dynamic>>> _personalizedMixesFuture;
-  Timer? _recommendationRefreshDebounce;
-
   @override
   void initState() {
     super.initState();
     announcementURL.value = null;
-    _fetchData();
-    externalRecommendations.addListener(_refreshRecommendedSongs);
-    userRecentlyPlayed.addListener(_refreshRecommendedSongs);
-    userLikedSongsList.addListener(_refreshRecommendedSongs);
-  }
-
-  void _fetchData() {
-    _suggestedPlaylistsFuture = getPlaylists(
-      playlistsNum: recommendedCubesNumber,
-    );
-    _recommendedSongsFuture = getRecommendedSongs();
-    if (YouTubeAuthService().isSignedIn.value) {
-      _personalizedMixesFuture = YouTubeMusicSyncService().fetchPersonalizedMixes();
-    } else {
-      _personalizedMixesFuture = Future.value([]);
-    }
   }
 
   Future<void> _handleRefresh() async {
     HapticFeedback.mediumImpact();
-    setState(() {
-      _fetchData();
-    });
-    await Future.wait([
-      _suggestedPlaylistsFuture,
-      _recommendedSongsFuture,
-      _personalizedMixesFuture,
-    ]);
-  }
-
-  @override
-  void dispose() {
-    externalRecommendations.removeListener(_refreshRecommendedSongs);
-    userRecentlyPlayed.removeListener(_refreshRecommendedSongs);
-    userLikedSongsList.removeListener(_refreshRecommendedSongs);
-    _recommendationRefreshDebounce?.cancel();
-    super.dispose();
-  }
-
-  void _refreshRecommendedSongs() {
-    if (!mounted) return;
-    _recommendationRefreshDebounce?.cancel();
-    _recommendationRefreshDebounce = Timer(
-      const Duration(milliseconds: 500),
-      () {
-        if (!mounted) return;
-        setState(() {
-          _recommendedSongsFuture = getRecommendedSongs();
-        });
-      },
-    );
+    if (YouTubeAuthService().isSignedIn.value) {
+      await YouTubeMusicSyncService().fullSync();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Musified',
-          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5),
+          style: TextStyle(
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.6,
+            fontSize: 24,
+          ),
         ),
       ),
       body: RefreshIndicator(
@@ -129,11 +77,12 @@ class _HomePageState extends State<HomePage> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: commonSingleChildScrollViewPadding,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildPersonalizedMixes(playlistHeight),
-              _buildSuggestedPlaylists(playlistHeight),
-              _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
-              _buildRecommendedSongsSection(),
+              _buildLikedSongsSection(),
+              _buildMostPlayedSection(),
+              _buildPlaylistsSection(),
+              _buildEmptyStateIfNeeded(),
               const MiniPlayerBottomSpace(),
             ],
           ),
@@ -142,235 +91,317 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildPersonalizedMixes(double playlistHeight) {
-    if (!YouTubeAuthService().isSignedIn.value) return const SizedBox.shrink();
-
-    return AsyncLoader<List<Map<String, dynamic>>>(
-      future: _personalizedMixesFuture,
-      builder: (context, mixes) {
-        if (mixes.isEmpty) return const SizedBox.shrink();
+  Widget _buildLikedSongsSection() {
+    return ValueListenableBuilder<List>(
+      valueListenable: userLikedSongsList,
+      builder: (context, rawSongs, _) {
+        final songs = rawSongs.whereType<Map>().toList();
+        if (songs.isEmpty) return const SizedBox.shrink();
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: 'Your Mixes',
-              icon: CupertinoIcons.music_note_list,
+              title: 'Liked Songs',
+              icon: CupertinoIcons.heart_fill,
             ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 205,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: songs.length,
+                itemBuilder: (context, index) {
+                  final song = songs[index];
+                  return _HomeSongCard(
+                    song: song,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      audioHandler.playPlaylistSong(
+                        playlist: {'title': 'Liked Songs', 'list': songs},
+                        songIndex: index,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildMostPlayedSection() {
+    return ValueListenableBuilder<List>(
+      valueListenable: userRecentlyPlayed,
+      builder: (context, rawSongs, _) {
+        final songs = rawSongs.whereType<Map>().toList();
+        if (songs.isEmpty) return const SizedBox.shrink();
+
+        final displayCount = songs.length.clamp(0, 25);
+        final displayList = songs.take(displayCount).toList();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: 'Most Played',
+              icon: CupertinoIcons.flame_fill,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 205,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: displayList.length,
+                itemBuilder: (context, index) {
+                  final song = displayList[index];
+                  return _HomeSongCard(
+                    song: song,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      audioHandler.playPlaylistSong(
+                        playlist: {'title': 'Most Played', 'list': displayList},
+                        songIndex: index,
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaylistsSection() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        userCustomPlaylists,
+        userLikedPlaylists,
+        YouTubeMusicSyncService().ytMusicPlaylists,
+      ]),
+      builder: (context, _) {
+        final allPlaylists = <Map>[
+          ...userCustomPlaylists.value,
+          ...userLikedPlaylists.value,
+          ...YouTubeMusicSyncService().ytMusicPlaylists.value,
+        ];
+
+        if (allPlaylists.isEmpty) return const SizedBox.shrink();
+
+        final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
+              title: 'Playlists',
+              icon: CupertinoIcons.music_albums_fill,
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               height: playlistHeight,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
-                itemCount: mixes.length,
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: allPlaylists.length,
                 itemBuilder: (context, index) {
-                  final mix = mixes[index];
+                  final playlist = allPlaylists[index];
+                  final id = playlist['playlistId'] ??
+                      playlist['ytid'] ??
+                      playlist['id'];
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: GestureDetector(
                       onTap: () {
                         HapticFeedback.selectionClick();
-                        context.push(
-                          '/home/playlist/${mix['playlistId']}',
-                          extra: {
-                            'title': mix['title'],
-                            'image': mix['image'],
-                          },
-                        );
+                        if (id != null) {
+                          context.push(
+                            '/home/playlist/$id',
+                            extra: {
+                              'title': playlist['title'],
+                              'image': playlist['image'],
+                            },
+                          );
+                        }
                       },
-                      child: PlaylistCube(mix, size: playlistHeight),
+                      child: PlaylistCube(playlist, size: playlistHeight),
                     ),
                   );
                 },
               ),
             ),
+            const SizedBox(height: 16),
           ],
         );
       },
     );
   }
 
-  Widget _buildSuggestedPlaylists(
-    double playlistHeight, {
-    bool showOnlyLiked = false,
-  }) {
-    if (!showOnlyLiked && YouTubeAuthService().isSignedIn.value) {
-      return const SizedBox.shrink();
-    }
-    if (showOnlyLiked) {
-      return ValueListenableBuilder<List<Map>>(
-        valueListenable: userLikedPlaylists,
-        builder: (_, likedPlaylists, __) => _buildSuggestedPlaylistsSection(
-          playlistHeight,
-          likedPlaylists
-              .where((playlist) => !isArtistPlaylist(playlist))
-              .take(recommendedCubesNumber)
-              .toList(),
-          showOnlyLiked: true,
-        ),
-      );
-    }
+  Widget _buildEmptyStateIfNeeded() {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        userLikedSongsList,
+        userRecentlyPlayed,
+        userCustomPlaylists,
+        userLikedPlaylists,
+        YouTubeMusicSyncService().ytMusicPlaylists,
+      ]),
+      builder: (context, _) {
+        final hasAny = userLikedSongsList.value.isNotEmpty ||
+            userRecentlyPlayed.value.isNotEmpty ||
+            userCustomPlaylists.value.isNotEmpty ||
+            userLikedPlaylists.value.isNotEmpty ||
+            YouTubeMusicSyncService().ytMusicPlaylists.value.isNotEmpty;
 
-    return AsyncLoader<List<dynamic>>(
-      future: _suggestedPlaylistsFuture,
-      builder: (context, playlists) =>
-          _buildSuggestedPlaylistsSection(playlistHeight, playlists),
-    );
-  }
+        if (hasAny) return const SizedBox.shrink();
 
-  Widget _buildSuggestedPlaylistsSection(
-    double playlistHeight,
-    List<dynamic> playlists, {
-    bool showOnlyLiked = false,
-  }) {
-    if (playlists.isEmpty) return const SizedBox.shrink();
-
-    final sectionTitle = showOnlyLiked
-        ? context.l10n.backToFavorites
-        : context.l10n.suggestedPlaylists;
-    final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: sectionTitle,
-          icon: showOnlyLiked
-              ? CupertinoIcons.heart_fill
-              : CupertinoIcons.list_bullet,
-        ),
-        SizedBox(
-          height: playlistHeight,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: itemsNumber,
-            itemBuilder: (context, index) {
-              final playlist = playlists[index];
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    context.push('/home/playlist/${playlist['ytid']}');
-                  },
-                  child: PlaylistCube(playlist, size: playlistHeight),
+        final colorScheme = Theme.of(context).colorScheme;
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
+          child: Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  CupertinoIcons.music_note_2,
+                  size: 56,
+                  color: colorScheme.primary.withValues(alpha: 0.6),
                 ),
-              );
-            },
+                const SizedBox(height: 16),
+                const Text(
+                  'Your Music Library',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Songs you like and play will appear here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRecommendedSongsSection() {
-    return AsyncLoader<List<dynamic>>(
-      future: _recommendedSongsFuture,
-      builder: (context, data) {
-        if (data.isEmpty) return const SizedBox.shrink();
-        return _buildRecommendedForYouSection(context, data);
+        );
       },
     );
   }
+}
 
-  Widget _buildCurrentMonthRecapSection() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: wrappedEnabled,
-      builder: (_, isEnabled, __) {
-        if (!isEnabled) return const SizedBox.shrink();
+class _HomeSongCard extends StatelessWidget {
+  const _HomeSongCard({required this.song, required this.onTap});
+  final Map song;
+  final VoidCallback onTap;
 
-        final currentMonthKey = listeningStatsMonthKey(DateTime.now());
-        final monthStats = listeningStatsService.monthStats(currentMonthKey);
-        final songs = listeningStatsService.monthTopSongs(currentMonthKey);
-        final displayMinutes = monthDisplayMinutes(monthStats);
-        if (displayMinutes <= 0 && songs.isEmpty) {
-          return const SizedBox.shrink();
-        }
+  @override
+  Widget build(BuildContext context) {
+    final title = song['title']?.toString() ?? 'Unknown';
+    final artist = song['artist']?.toString() ?? '';
+    final imageUrl =
+        song['highResImage'] ?? song['image'] ?? song['lowResImage'] ?? '';
 
-        final previewSongs = songs.take(wrappedShareSongsLimit).toList();
-        final periodLabel = formatMonthPeriodLabel(
-          Localizations.localeOf(context),
-          currentMonthKey,
-        );
-
-        return Column(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            SectionHeader(
-              title: context.l10n.timeMachine,
-              icon: CupertinoIcons.chart_bar_fill,
-            ),
-            ListeningRecapCard(
-              periodLabel: periodLabel,
-              minutes: displayMinutes,
-              songs: previewSongs,
-              onSongTap: (index) => _playRecapSongs(previewSongs, index),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
-              child: SizedBox(
-                width: double.infinity,
-                child: FilledButton.tonalIcon(
-                  onPressed: () => context.push('/home/timeMachine'),
-                  icon: const Icon(CupertinoIcons.arrow_right),
-                  label: Text(context.l10n.listeningStats),
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: imageUrl.toString().isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: imageUrl.toString(),
+                            fit: BoxFit.cover,
+                            errorWidget: (_, __, ___) => Container(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest,
+                              child: const Icon(
+                                CupertinoIcons.music_note,
+                                size: 36,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest,
+                            child: const Icon(
+                              CupertinoIcons.music_note,
+                              size: 36,
+                            ),
+                          ),
+                  ),
                 ),
+                Positioned(
+                  right: 8,
+                  bottom: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.65),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      CupertinoIcons.play_fill,
+                      size: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              artist,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context)
+                    .colorScheme
+                    .onSurfaceVariant
+                    .withValues(alpha: 0.8),
+                fontWeight: FontWeight.w400,
               ),
             ),
           ],
-        );
-      },
-    );
-  }
-
-  Future<void> _playRecapSongs(
-    List<Map<String, dynamic>> songs,
-    int index,
-  ) async {
-    if (songs.isEmpty) return;
-    await audioHandler.playPlaylistSong(
-      playlist: {'title': context.l10n.timeMachine, 'list': songs},
-      songIndex: index,
-    );
-  }
-
-  Widget _buildRecommendedForYouSection(
-    BuildContext context,
-    List<dynamic> data,
-  ) {
-    final recommendedTitle = context.l10n.recommendedForYou;
-
-    return Column(
-      children: [
-        SectionHeader(
-          title: recommendedTitle,
-          icon: CupertinoIcons.sparkles,
-          actionButton: IconButton(
-            onPressed: () async {
-              await audioHandler.playPlaylistSong(
-                playlist: {'title': recommendedTitle, 'list': data},
-                songIndex: 0,
-              );
-            },
-            icon: Icon(
-              CupertinoIcons.play_circle_fill,
-              color: Theme.of(context).colorScheme.primary,
-              size: 30,
-            ),
-          ),
         ),
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const BouncingScrollPhysics(),
-          itemCount: data.length,
-          padding: commonListViewBottomPadding,
-          itemBuilder: (context, index) {
-            final borderRadius = getItemBorderRadius(index, data.length);
-            return RepaintBoundary(
-              key: listItemKey('home_recommended', index, data[index]),
-              child: SongBar(data[index], true, borderRadius: borderRadius),
-            );
-          },
-        ),
-      ],
+      ),
     );
   }
 }
