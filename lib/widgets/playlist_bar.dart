@@ -54,12 +54,14 @@ class PlaylistBar extends StatelessWidget {
     this.showBuildActions = true,
     this.isAlbum = false,
     this.borderRadius = BorderRadius.zero,
+    this.subtitle,
   });
 
   final Map? playlistData;
   final String? playlistId;
   final String playlistTitle;
   final String? playlistArtwork;
+  final String? subtitle;
   final VoidCallback? onPressed;
   final VoidCallback? onDelete;
   final IconData cubeIcon;
@@ -148,6 +150,16 @@ class PlaylistBar extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (subtitle != null && subtitle!.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle!,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                     if (isFolder) ...[
                       const SizedBox(height: 3),
                       _buildFolderSubtitle(context) ?? const SizedBox.shrink(),

@@ -1,28 +1,12 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
+ * Apple Music-style now-playing accessory row.
+ * Icons only. Source tap opens a compact iOS list — never switches immediately.
  */
 
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/services.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/services/common_services.dart';
@@ -32,8 +16,8 @@ import 'package:musify/utilities/flutter_bottom_sheet.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/mediaitem.dart';
 import 'package:musify/utilities/playlist_dialogs.dart';
-import 'package:musify/utilities/song_info_dialog.dart';
 import 'package:musify/widgets/download_picker_sheet.dart';
+import 'package:musify/widgets/now_playing/source_picker_sheet.dart';
 import 'package:musify/widgets/queue_list_view.dart';
 
 class BottomActionsRow extends StatefulWidget {
@@ -54,7 +38,6 @@ class BottomActionsRow extends StatefulWidget {
 }
 
 class _BottomActionsRowState extends State<BottomActionsRow> {
-  late final ValueNotifier<bool> _songLikeStatus;
   late final ValueNotifier<bool> _songOfflineStatus;
   late final ValueNotifier<bool> _downloadInProgress;
   late String? _audioId = widget.metadata.extras?['ytid']?.toString();
@@ -62,18 +45,9 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
   @override
   void initState() {
     super.initState();
-    _songLikeStatus = ValueNotifier<bool>(isSongAlreadyLiked(_audioId));
-    userLikedSongsList.addListener(_syncLikeStatus);
     _songOfflineStatus = ValueNotifier<bool>(isSongAlreadyOffline(_audioId));
     _downloadInProgress = ValueNotifier<bool>(false);
     userOfflineSongs.addListener(_syncOfflineStatus);
-  }
-
-  void _syncLikeStatus() {
-    final newStatus = isSongAlreadyLiked(_audioId);
-    if (_songLikeStatus.value != newStatus) {
-      _songLikeStatus.value = newStatus;
-    }
   }
 
   void _syncOfflineStatus() {
@@ -90,243 +64,167 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     final newAudioId = widget.metadata.extras?['ytid']?.toString();
     if (oldAudioId != newAudioId) {
       _audioId = newAudioId;
-      _songLikeStatus.value = isSongAlreadyLiked(_audioId);
       _songOfflineStatus.value = isSongAlreadyOffline(_audioId);
     }
   }
 
   @override
   void dispose() {
-    userLikedSongsList.removeListener(_syncLikeStatus);
     userOfflineSongs.removeListener(_syncOfflineStatus);
-    _songLikeStatus.dispose();
     _songOfflineStatus.dispose();
     _downloadInProgress.dispose();
     super.dispose();
   }
 
+  Color get _iconColor =>
+      CupertinoDynamicColor.resolve(CupertinoColors.label, context);
+
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final l10n = context.l10n;
-
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final responsiveIconSize = screenWidth < 360
-        ? widget.iconSize * 0.85
-        : widget.iconSize;
+    final iconSize = widget.iconSize.clamp(22, 26).toDouble();
 
     return StreamBuilder<List<Map>>(
       stream: audioHandler.queueAsMapStream,
       builder: (context, snapshot) {
         final queue = snapshot.data ?? [];
 
-        final actions = <Widget>[
-          _buildActionButton(
-            context: context,
-            icon: CupertinoIcons.arrow_down_circle,
-            activeIcon: CupertinoIcons.arrow_down_circle_fill,
-            colorScheme: colorScheme,
-            size: responsiveIconSize,
-            statusNotifier: _songOfflineStatus,
-            onPressed: _audioId == null
-                ? null
-                : () => _toggleOffline(
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _iconButton(
+                icon: CupertinoIcons.quote_bubble,
+                onPressed: widget.lyricsController.flipcard,
+                size: iconSize,
+              ),
+              _iconButton(
+                icon: audioSourceIcon(widget.metadata),
+                color: audioSourceColor(widget.metadata),
+                onPressed: () {
+                  HapticFeedback.selectionClick();
+                  showAudioSourcePicker(context, widget.metadata);
+                },
+                size: iconSize,
+              ),
+              if (queue.isNotEmpty && !widget.isLargeScreen)
+                _iconButton(
+                  icon: CupertinoIcons.list_bullet,
+                  onPressed: () => showCustomBottomSheet(
+                    context,
+                    const QueueWidget(isBottomSheet: true),
+                  ),
+                  size: iconSize,
+                ),
+              ValueListenableBuilder<bool>(
+                valueListenable: _downloadInProgress,
+                builder: (_, busy, __) {
+                  if (busy) {
+                    return const SizedBox(
+                      width: 44,
+                      height: 44,
+                      child: Center(child: CupertinoActivityIndicator()),
+                    );
+                  }
+                  return ValueListenableBuilder<Duration?>(
+                    valueListenable: sleepTimerNotifier,
+                    builder: (_, timer, __) {
+                      return _iconButton(
+                        icon: CupertinoIcons.ellipsis_circle,
+                        onPressed: () => _showMoreSheet(context, l10n),
+                        size: iconSize,
+                        active: timer != null || _songOfflineStatus.value,
+                      );
+                    },
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _iconButton({
+    required IconData icon,
+    required VoidCallback onPressed,
+    required double size,
+    Color? color,
+    bool active = false,
+  }) {
+    return CupertinoButton(
+      padding: const EdgeInsets.all(10),
+      minimumSize: const Size(44, 44),
+      onPressed: onPressed,
+      child: Icon(
+        icon,
+        size: size,
+        color: color ??
+            (active
+                ? CupertinoColors.activeBlue
+                : _iconColor.withValues(alpha: 0.85)),
+      ),
+    );
+  }
+
+  void _showMoreSheet(BuildContext context, dynamic l10n) {
+    final isOffline = _songOfflineStatus.value;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) {
+        return CupertinoActionSheet(
+          actions: [
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (_audioId == null) return;
+                unawaited(
+                  _toggleOffline(
                     context,
                     _songOfflineStatus,
                     _audioId,
                     widget.metadata,
                     isDownloading: _downloadInProgress,
                   ),
-            tooltip: l10n.makeOffline,
-            busyNotifier: _downloadInProgress,
-          ),
-          _buildSleepTimerButton(context, colorScheme, responsiveIconSize),
-          if (!offlineMode.value)
-            _buildSimpleActionButton(
-              context: context,
-              icon: CupertinoIcons.plus_square_on_square,
-              colorScheme: colorScheme,
-              size: responsiveIconSize,
-              onPressed: () => showAddToPlaylistDialog(
-                context,
-                song: mediaItemToMap(widget.metadata),
-              ),
-              tooltip: l10n.addToPlaylist,
+                );
+              },
+              child: Text(isOffline ? 'Remove Download' : l10n.makeOffline),
             ),
-          _buildSimpleActionButton(
-            context: context,
-            icon: CupertinoIcons.info_circle,
-            colorScheme: colorScheme,
-            size: responsiveIconSize,
-            onPressed: () => showSongInfoDialog(
-              context,
-              mediaItemToMap(widget.metadata),
-            ),
-            tooltip: 'Song Details',
-          ),
-          if (queue.isNotEmpty && !widget.isLargeScreen)
-            _buildSimpleActionButton(
-              context: context,
-              icon: CupertinoIcons.list_bullet,
-              colorScheme: colorScheme,
-              size: responsiveIconSize,
-              onPressed: () => showCustomBottomSheet(
-                context,
-                const QueueWidget(isBottomSheet: true),
-              ),
-              tooltip: l10n.queue,
-            ),
-          if (!offlineMode.value) ...[
-            _buildSimpleActionButton(
-              context: context,
-              icon: CupertinoIcons.quote_bubble,
-              colorScheme: colorScheme,
-              size: responsiveIconSize,
-              onPressed: widget.lyricsController.flipcard,
-              tooltip: l10n.lyrics,
-            ),
-            _buildActionButton(
-              context: context,
-              icon: CupertinoIcons.heart,
-              activeIcon: CupertinoIcons.heart_fill,
-              colorScheme: colorScheme,
-              size: responsiveIconSize,
-              statusNotifier: _songLikeStatus,
-              activeColor: CupertinoColors.systemPink,
-              onPressed: () async {
-                final id = _audioId;
-                if (id == null) return;
-
-                final originalValue = _songLikeStatus.value;
-                _songLikeStatus.value = !originalValue;
-
-                try {
-                  await updateSongLikeStatus(
-                    _audioId,
-                    !originalValue,
-                    songData: mediaItemToMap(widget.metadata),
-                  );
-                } catch (e) {
-                  _songLikeStatus.value = originalValue; // revert on failure
-                  logger.log('Error toggling like status', error: e);
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (sleepTimerNotifier.value != null) {
+                  audioHandler.cancelSleepTimer();
+                  sleepTimerNotifier.value = null;
+                  showToast(context, context.l10n.sleepTimerCancelled);
+                } else {
+                  _showSleepTimerDialog(context);
                 }
               },
-              tooltip: l10n.likedSongs,
+              child: Text(
+                sleepTimerNotifier.value != null
+                    ? context.l10n.sleepTimerCancelled
+                    : l10n.sleepTimer,
+              ),
             ),
+            if (!offlineMode.value)
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  showAddToPlaylistDialog(
+                    context,
+                    song: mediaItemToMap(widget.metadata),
+                  );
+                },
+                child: Text(l10n.addToPlaylist),
+              ),
           ],
-        ];
-
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: actions,
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required IconData activeIcon,
-    required ColorScheme colorScheme,
-    required double size,
-    required ValueNotifier<bool> statusNotifier,
-    required VoidCallback? onPressed,
-    Color? activeColor,
-    String? tooltip,
-    ValueNotifier<bool>? busyNotifier,
-  }) {
-    final button = ValueListenableBuilder<bool>(
-      valueListenable: statusNotifier,
-      builder: (_, isActive, __) {
-        return CupertinoButton(
-          padding: const EdgeInsets.all(8),
-          minimumSize: const Size(40, 40),
-          onPressed: onPressed,
-          child: Icon(
-            isActive ? activeIcon : icon,
-            color: isActive
-                ? (activeColor ?? colorScheme.primary)
-                : colorScheme.onSurfaceVariant,
-            size: 22,
-          ),
-        );
-      },
-    );
-    if (busyNotifier == null) return button;
-    return ValueListenableBuilder<bool>(
-      valueListenable: busyNotifier,
-      builder: (_, busy, __) => busy
-          ? CupertinoButton(
-              onPressed: null,
-              padding: EdgeInsets.zero,
-              minimumSize: Size(size + 24, size + 24),
-              child: const CupertinoActivityIndicator(),
-            )
-          : button,
-    );
-  }
-
-  Widget _buildSimpleActionButton({
-    required BuildContext context,
-    required IconData icon,
-    required ColorScheme colorScheme,
-    required double size,
-    required VoidCallback onPressed,
-    String? tooltip,
-  }) {
-    return CupertinoButton(
-      padding: const EdgeInsets.all(8),
-      minimumSize: const Size(40, 40),
-      onPressed: onPressed,
-      child: Icon(
-        icon,
-        color: colorScheme.onSurfaceVariant,
-        size: 22,
-      ),
-    );
-  }
-
-  Widget _buildSleepTimerButton(
-    BuildContext context,
-    ColorScheme colorScheme,
-    double size,
-  ) {
-    return ValueListenableBuilder<Duration?>(
-      valueListenable: sleepTimerNotifier,
-      builder: (_, value, __) {
-        final isActive = value != null;
-        return CupertinoButton(
-          padding: const EdgeInsets.all(8),
-          minimumSize: const Size(40, 40),
-          onPressed: () {
-            if (isActive) {
-              audioHandler.cancelSleepTimer();
-              sleepTimerNotifier.value = null;
-              showToast(
-                context,
-                context.l10n.sleepTimerCancelled,
-                duration: const Duration(seconds: 1, milliseconds: 500),
-              );
-            } else {
-              _showSleepTimerDialog(context);
-            }
-          },
-          child: Icon(
-            isActive
-                ? CupertinoIcons.timer_fill
-                : CupertinoIcons.timer,
-            color: isActive
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-            size: 22,
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.l10n.cancel),
           ),
         );
       },
@@ -383,7 +281,8 @@ Future<void> _toggleOffline(
             final actualSource = offline['downloadSource'] == 'jiosaavn'
                 ? 'JioSaavn 320k'
                 : 'YouTube AAC';
-            final fallbackNotice = (source == 'saavn' || source == 'jiosaavn') &&
+            final fallbackNotice =
+                (source == 'saavn' || source == 'jiosaavn') &&
                     offline['downloadSource'] == 'youtube'
                 ? ' (not on JioSaavn, saved via YouTube)'
                 : '';

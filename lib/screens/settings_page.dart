@@ -583,11 +583,14 @@ class SettingsPage extends StatelessWidget {
           title: context.l10n.others,
           icon: CupertinoIcons.ellipsis_circle,
         ),
-        CustomBar(
-          '${context.l10n.copyLogs} (${logger.getLogCount()})',
-          CupertinoIcons.doc_on_doc,
-          borderRadius: commonCustomBarRadiusFirst,
-          onTap: () async => showToast(context, await logger.copyLogs(context)),
+        ListenableBuilder(
+          listenable: logger,
+          builder: (context, _) => CustomBar(
+            'Logs (${logger.getLogCount()})',
+            CupertinoIcons.doc_text,
+            borderRadius: commonCustomBarRadiusFirst,
+            onTap: () => context.push('/settings/logs'),
+          ),
         ),
         CustomBar(
           'Musified iOS v$appVersion',

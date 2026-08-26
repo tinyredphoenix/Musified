@@ -84,9 +84,9 @@ class _LibraryPageState extends State<LibraryPage> {
           !hasOfflineArtists &&
           !hasOfflineSongs) {
         final colorScheme = Theme.of(context).colorScheme;
-        return CupertinoPageScaffold(
-          
-          child: Center(
+        return Scaffold(
+          appBar: AppBar(title: Text(context.l10n.library)),
+          body: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
@@ -116,9 +116,9 @@ class _LibraryPageState extends State<LibraryPage> {
       }
     }
 
-    return CupertinoPageScaffold(
-      
-      child: AnimatedBuilder(
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.library)),
+      body: AnimatedBuilder(
         animation: Listenable.merge([
           pinnedPlaylistIds,
           offlineMode,
@@ -135,10 +135,6 @@ class _LibraryPageState extends State<LibraryPage> {
             padding: commonSingleChildScrollViewPadding,
             child: CustomScrollView(
               slivers: [
-                CupertinoSliverNavigationBar(
-                  largeTitle: Text(context.l10n.library),
-                  backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.8),
-                ),
                 if (!offlineMode.value) ..._buildYouTubePlaylistsSlivers(),
                 ..._buildPinnedSlivers(),
                 if (!offlineMode.value) ..._buildLikedPlaylistsSlivers(),
@@ -184,6 +180,9 @@ class _LibraryPageState extends State<LibraryPage> {
                         child: Text('No playlists found'),
                       );
                     }
+                    return ValueListenableBuilder<List>(
+                      valueListenable: userLikedSongsList,
+                      builder: (context, likedSongs, _) {
                     return SizedBox(
                       height: 190,
                       child: ListView.builder(
@@ -194,9 +193,10 @@ class _LibraryPageState extends State<LibraryPage> {
                           final playlist = playlists[index];
                           final title = playlist['title'] ?? 'Unknown';
                           final image = playlist['image'] ?? '';
-                          final count = playlist['count'] ??
-                              _playlistCountFromTrackCount(playlist['trackCount']) ??
-                              0;
+                          final count = _youtubePlaylistTrackCount(
+                            playlist,
+                            likedSongCount: likedSongs.length,
+                          );
                           
                           return GestureDetector(
                             onTap: () {
@@ -252,6 +252,8 @@ class _LibraryPageState extends State<LibraryPage> {
                           );
                         },
                       ),
+                    );
+                      },
                     );
                   },
                 ),
@@ -368,30 +370,51 @@ class _LibraryPageState extends State<LibraryPage> {
                       ),
               ),
               if (!isOffline) ...[
-                PlaylistBar(
-                  context.l10n.recentlyPlayed,
-                  onPressed: () =>
-                      NavigationManager.router.go('/library/userSongs/recents'),
-                  cubeIcon: CupertinoIcons.clock,
-                  borderRadius: commonCustomBarRadiusFirst,
-                  showBuildActions: false,
+                ValueListenableBuilder<List>(
+                  valueListenable: userRecentlyPlayed,
+                  builder: (context, recents, _) {
+                    return PlaylistBar(
+                      context.l10n.recentlyPlayed,
+                      subtitle: '${recents.length} tracks',
+                      onPressed: () => NavigationManager.router.go(
+                        '/library/userSongs/recents',
+                      ),
+                      cubeIcon: CupertinoIcons.clock,
+                      borderRadius: commonCustomBarRadiusFirst,
+                      showBuildActions: false,
+                    );
+                  },
                 ),
-                PlaylistBar(
-                  context.l10n.likedSongs,
-                  onPressed: () =>
-                      NavigationManager.router.go('/library/userSongs/liked'),
-                  cubeIcon: CupertinoIcons.heart,
-                  showBuildActions: false,
+                ValueListenableBuilder<List>(
+                  valueListenable: userLikedSongsList,
+                  builder: (context, liked, _) {
+                    return PlaylistBar(
+                      context.l10n.likedSongs,
+                      subtitle: '${liked.length} tracks',
+                      onPressed: () => NavigationManager.router.go(
+                        '/library/userSongs/liked',
+                      ),
+                      cubeIcon: CupertinoIcons.heart,
+                      showBuildActions: false,
+                    );
+                  },
                 ),
-                PlaylistBar(
-                  context.l10n.offlineSongs,
-                  onPressed: () =>
-                      NavigationManager.router.go('/library/userSongs/offline'),
-                  cubeIcon: CupertinoIcons.cloud_download,
-                  borderRadius: hasCustomPlaylists || hasFolders
-                      ? BorderRadius.zero
-                      : commonCustomBarRadiusLast,
-                  showBuildActions: false,
+                ValueListenableBuilder<List>(
+                  valueListenable: userOfflineSongs,
+                  builder: (context, offline, _) {
+                    return PlaylistBar(
+                      context.l10n.offlineSongs,
+                      subtitle: '${offline.length} tracks',
+                      onPressed: () => NavigationManager.router.go(
+                        '/library/userSongs/offline',
+                      ),
+                      cubeIcon: CupertinoIcons.cloud_download,
+                      borderRadius: hasCustomPlaylists || hasFolders
+                          ? BorderRadius.zero
+                          : commonCustomBarRadiusLast,
+                      showBuildActions: false,
+                    );
+                  },
                 ),
               ],
             ],
@@ -720,4 +743,17 @@ int? _playlistCountFromTrackCount(dynamic trackCount) {
       RegExp(r'(\d[\d,]*)').firstMatch(trackCount)?.group(1);
   if (raw == null) return null;
   return int.tryParse(raw.replaceAll(',', ''));
+}
+
+int _youtubePlaylistTrackCount(
+  Map playlist, {
+  required int likedSongCount,
+}) {
+  if (isLikedMusicPlaylist(playlist) && likedSongCount > 0) {
+    return likedSongCount;
+  }
+  final count = playlist['count'];
+  if (count is int && count > 0) return count;
+  return _playlistCountFromTrackCount(playlist['trackCount']) ??
+      (count is int ? count : 0);
 }

@@ -61,15 +61,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: false,
-        title: Text(
-          'Musified',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-        ),
-      ),
+      appBar: AppBar(title: const Text('Musified')),
       body: RefreshIndicator.adaptive(
         onRefresh: _handleRefresh,
         child: SingleChildScrollView(

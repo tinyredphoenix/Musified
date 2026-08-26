@@ -12,33 +12,25 @@
  *     GNU General Public License for more details.
  *
  *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
+ *     along with this program.  If not, see <https://github.com/gokadzev/Musify>.
  */
 
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 
-class Logger {
+class Logger extends ChangeNotifier {
   static const int _maxLogChars = 80000;
   String _logs = '';
   int _logCount = 0;
 
-  void log(String errorLocation, {Object? error, StackTrace? stackTrace}) {
-    final timestamp = DateTime.now().toString();
-
-    // Check if error is not null, otherwise use an empty string
-    final errorMessage = error != null ? '$error' : '';
-
-    // Check if stackTrace is not null, otherwise use an empty string
-    final stackTraceMessage = stackTrace != null ? '$stackTrace' : '';
-
+  void log(String message, {Object? error, StackTrace? stackTrace}) {
+    final timestamp = DateTime.now().toIso8601String();
+    final errorMessage = error != null ? ' $error' : '';
+    final stackTraceMessage =
+        stackTrace != null ? '\n$stackTrace' : '';
     final logMessage =
-        '[$timestamp] $errorLocation:$errorMessage\n$stackTraceMessage';
+        '[$timestamp] $message$errorMessage$stackTraceMessage';
 
     debugPrint(logMessage);
     _logs += '$logMessage\n';
@@ -46,11 +38,12 @@ class Logger {
     if (_logs.length > _maxLogChars) {
       _logs = _logs.substring(_logs.length - (_maxLogChars ~/ 2));
     }
+    notifyListeners();
   }
 
   Future<String> copyLogs(BuildContext context) async {
     try {
-      if (_logs != '') {
+      if (_logs.isNotEmpty) {
         await Clipboard.setData(ClipboardData(text: _logs));
         return '${context.l10n.copyLogsSuccess}.';
       } else {
@@ -62,16 +55,13 @@ class Logger {
     }
   }
 
-  int getLogCount() {
-    return _logCount;
-  }
+  int getLogCount() => _logCount;
 
-  String getLogs() {
-    return _logs;
-  }
+  String getLogs() => _logs;
 
   void clearLogs() {
     _logs = '';
     _logCount = 0;
+    notifyListeners();
   }
 }

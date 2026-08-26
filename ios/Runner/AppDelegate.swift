@@ -21,6 +21,15 @@ import AVFoundation
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
+  override func applicationDidBecomeActive(_ application: UIApplication) {
+    super.applicationDidBecomeActive(application)
+    do {
+      try AVAudioSession.sharedInstance().setActive(true)
+    } catch {
+      print("Failed to reactivate audio session: \(error)")
+    }
+  }
+
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }

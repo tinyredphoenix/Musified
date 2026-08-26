@@ -23,6 +23,7 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -44,6 +45,7 @@ import 'package:musify/services/source_resolver.dart';
 import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/theme/app_themes.dart';
+import 'package:musify/theme/musified_style.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/language_utils.dart';
 import 'package:musify/utilities/playlist_utils.dart';
@@ -120,6 +122,8 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
     WidgetsBinding.instance.addObserver(this);
 
+    logger.log('Musified started');
+
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     offlineMode.addListener(_onOfflineModeChanged);
@@ -138,6 +142,13 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
         stackTrace: stackTrace,
       );
     }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    if (!isAudioHandlerInitialized) return;
+    unawaited(audioHandler.resyncAfterForeground());
   }
 
   @override
@@ -187,6 +198,27 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
         themeMode: themeMode,
         theme: themes.light,
         darkTheme: themes.dark,
+        builder: (context, child) {
+          return CupertinoTheme(
+            data: CupertinoThemeData(
+              brightness: overlayBrightness,
+              primaryColor: const Color(0xFF007AFF),
+              scaffoldBackgroundColor: overlayBrightness == Brightness.dark
+                  ? MusifiedStyle.oledBlack
+                  : MusifiedStyle.lightCanvas,
+              barBackgroundColor: overlayBrightness == Brightness.dark
+                  ? MusifiedStyle.elevated
+                  : MusifiedStyle.lightElevated,
+              textTheme: const CupertinoTextThemeData(
+                textStyle: TextStyle(
+                  fontFamily: '.SF Pro Text',
+                  fontSize: 17,
+                ),
+              ),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,

@@ -86,7 +86,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
     final isOfflineSongs = title == context.l10n.offlineSongs;
 
     return Scaffold(
-      appBar: AppBar(title: offlineMode.value ? Text(title) : null),
+      appBar: AppBar(title: Text(title)),
       body: Padding(
         padding: commonSingleChildScrollViewPadding,
         child: ValueListenableBuilder(
@@ -163,6 +163,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
           _buildPlaylistImage(title, icon),
           title,
           songsLength: songsLength,
+          showTitle: false,
         ),
         if (songsLength > 0) ...[
           Padding(

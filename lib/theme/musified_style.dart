@@ -38,32 +38,39 @@ abstract final class MusifiedStyle {
   static const Color lightTertiaryLabel = Color(0x4D3C3C43);
   static const Color lightOnSurface = Color(0xFF1C1C1E);
 
+  static const String uiFont = '.SF Pro Text';
+  static const String displayFont = '.SF Pro Display';
+
   /// Brand / large-title wordmark.
   static TextStyle brandTitle(Color color) => TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.w800,
-    letterSpacing: -0.9,
+    fontFamily: displayFont,
+    fontSize: 22,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.6,
     height: 1.1,
     color: color,
   );
 
   static TextStyle largeTitle(Color color) => TextStyle(
-    fontSize: 34,
+    fontFamily: displayFont,
+    fontSize: 22,
     fontWeight: FontWeight.w700,
-    letterSpacing: -1.1,
+    letterSpacing: -0.6,
     height: 1.15,
     color: color,
   );
 
   static TextStyle sectionTitle(Color color) => TextStyle(
-    fontSize: 22,
+    fontFamily: displayFont,
+    fontSize: 20,
     fontWeight: FontWeight.w700,
-    letterSpacing: -0.45,
+    letterSpacing: -0.4,
     height: 1.2,
     color: color,
   );
 
   static TextStyle songTitle(Color color) => TextStyle(
+    fontFamily: uiFont,
     fontSize: 16,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.2,
@@ -72,6 +79,7 @@ abstract final class MusifiedStyle {
   );
 
   static TextStyle songSubtitle(Color color) => TextStyle(
+    fontFamily: uiFont,
     fontSize: 13,
     fontWeight: FontWeight.w400,
     letterSpacing: -0.08,
@@ -80,6 +88,7 @@ abstract final class MusifiedStyle {
   );
 
   static TextStyle caption(Color color) => TextStyle(
+    fontFamily: uiFont,
     fontSize: 12,
     fontWeight: FontWeight.w500,
     letterSpacing: -0.05,
@@ -87,6 +96,7 @@ abstract final class MusifiedStyle {
   );
 
   static TextStyle playerTitle(Color color) => TextStyle(
+    fontFamily: displayFont,
     fontSize: 22,
     fontWeight: FontWeight.w700,
     letterSpacing: -0.4,
@@ -95,6 +105,7 @@ abstract final class MusifiedStyle {
   );
 
   static TextStyle playerArtist(Color color) => TextStyle(
+    fontFamily: uiFont,
     fontSize: 17,
     fontWeight: FontWeight.w500,
     letterSpacing: -0.2,

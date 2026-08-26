@@ -83,9 +83,19 @@ ColorScheme getAppColorScheme({
     return selectedScheme;
   }
 
-  return ColorScheme.fromSeed(
-    seedColor: primaryColorSetting,
+  final isLight = forBrightness == Brightness.light;
+  // Do not use ColorScheme.fromSeed — Material 3 complementary hues
+  // (often yellow) leak into chips, underlines, and focus rings.
+  return ColorScheme(
     brightness: forBrightness,
+    primary: primaryColorSetting,
+    onPrimary: Colors.white,
+    secondary: isLight ? const Color(0xFF8E8E93) : const Color(0xFF98989D),
+    onSecondary: Colors.white,
+    error: isLight ? const Color(0xFFFF3B30) : const Color(0xFFFF453A),
+    onError: Colors.white,
+    surface: isLight ? MusifiedStyle.lightCanvas : MusifiedStyle.elevated,
+    onSurface: isLight ? MusifiedStyle.lightOnSurface : const Color(0xFFF5F5F7),
   );
 }
 
@@ -133,6 +143,24 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
 
   final onSurface = effectiveColorScheme.onSurface;
   final onVariant = effectiveColorScheme.onSurfaceVariant;
+  final mutedFill = isLight
+      ? MusifiedStyle.lightSurfaceHigh
+      : MusifiedStyle.surfaceHigh;
+
+  // Seeded Material 3 secondary/tertiary often land on yellow. Keep chrome
+  // on the greyscale surfaces so focus, chips, and underlines stay quiet.
+  final themedScheme = effectiveColorScheme.copyWith(
+    secondary: onVariant,
+    onSecondary: isLight ? Colors.white : onSurface,
+    secondaryContainer: mutedFill,
+    onSecondaryContainer: onSurface,
+    tertiary: onVariant,
+    onTertiary: isLight ? Colors.white : onSurface,
+    tertiaryContainer: mutedFill,
+    onTertiaryContainer: onSurface,
+    primaryContainer: mutedFill,
+    onPrimaryContainer: onSurface,
+  );
 
   final textTheme = base.textTheme.copyWith(
     displayLarge: MusifiedStyle.largeTitle(onSurface),
@@ -142,6 +170,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
     titleLarge: MusifiedStyle.songTitle(onSurface),
     titleMedium: MusifiedStyle.songTitle(onSurface).copyWith(fontSize: 15),
     bodyLarge: TextStyle(
+      fontFamily: MusifiedStyle.uiFont,
       fontSize: 16,
       fontWeight: FontWeight.w400,
       color: onSurface,
@@ -160,10 +189,15 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
 
   return ThemeData(
     scaffoldBackgroundColor: bgColor,
-    colorScheme: effectiveColorScheme,
+    fontFamily: MusifiedStyle.uiFont,
+    colorScheme: themedScheme,
     textTheme: textTheme,
     primaryTextTheme: textTheme,
     cardColor: cardBgColor,
+    splashColor: Colors.transparent,
+    highlightColor: onSurface.withValues(alpha: 0.06),
+    focusColor: Colors.transparent,
+    hoverColor: onSurface.withValues(alpha: 0.04),
     cardTheme: base.cardTheme.copyWith(
       elevation: 0,
       color: cardBgColor,
@@ -177,10 +211,11 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       foregroundColor: onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: false,
+      centerTitle: true,
       titleTextStyle: TextStyle(
+        fontFamily: MusifiedStyle.displayFont,
         fontSize: 17,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         color: onSurface,
         letterSpacing: -0.3,
       ),
@@ -226,8 +261,41 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
         borderSide: BorderSide.none,
       ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+        borderSide: BorderSide.none,
+      ),
+      disabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+        borderSide: BorderSide.none,
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+        borderSide: BorderSide.none,
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+        borderSide: BorderSide.none,
+      ),
       contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       hintStyle: MusifiedStyle.songSubtitle(onVariant),
+    ),
+    textSelectionTheme: TextSelectionThemeData(
+      cursorColor: onSurface,
+      selectionColor: onSurface.withValues(alpha: 0.18),
+      selectionHandleColor: onSurface,
+    ),
+    searchBarTheme: SearchBarThemeData(
+      elevation: WidgetStateProperty.all(0),
+      shadowColor: WidgetStateProperty.all(Colors.transparent),
+      overlayColor: WidgetStateProperty.all(
+        onSurface.withValues(alpha: 0.06),
+      ),
+      side: WidgetStateProperty.all(BorderSide.none),
     ),
     dialogTheme: base.dialogTheme.copyWith(
       backgroundColor:
@@ -244,14 +312,14 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       indicatorColor: Colors.transparent,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
-          return IconThemeData(color: effectiveColorScheme.primary, size: 24);
+          return IconThemeData(color: themedScheme.primary, size: 24);
         }
         return IconThemeData(color: onVariant.withValues(alpha: 0.55), size: 24);
       }),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return TextStyle(
-            color: effectiveColorScheme.primary,
+            color: themedScheme.primary,
             fontSize: 10,
             fontWeight: FontWeight.w600,
           );
@@ -268,7 +336,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       elevation: 0,
       indicatorColor: Colors.transparent,
       selectedIconTheme: IconThemeData(
-        color: effectiveColorScheme.primary,
+        color: themedScheme.primary,
         size: 24,
       ),
       unselectedIconTheme: IconThemeData(
@@ -276,7 +344,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         size: 24,
       ),
       selectedLabelTextStyle: TextStyle(
-        color: effectiveColorScheme.primary,
+        color: themedScheme.primary,
         fontSize: 10,
         fontWeight: FontWeight.w600,
       ),
@@ -293,7 +361,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       ),
     ),
     dividerTheme: base.dividerTheme.copyWith(
-      color: effectiveColorScheme.outlineVariant,
+      color: themedScheme.outlineVariant,
       thickness: 0.5,
       space: 0.5,
     ),
@@ -311,10 +379,10 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
       ),
       elevation: 0,
-      actionTextColor: effectiveColorScheme.primary,
+      actionTextColor: themedScheme.primary,
     ),
     progressIndicatorTheme: ProgressIndicatorThemeData(
-      color: effectiveColorScheme.primary,
+      color: themedScheme.primary,
       linearTrackColor: onSurface.withValues(alpha: 0.12),
       circularTrackColor: onSurface.withValues(alpha: 0.12),
     ),

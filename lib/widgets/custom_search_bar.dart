@@ -57,7 +57,7 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
           colorScheme.surfaceContainerHigh,
         ),
         overlayColor: WidgetStateProperty.all(
-          colorScheme.primary.withValues(alpha: 0.08),
+          colorScheme.onSurface.withValues(alpha: 0.06),
         ),
         shape: WidgetStateProperty.all(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),

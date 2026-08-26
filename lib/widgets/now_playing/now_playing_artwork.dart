@@ -70,13 +70,27 @@ class NowPlayingArtwork extends StatelessWidget {
       rotateSide: RotateSide.right,
       onTapFlipping: !offlineMode.value,
       controller: lyricsController,
-      frontWidget: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: SongArtworkWidget(
-          metadata: metadata,
-          size: imageSize,
-          errorWidgetIconSize: size.width / 8,
-          borderRadius: borderRadius,
+      frontWidget: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: CupertinoColors.black.withValues(
+                alpha: isDark ? 0.55 : 0.18,
+              ),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(borderRadius),
+          child: SongArtworkWidget(
+            metadata: metadata,
+            size: imageSize,
+            errorWidgetIconSize: size.width / 8,
+            borderRadius: borderRadius,
+          ),
         ),
       ),
       backWidget: Container(

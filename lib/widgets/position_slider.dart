@@ -115,16 +115,22 @@ class _PositionSliderState extends State<PositionSlider> {
                       overlayShape: const RoundSliderOverlayShape(
                         overlayRadius: 14,
                       ),
-                      activeTrackColor: Theme.of(context).colorScheme.primary,
-                      inactiveTrackColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.2),
-                      thumbColor: Theme.of(context).colorScheme.primary,
-                      overlayColor: Theme.of(context)
-                          .colorScheme
-                          .primary
-                          .withValues(alpha: 0.1),
+                      activeTrackColor: CupertinoDynamicColor.resolve(
+                        CupertinoColors.label,
+                        context,
+                      ),
+                      inactiveTrackColor: CupertinoDynamicColor.resolve(
+                        CupertinoColors.tertiaryLabel,
+                        context,
+                      ).withValues(alpha: 0.35),
+                      thumbColor: CupertinoDynamicColor.resolve(
+                        CupertinoColors.label,
+                        context,
+                      ),
+                      overlayColor: CupertinoDynamicColor.resolve(
+                        CupertinoColors.label,
+                        context,
+                      ).withValues(alpha: 0.08),
                     ),
                     child: Slider(
                       value: currentValue.clamp(0.0, maxDuration),
@@ -178,9 +184,10 @@ class _PositionSliderState extends State<PositionSlider> {
             style: TextStyle(
               fontSize: 11,
               fontFeatures: const [ui.FontFeature.tabularFigures()],
-              color: Theme.of(
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.secondaryLabel,
                 context,
-              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              ),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -189,9 +196,10 @@ class _PositionSliderState extends State<PositionSlider> {
             style: TextStyle(
               fontSize: 11,
               fontFeatures: const [ui.FontFeature.tabularFigures()],
-              color: Theme.of(
+              color: CupertinoDynamicColor.resolve(
+                CupertinoColors.secondaryLabel,
                 context,
-              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              ),
               fontWeight: FontWeight.w500,
             ),
           ),

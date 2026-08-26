@@ -58,6 +58,7 @@ class YouTubeMusicSyncService {
         }
       }
       if (playlists.isNotEmpty && ytMusicPlaylists.value.isEmpty) {
+        _applyLikedMusicCount(playlists);
         ytMusicPlaylists.value = playlists;
       }
     } catch (e) {
@@ -193,7 +194,7 @@ class YouTubeMusicSyncService {
 
   Future<List<Map<String, dynamic>>> fetchLikedSongs() async {
     try {
-      return _browseAllTracks('FEmusic_liked_videos');
+      return await _browseAllTracks('FEmusic_liked_videos');
     } catch (e) {
       logger.log('Error fetching liked songs: $e');
       return [];
@@ -238,6 +239,7 @@ class YouTubeMusicSyncService {
           'trackCount': subtitle,
         });
       }
+      _applyLikedMusicCount(playlists);
       return playlists;
     } catch (e) {
       logger.log('Error fetching user playlists: $e');
@@ -260,6 +262,9 @@ class YouTubeMusicSyncService {
 
   Future<List<Map<String, dynamic>>> fetchPlaylistTracks(String playlistId) async {
     try {
+      if (isLikedMusicPlaylist({'playlistId': playlistId})) {
+        return await fetchLikedSongs();
+      }
       final browseId = playlistId.startsWith('VL') || playlistId.startsWith('FE')
           ? playlistId
           : 'VL$playlistId';
@@ -486,6 +491,7 @@ class YouTubeMusicSyncService {
 
       userLikedSongsList.value = ytLikes;
       unawaited(addOrUpdateData<List>('user', 'likedSongs', ytLikes));
+      _patchLikedMusicPlaylistCount(ytLikes.length);
 
       _updateSyncTime();
     } catch (e) {
@@ -534,4 +540,50 @@ class YouTubeMusicSyncService {
       unawaited(addOrUpdateData<int>('settings', 'lastYtSyncTime', now.millisecondsSinceEpoch));
     }
   }
+
+  void _applyLikedMusicCount(List<Map<String, dynamic>> playlists) {
+    final likes = userLikedSongsList.value.length;
+    if (likes <= 0) return;
+    for (final playlist in playlists) {
+      if (isLikedMusicPlaylist(playlist)) {
+        playlist['count'] = likes;
+      }
+    }
+  }
+
+  void _patchLikedMusicPlaylistCount(int count) {
+    if (count <= 0) return;
+    final playlists = [
+      for (final playlist in ytMusicPlaylists.value)
+        Map<String, dynamic>.from(playlist),
+    ];
+    var changed = false;
+    for (final playlist in playlists) {
+      if (isLikedMusicPlaylist(playlist) && playlist['count'] != count) {
+        playlist['count'] = count;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    ytMusicPlaylists.value = playlists;
+    unawaited(_persistPlaylists(playlists));
+  }
+}
+
+/// YouTube Music's auto "Liked music" playlist has no song count in its
+/// subtitle ("Auto playlist"), so library cards would otherwise show 0.
+bool isLikedMusicPlaylist(Map playlist) {
+  final id = '${playlist['playlistId'] ?? playlist['ytid'] ?? ''}'
+      .toLowerCase()
+      .trim();
+  final title = '${playlist['title'] ?? ''}'.toLowerCase().trim();
+  if (id == 'lm' ||
+      id == 'vllm' ||
+      id.contains('liked_videos') ||
+      id.contains('music_liked')) {
+    return true;
+  }
+  return title == 'liked music' ||
+      title == 'liked songs' ||
+      title == 'liked videos';
 }

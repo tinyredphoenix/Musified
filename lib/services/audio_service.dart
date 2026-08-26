@@ -76,6 +76,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
   bool _completionEventPending = false;
   bool _completionHandlerLoadStarted = false;
   bool _sourceSwitchInFlight = false;
+  bool _handlingNativeAdvance = false;
 
   String? _lastError;
   int _consecutiveErrors = 0;
@@ -222,6 +223,17 @@ class MusifyAudioHandler extends BaseAudioHandler {
     );
 
     _subscriptions.add(
+      audioPlayer.positionStream
+          .throttleTime(const Duration(milliseconds: 250))
+          .listen(
+            _handleNearEndSkip,
+            onError: (error, stackTrace) {
+              _logStreamError('Position stream error', error, stackTrace);
+            },
+          ),
+    );
+
+    _subscriptions.add(
       audioPlayer.durationStream.listen(
         (duration) {
           final transitionInProgress = _currentLoadingTransitionId >= 0;
@@ -267,7 +279,13 @@ class MusifyAudioHandler extends BaseAudioHandler {
           )
           .throttleTime(const Duration(milliseconds: 100))
           .listen(
-            (_) => _debouncedStateUpdate(),
+            (data) {
+              _debouncedStateUpdate();
+              final index = data['index'] as int?;
+              if (index != null && index > 0) {
+                unawaited(_onNativeQueueAdvanced(index));
+              }
+            },
             onError: (error, stackTrace) {
               _logStreamError('Current index stream error', error, stackTrace);
             },
@@ -545,41 +563,18 @@ class MusifyAudioHandler extends BaseAudioHandler {
           return;
         }
 
-
-
         if (!sleepTimerExpired && !_completionEventPending) {
+          if (_nativeHasSuccessor) {
+            logger.log('Track ended — native AV queue will auto-advance');
+            return;
+          }
           _completionEventPending = true;
-
-          Future.microtask(() async {
-            try {
-              if (!sleepTimerExpired && _completionEventPending) {
-                await _handleSongCompletion();
-              }
-            } finally {
-              // Only reset if still marked as pending (another event didn't override)
-              if (_completionEventPending) {
-                _completionEventPending = false;
-                _completionHandlerLoadStarted = false;
-              }
-              // else {
-              //   logger.log(
-              //     '[COMPLETION] Flag already false in finally block (was overridden)',
-              //     null,
-              //     null,
-              //   );
-              // }
-            }
-          });
+          logger.log('Track completed — Dart advancing queue');
+          unawaited(_runSongCompletion());
         }
       } else if (state == ProcessingState.ready) {
         _completionEventPending = false;
         _completionHandlerLoadStarted = false;
-
-        // Clear the expired flag so future song completions are not
-        // blocked after a sleep timer fired in a previous session.
-        // Do NOT touch sleepTimerEndOfSong here — 'ready' fires not
-        // only for new songs but also on buffering recovery within the
-        // same song, which would cancel an active "end of song" timer.
         sleepTimerExpired = false;
       }
     } catch (e, stackTrace) {
@@ -588,6 +583,126 @@ class MusifyAudioHandler extends BaseAudioHandler {
         error: e,
         stackTrace: stackTrace,
       );
+    }
+  }
+
+  bool get _nativeHasSuccessor {
+    final seq = audioPlayer.sequence;
+    if (seq.length < 2) return false;
+    final index = audioPlayer.currentIndex ?? 0;
+    return index < seq.length - 1;
+  }
+
+  void _handleNearEndSkip(Duration position) {
+    if (_completionEventPending || sleepTimerExpired) return;
+    if (_nativeHasSuccessor || _handlingNativeAdvance) return;
+    if (!audioPlayer.playing) return;
+    if (audioPlayer.processingState == ProcessingState.completed) return;
+    final duration = audioPlayer.duration;
+    if (duration == null || duration < const Duration(seconds: 5)) return;
+    final remaining = duration - position;
+    if (remaining > const Duration(milliseconds: 450) || remaining.isNegative) {
+      return;
+    }
+    logger.log(
+      'Near end of track (${remaining.inMilliseconds}ms left) — advancing',
+    );
+    _handleProcessingStateChange(ProcessingState.completed);
+  }
+
+  Future<void> _runSongCompletion() async {
+    try {
+      if (!sleepTimerExpired && _completionEventPending) {
+        await _handleSongCompletion();
+      }
+    } finally {
+      if (_completionEventPending) {
+        _completionEventPending = false;
+        _completionHandlerLoadStarted = false;
+      }
+    }
+  }
+
+  /// Spotify / Apple Music / YT Music keep the next item in the native
+  /// AVQueuePlayer. When the current file ends, iOS starts the successor
+  /// without waiting for Dart (which is often frozen while the phone is locked).
+  Future<void> _onNativeQueueAdvanced(int nativeIndex) async {
+    if (_handlingNativeAdvance || nativeIndex < 1) return;
+    _handlingNativeAdvance = true;
+    try {
+      final newIndex = _currentQueueIndex + 1;
+      if (newIndex >= _queueList.length) {
+        if (repeatNotifier.value == AudioServiceRepeatMode.all &&
+            _queueList.isNotEmpty) {
+          _handlingNativeAdvance = false;
+          await _playFromQueue(0);
+          return;
+        }
+        return;
+      }
+      if (_currentQueueIndex >= 0 && _currentQueueIndex < _queueList.length) {
+        _addToHistory(_queueList[_currentQueueIndex]);
+      }
+      _currentQueueIndex = newIndex;
+      final song = _queueList[newIndex];
+      mediaItem.add(_getMediaItemForQueue(song));
+      logger.log('Native AV queue advanced → ${song['title']}');
+      try {
+        while (audioPlayer.sequence.length > 1 &&
+            (audioPlayer.currentIndex ?? 0) > 0) {
+          await audioPlayer.removeAudioSourceAt(0);
+        }
+      } catch (e) {
+        logger.log('Native queue compact failed', error: e);
+      }
+      _completionEventPending = false;
+      _completionHandlerLoadStarted = false;
+      _updatePlaybackState();
+      unawaited(
+        updateRecentlyPlayed(song['ytid'], songFallback: song),
+      );
+      unawaited(_armNativeSuccessor());
+    } catch (e, st) {
+      logger.log('Native auto-advance failed', error: e, stackTrace: st);
+    } finally {
+      _handlingNativeAdvance = false;
+    }
+  }
+
+  Future<void> _armNativeSuccessor() async {
+    if (repeatNotifier.value == AudioServiceRepeatMode.one) return;
+    if (audioPlayer.sequence.isEmpty) return;
+
+    var nextIndex = _currentQueueIndex + 1;
+    if (nextIndex >= _queueList.length) {
+      if (repeatNotifier.value == AudioServiceRepeatMode.all &&
+          _queueList.isNotEmpty) {
+        nextIndex = 0;
+      } else {
+        return;
+      }
+    }
+    if (nextIndex == _currentQueueIndex) return;
+
+    try {
+      while (audioPlayer.sequence.length > 1) {
+        await audioPlayer.removeAudioSourceAt(
+          audioPlayer.sequence.length - 1,
+        );
+      }
+      final song = cloneMap(_queueList[nextIndex]);
+      final playback = await _resolvePlaybackSource(song);
+      if (playback == null) return;
+      final source = await buildAudioSource(
+        song,
+        playback.songUrl,
+        playback.isOffline,
+      );
+      if (source == null) return;
+      await audioPlayer.addAudioSource(source);
+      logger.log('Armed native successor: ${song['title']}');
+    } catch (e, st) {
+      logger.log('Failed to arm native successor', error: e, stackTrace: st);
     }
   }
 
@@ -1134,6 +1249,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
       return;
     }
 
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (_) {}
+
     // If already loading any song, skip the request
     // UNLESS we're in the middle of handling a completion event (allow one load attempt)
     if (_currentLoadingIndex == index && !_completionEventPending) {
@@ -1628,6 +1748,56 @@ class MusifyAudioHandler extends BaseAudioHandler {
       logger.log('Error in play()', error: e, stackTrace: stackTrace);
       _lastError = e.toString();
     }
+  }
+
+  /// iOS suspends AVPlayer / deactivates the session when the app is
+  /// backgrounded. UI can still show playing=true with a drifting position.
+  Future<void> resyncAfterForeground() async {
+    logger.log('App resumed — restoring audio session');
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (e, st) {
+      logger.log('Failed to reactivate audio session', error: e, stackTrace: st);
+    }
+
+    final uiThinksPlaying = playbackState.valueOrNull?.playing == true;
+    if (!uiThinksPlaying && !audioPlayer.playing) {
+      _updatePlaybackState();
+      return;
+    }
+
+    try {
+      if (!audioPlayer.playing && audioPlayer.audioSource != null) {
+        logger.log('UI said playing but AVPlayer was paused — resuming');
+        await play();
+      } else if (audioPlayer.playing) {
+        unawaited(audioPlayer.play());
+      }
+    } catch (e, st) {
+      logger.log('Resume playback failed', error: e, stackTrace: st);
+    }
+    _updatePlaybackState();
+  }
+
+  Future<void> _ensureActuallyPlaying(int? transitionId) async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    if (_isStaleTransition(transitionId)) return;
+    if (audioPlayer.playing) return;
+    logger.log('Playback did not start after source change; retrying');
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (_) {}
+    if (_isStaleTransition(transitionId) || audioPlayer.audioSource == null) {
+      return;
+    }
+    if (audioPlayer.playing) return;
+    unawaited(
+      audioPlayer.play().catchError((Object e, StackTrace st) {
+        logger.log('Retry play() failed', error: e, stackTrace: st);
+      }),
+    );
   }
 
   @override
@@ -2132,19 +2302,13 @@ class MusifyAudioHandler extends BaseAudioHandler {
       } catch (_) {}
 
       await audioPlayer
-          .setAudioSource(audioSource, preload: false)
+          .setAudioSources([audioSource], preload: false)
           .timeout(_songTransitionTimeout);
 
       // Check once more after the async setAudioSource: a fast offline song
       // could have loaded and started playing while we were buffering/setting up.
       // If so, stop the source we just loaded and yield to the newer song.
       if (_isStaleTransition(transitionId)) {
-        // Only stop if our source is still installed. A newer transition may
-        // already have swapped in its source; stopping unconditionally here
-        // would make the new track appear to pause immediately.
-        if (identical(audioPlayer.audioSource, audioSource)) {
-          unawaited(audioPlayer.stop());
-        }
         return false;
       }
 
@@ -2182,7 +2346,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
           _lastError = e.toString();
         }),
       );
+      unawaited(_ensureActuallyPlaying(transitionId));
       unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));
+      unawaited(_armNativeSuccessor());
 
       _updatePlaybackState();
 

@@ -67,15 +67,22 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return RepaintBoundary(
-      child: SingleChildScrollView(
-        scrollDirection: widget.direction,
-        controller: _scrollController,
-        physics: widget.manualScrollEnabled
-            ? const AlwaysScrollableScrollPhysics()
-            : const NeverScrollableScrollPhysics(),
-        child: widget.child,
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return RepaintBoundary(
+          child: SingleChildScrollView(
+            scrollDirection: widget.direction,
+            controller: _scrollController,
+            physics: widget.manualScrollEnabled
+                ? const AlwaysScrollableScrollPhysics()
+                : const NeverScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minWidth: constraints.maxWidth),
+              child: Center(child: widget.child),
+            ),
+          ),
+        );
+      },
     );
   }
 

@@ -32,7 +32,6 @@ import 'package:musify/services/common_services.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/mediaitem.dart';
 import 'package:musify/widgets/now_playing/marquee_text_widget.dart';
 
@@ -57,7 +56,6 @@ class NowPlayingControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final isDesktop = size.width > 800;
 
     final titleFontSize = getResponsiveTitleFontSize(size);
@@ -89,84 +87,93 @@ class NowPlayingControls extends StatelessWidget {
             if (!isCompact) const Spacer(),
             Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 16 : 4,
+                horizontal: isDesktop ? 8 : 0,
                 vertical: spacing,
               ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Stack(
+                alignment: Alignment.center,
                 children: [
-                  Expanded(
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 44),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         MarqueeTextWidget(
                           text: metadata.title,
-                          fontColor: colorScheme.onSurface,
+                          fontColor: CupertinoDynamicColor.resolve(
+                            CupertinoColors.label,
+                            context,
+                          ),
                           fontSize: titleFontSize * fontScale,
                           fontWeight: FontWeight.w700,
                         ),
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            if (metadata.artist != null)
-                              Flexible(
-                                child: GestureDetector(
-                                  behavior: HitTestBehavior.opaque,
-                                  onTap: canOpenArtist
-                                      ? () => _openArtistPage(context, metadata)
-                                      : null,
-                                  child: Text(
-                                    metadata.artist!,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: colorScheme.onSurfaceVariant
-                                          .withValues(alpha: 0.8),
-                                      fontSize: artistFontSize * fontScale,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
+                        const SizedBox(height: 4),
+                        if (metadata.artist != null)
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: canOpenArtist
+                                ? () => _openArtistPage(context, metadata)
+                                : null,
+                            child: Text(
+                              metadata.artist!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: canOpenArtist
+                                    ? CupertinoDynamicColor.resolve(
+                                        CupertinoColors.activeBlue,
+                                        context,
+                                      )
+                                    : CupertinoDynamicColor.resolve(
+                                        CupertinoColors.secondaryLabel,
+                                        context,
+                                      ),
+                                fontSize: artistFontSize * fontScale,
+                                fontWeight: FontWeight.w500,
                               ),
-                            const SizedBox(width: 8),
-                            _AudioSourceChip(metadata: metadata),
-                          ],
-                        ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ValueListenableBuilder<List>(
-                    valueListenable: userLikedSongsList,
-                    builder: (context, likedSongs, _) {
-                      final ytid = metadata.extras?['ytid']?.toString();
-                      final isLiked = ytid != null && isSongAlreadyLiked(ytid);
-                      return CupertinoButton(
-                        padding: const EdgeInsets.all(8),
-                        minimumSize: const Size(36, 36),
-                        onPressed: () {
-                          HapticFeedback.mediumImpact();
-                          if (ytid != null) {
-                            updateSongLikeStatus(
-                              ytid,
-                              !isLiked,
-                              songData: mediaItemToMap(metadata),
-                            );
-                          }
-                        },
-                        child: Icon(
-                          isLiked
-                              ? CupertinoIcons.heart_fill
-                              : CupertinoIcons.heart,
-                          color: isLiked
-                              ? CupertinoColors.systemPink
-                              : colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.6),
-                          size: 24,
-                        ),
-                      );
-                    },
+                  Positioned(
+                    right: 0,
+                    child: ValueListenableBuilder<List>(
+                      valueListenable: userLikedSongsList,
+                      builder: (context, likedSongs, _) {
+                        final ytid = metadata.extras?['ytid']?.toString();
+                        final isLiked =
+                            ytid != null && isSongAlreadyLiked(ytid);
+                        return CupertinoButton(
+                          padding: const EdgeInsets.all(8),
+                          minimumSize: const Size(36, 36),
+                          onPressed: () {
+                            HapticFeedback.mediumImpact();
+                            if (ytid != null) {
+                              updateSongLikeStatus(
+                                ytid,
+                                !isLiked,
+                                songData: mediaItemToMap(metadata),
+                              );
+                            }
+                          },
+                          child: Icon(
+                            isLiked
+                                ? CupertinoIcons.heart_fill
+                                : CupertinoIcons.heart,
+                            color: isLiked
+                                ? CupertinoColors.systemPink
+                                : CupertinoDynamicColor.resolve(
+                                    CupertinoColors.secondaryLabel,
+                                    context,
+                                  ),
+                            size: 22,
+                          ),
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
@@ -349,8 +356,11 @@ class PlayerControlButtons extends StatelessWidget {
           child: Icon(
             CupertinoIcons.shuffle,
             color: value
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                ? CupertinoColors.activeBlue
+                : CupertinoDynamicColor.resolve(
+                    CupertinoColors.tertiaryLabel,
+                    context,
+                  ),
             size: size * 0.9,
           ),
         );
@@ -393,8 +403,11 @@ class PlayerControlButtons extends StatelessWidget {
                     ? CupertinoIcons.repeat_1
                     : CupertinoIcons.repeat,
                 color: isEnabled
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                    ? CupertinoColors.activeBlue
+                    : CupertinoDynamicColor.resolve(
+                        CupertinoColors.tertiaryLabel,
+                        context,
+                      ),
                 size: size * 0.9,
               ),
             );
@@ -452,8 +465,14 @@ class _PlaybackControlsRow extends StatelessWidget {
                   ),
                   SizedBox(width: buttonSpacing),
                   PlaybackIconButton(
-                    iconColor: colorScheme.onPrimary,
-                    backgroundColor: colorScheme.primary,
+                    iconColor: CupertinoDynamicColor.resolve(
+                      CupertinoColors.systemBackground,
+                      context,
+                    ),
+                    backgroundColor: CupertinoDynamicColor.resolve(
+                      CupertinoColors.label,
+                      context,
+                    ),
                     iconSize: controlIconSize,
                     padding: playPadding,
                   ),
@@ -520,185 +539,12 @@ class _PlaybackControlButton extends StatelessWidget {
       child: Icon(
         icon,
         color: isEnabled
-            ? colorScheme.onSurface
-            : colorScheme.onSurface.withValues(alpha: 0.3),
+            ? CupertinoDynamicColor.resolve(CupertinoColors.label, context)
+            : CupertinoDynamicColor.resolve(
+                CupertinoColors.tertiaryLabel,
+                context,
+              ),
         size: controlIconSize,
-      ),
-    );
-  }
-}
-
-class _AudioSourceChip extends StatelessWidget {
-  const _AudioSourceChip({required this.metadata});
-  final MediaItem metadata;
-
-  void _showSourcePicker(BuildContext context) {
-    final extras = metadata.extras ?? {};
-    final currentSource = extras['resolvedSource'] as String? ?? 'youtube';
-    final ytid = extras['ytid']?.toString() ?? '';
-    // Fully downloaded → offline only; no mid-session online provider switch.
-    final isOffline =
-        extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
-
-    showCupertinoModalPopup<void>(
-      context: context,
-      builder: (ctx) => Material(
-        color: Colors.transparent,
-        child: CupertinoActionSheet(
-          title: const Text('Audio Stream Source'),
-          message: isOffline
-              ? const Text('This song is playing from offline storage.')
-              : const Text('Select audio provider for this track:'),
-          actions: isOffline
-              ? []
-              : [
-                  CupertinoActionSheetAction(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      if (currentSource != 'jiosaavn') {
-                        HapticFeedback.selectionClick();
-                        final success =
-                            await audioHandler.switchSource('jiosaavn');
-                        if (!success && context.mounted) {
-                          showToast(
-                            context,
-                            'Track not available on JioSaavn (playing on YouTube)',
-                          );
-                        }
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          CupertinoIcons.music_note,
-                          size: 18,
-                          color: CupertinoColors.systemGreen,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('JioSaavn (High Quality 320k AAC)'),
-                        if (currentSource == 'jiosaavn') ...[
-                          const SizedBox(width: 8),
-                          const Icon(
-                            CupertinoIcons.checkmark_alt_circle_fill,
-                            size: 18,
-                            color: CupertinoColors.systemGreen,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  CupertinoActionSheetAction(
-                    onPressed: () async {
-                      Navigator.pop(ctx);
-                      if (currentSource != 'youtube') {
-                        HapticFeedback.selectionClick();
-                        final success =
-                            await audioHandler.switchSource('youtube');
-                        if (!success && context.mounted) {
-                          showToast(
-                            context,
-                            'Track not available on YouTube',
-                          );
-                        }
-                      }
-                    },
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          CupertinoIcons.play_rectangle_fill,
-                          size: 18,
-                          color: CupertinoColors.systemBlue,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text('YouTube (Standard 160k Opus)'),
-                        if (currentSource == 'youtube') ...[
-                          const SizedBox(width: 8),
-                          const Icon(
-                            CupertinoIcons.checkmark_alt_circle_fill,
-                            size: 18,
-                            color: CupertinoColors.systemBlue,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-          cancelButton: CupertinoActionSheetAction(
-            isDefaultAction: true,
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final extras = metadata.extras ?? {};
-    final ytid = extras['ytid']?.toString() ?? '';
-    final isOffline =
-        extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
-
-    final source = extras['resolvedSource'] as String? ?? 'youtube';
-    final bitrate = extras['resolvedBitrate'] as int?;
-    final isJioSaavn = source == 'jiosaavn';
-
-    final label = isOffline
-        ? 'Offline'
-        : (isJioSaavn
-            ? 'JioSaavn ${bitrate ?? 320}k AAC'
-            : 'YouTube 160k Opus');
-
-    final color = isOffline
-        ? CupertinoColors.systemGrey
-        : (isJioSaavn
-            ? CupertinoColors.systemGreen
-            : CupertinoColors.systemBlue);
-
-    return GestureDetector(
-      onTap: () => _showSourcePicker(context),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.35), width: 0.8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isOffline
-                  ? CupertinoIcons.arrow_down_circle_fill
-                  : isJioSaavn
-                  ? CupertinoIcons.music_note
-                  : CupertinoIcons.play_rectangle_fill,
-              size: 11,
-              color: color,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.1,
-              ),
-            ),
-            if (!isOffline) ...[
-              const SizedBox(width: 3),
-              Icon(
-                CupertinoIcons.chevron_down,
-                size: 10,
-                color: color.withValues(alpha: 0.7),
-              ),
-            ],
-          ],
-        ),
       ),
     );
   }

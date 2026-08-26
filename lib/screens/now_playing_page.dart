@@ -1,12 +1,10 @@
 /*
- * Full-screen player — solid canvas, light/dark aware, low GPU.
+ * Full-screen player — Apple Music layout, Cupertino chrome.
  */
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
-import 'package:musify/theme/musified_style.dart';
 import 'package:musify/widgets/flip_card.dart';
 import 'package:musify/widgets/now_playing/bottom_actions_row.dart';
 import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
@@ -33,9 +31,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final isLargeScreen = size.width > 800 && size.height > 600;
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isDark = theme.brightness == Brightness.dark;
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final bg = CupertinoDynamicColor.resolve(
+      CupertinoColors.systemBackground,
+      context,
+    );
     final screenWidth = size.width;
     final baseIconSize = screenWidth < 360
         ? 36.0
@@ -44,69 +44,74 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         : 44.0;
     final miniIconSize = screenWidth < 360 ? 18.0 : 22.0;
 
-    return Scaffold(
-      backgroundColor: isDark ? MusifiedStyle.oledBlack : MusifiedStyle.lightCanvas,
-      body: GestureDetector(
+    return CupertinoPageScaffold(
+      backgroundColor: bg,
+      child: GestureDetector(
         onVerticalDragEnd: (details) {
           if ((details.primaryVelocity ?? 0) > 300) {
             Navigator.pop(context);
           }
         },
-        child: SafeArea(
-          child: StreamBuilder<MediaItem?>(
-            stream: audioHandler.mediaItem,
-            builder: (context, snapshot) {
-              final metadata = snapshot.data;
-              if (metadata == null) {
-                return const Center(child: CupertinoActivityIndicator());
-              }
-              return Column(
-                children: [
-                  _buildAppBar(context, colorScheme),
-                  Expanded(
-                    child: isLargeScreen
-                        ? _DesktopLayout(
-                            metadata: metadata,
-                            size: size,
-                            adjustedIconSize: baseIconSize,
-                            adjustedMiniIconSize: miniIconSize,
-                            lyricsController: _lyricsController,
-                          )
-                        : _MobileLayout(
-                            metadata: metadata,
-                            size: size,
-                            adjustedIconSize: baseIconSize,
-                            adjustedMiniIconSize: miniIconSize,
-                            isLargeScreen: isLargeScreen,
-                            lyricsController: _lyricsController,
-                          ),
-                  ),
-                ],
-              );
-            },
+        child: ColoredBox(
+          color: bg,
+          child: SafeArea(
+            child: StreamBuilder<MediaItem?>(
+              stream: audioHandler.mediaItem,
+              builder: (context, snapshot) {
+                final metadata = snapshot.data;
+                if (metadata == null) {
+                  return const Center(child: CupertinoActivityIndicator());
+                }
+                return Column(
+                  children: [
+                    _Grabber(brightness: brightness),
+                    Expanded(
+                      child: isLargeScreen
+                          ? _DesktopLayout(
+                              metadata: metadata,
+                              size: size,
+                              adjustedIconSize: baseIconSize,
+                              adjustedMiniIconSize: miniIconSize,
+                              lyricsController: _lyricsController,
+                            )
+                          : _MobileLayout(
+                              metadata: metadata,
+                              size: size,
+                              adjustedIconSize: baseIconSize,
+                              adjustedMiniIconSize: miniIconSize,
+                              isLargeScreen: isLargeScreen,
+                              lyricsController: _lyricsController,
+                            ),
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
+class _Grabber extends StatelessWidget {
+  const _Grabber({required this.brightness});
+  final Brightness brightness;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8, bottom: 4),
+      padding: const EdgeInsets.only(top: 6, bottom: 8),
       child: Center(
-        child: GestureDetector(
-          onVerticalDragEnd: (details) {
-            if ((details.primaryVelocity ?? 0) > 300) {
-              Navigator.pop(context);
-            }
-          },
-          child: Container(
-            width: 36,
-            height: 5,
-            decoration: BoxDecoration(
-              color: colorScheme.onSurface.withValues(alpha: 0.28),
-              borderRadius: BorderRadius.circular(2.5),
+        child: Container(
+          width: 36,
+          height: 5,
+          decoration: BoxDecoration(
+            color: CupertinoDynamicColor.resolve(
+              CupertinoColors.tertiaryLabel,
+              context,
             ),
+            borderRadius: BorderRadius.circular(2.5),
           ),
         ),
       ),
@@ -134,10 +139,10 @@ class _DesktopLayout extends StatelessWidget {
       children: [
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Column(
               children: [
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
                 Expanded(
                   flex: 5,
                   child: Center(
@@ -165,7 +170,7 @@ class _DesktopLayout extends StatelessWidget {
                   isLargeScreen: true,
                   lyricsController: lyricsController,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
               ],
             ),
           ),
@@ -194,9 +199,7 @@ class _MobileLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLandscape = size.width > size.height;
-
-    if (isLandscape) {
+    if (size.width > size.height) {
       return _buildLandscapeLayout(context);
     }
     return _buildPortraitLayout(context);
@@ -206,12 +209,11 @@ class _MobileLayout extends StatelessWidget {
     final isLive = metadata.extras?['isLive'] ?? false;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.fromLTRB(28, 0, 28, 8),
       child: Column(
         children: [
-          const SizedBox(height: 12),
           Expanded(
-            flex: 5,
+            flex: 6,
             child: Center(
               child: NowPlayingArtwork(
                 size: size,
@@ -226,18 +228,17 @@ class _MobileLayout extends StatelessWidget {
               child: NowPlayingControls(
                 size: size,
                 audioId: metadata.extras?['ytid'],
-                adjustedIconSize: adjustedIconSize * 1.1,
-                adjustedMiniIconSize: adjustedMiniIconSize * 1.1,
+                adjustedIconSize: adjustedIconSize * 1.15,
+                adjustedMiniIconSize: adjustedMiniIconSize * 1.15,
                 metadata: metadata,
               ),
             ),
           BottomActionsRow(
             metadata: metadata,
-            iconSize: adjustedMiniIconSize,
+            iconSize: 24,
             isLargeScreen: isLargeScreen,
             lyricsController: lyricsController,
           ),
-          const SizedBox(height: 16),
         ],
       ),
     );
