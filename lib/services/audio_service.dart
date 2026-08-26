@@ -2259,14 +2259,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
       final tag = mapToMediaItem(song);
 
       if (isOffline) {
-        final fileSource = AudioSource.file(songUrl, tag: tag);
-
-        if (sponsorBlockSupport.value) {
-          return _applyOfflineSponsorBlock(fileSource, song['ytid']) ??
-              fileSource;
-        }
-
-        return fileSource;
+        return AudioSource.file(songUrl, tag: tag);
       }
 
       final uri = Uri.parse(songUrl);
@@ -2275,8 +2268,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
         if (uri.host.contains('googlevideo.com') ||
             uri.host.contains('youtube.com')) {
           headers = {
-            // Use the same Apple client identity that minted the URL. Older
-            // cached entries have no metadata, so retain the iOS fallback.
             'User-Agent':
                 song['resolvedUserAgent']?.toString() ??
                 'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
@@ -2289,17 +2280,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
           };
         }
       }
-      final audioSource = AudioSource.uri(uri, headers: headers, tag: tag);
-
-      if (!sponsorBlockSupport.value) {
-        return audioSource;
-      }
-
-      final spbAudioSource = await checkIfSponsorBlockIsAvailable(
-        audioSource,
-        song['ytid'],
-      );
-      return spbAudioSource ?? audioSource;
+      return AudioSource.uri(uri, headers: headers, tag: tag);
     } catch (e, stackTrace) {
       logger.log(
         'Error building audio source',

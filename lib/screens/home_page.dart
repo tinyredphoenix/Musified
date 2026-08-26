@@ -62,12 +62,15 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Listen Now',
+        centerTitle: true,
+        title: Text(
+          'Musified',
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            letterSpacing: -0.6,
-            fontSize: 26,
+            letterSpacing: -0.5,
+            fontSize: 22,
+            fontFamily: '.SF Pro Display',
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
       ),

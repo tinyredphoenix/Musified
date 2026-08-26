@@ -28,15 +28,12 @@ import 'package:musify/screens/about_page.dart';
 import 'package:musify/screens/artist_page.dart';
 import 'package:musify/screens/bottom_navigation_page.dart';
 import 'package:musify/screens/home_page.dart';
-import 'package:musify/screens/import_spotify_playlist_page.dart';
 import 'package:musify/screens/library_page.dart';
 import 'package:musify/screens/logs_page.dart';
 import 'package:musify/screens/playlist_folder_page.dart';
 import 'package:musify/screens/playlist_page.dart';
-import 'package:musify/screens/radio_stations_page.dart';
 import 'package:musify/screens/search_page.dart';
 import 'package:musify/screens/settings_page.dart';
-import 'package:musify/screens/time_machine_page.dart';
 import 'package:musify/screens/user_songs_page.dart';
 import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/settings_manager.dart';
@@ -77,8 +74,7 @@ class NavigationManager {
         final isOffline = offlineMode.value;
         final currentPath = state.matchedLocation;
 
-        if (isOffline &&
-            (currentPath == searchPath || currentPath == timeMachinePath)) {
+        if (isOffline && currentPath == searchPath) {
           // Redirect unavailable pages to home in offline mode
           return homePath;
         }
@@ -139,7 +135,6 @@ class NavigationManager {
       router.routeInformationParser;
 
   static const String homePath = '/home';
-  static const String timeMachinePath = '$homePath/timeMachine';
   static const String settingsPath = '/settings';
   static const String searchPath = '/search';
   static const String libraryPath = '/library';
@@ -173,11 +168,7 @@ class NavigationManager {
               );
             },
             routes: [
-              GoRoute(
-                path: 'timeMachine',
-                pageBuilder: (context, state) =>
-                    _pushPage(child: const TimeMachinePage(), state: state),
-              ),
+
               GoRoute(
                 path: 'library',
                 pageBuilder: (context, state) =>
@@ -252,11 +243,7 @@ class NavigationManager {
               ),
               _artistRoute(),
               _albumRoute(),
-              GoRoute(
-                path: 'radioStations',
-                pageBuilder: (context, state) =>
-                    _pushPage(child: const RadioStationsPage(), state: state),
-              ),
+
             ],
           ),
         ],

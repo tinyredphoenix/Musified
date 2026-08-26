@@ -453,20 +453,6 @@ class SettingsPage extends StatelessWidget {
     return Column(
       children: [
         ValueListenableBuilder<bool>(
-          valueListenable: sponsorBlockSupport,
-          builder: (_, value, __) {
-            return CustomBar(
-              'SponsorBlock',
-              FluentIcons.cut_24_regular,
-              description: context.l10n.sponsorBlockDescription,
-              trailing: Switch(
-                value: value,
-                onChanged: (value) => _toggleSponsorBlock(context, value),
-              ),
-            );
-          },
-        ),
-        ValueListenableBuilder<bool>(
           valueListenable: playNextSongAutomatically,
           builder: (_, value, __) {
             return CustomBar(
@@ -591,70 +577,14 @@ class SettingsPage extends StatelessWidget {
           ),
         ),
 
-        CustomBar(
-          context.l10n.backupUserData,
-          FluentIcons.cloud_sync_24_regular,
-          onTap: () => _backupUserData(context),
-        ),
-        CustomBar(
-          context.l10n.restoreUserData,
-          FluentIcons.cloud_add_24_regular,
-          onTap: () async {
-            try {
-              final result = await restoreData(context);
-              if (result.success) {
-                reloadSettingsFromStorage();
-                reloadSongLibraryStateFromStorage();
-                reloadPlaylistLibraryStateFromStorage();
-                reloadSearchHistoryFromStorage();
-                listeningStatsService.reload();
-                await audioHandler.setShuffleMode(
-                  shuffleNotifier.value
-                      ? AudioServiceShuffleMode.all
-                      : AudioServiceShuffleMode.none,
-                );
-                await audioHandler.setRepeatMode(repeatNotifier.value);
-                themeMode = getThemeMode(themeModeSetting);
-                brightness = getBrightnessFromThemeMode(themeMode);
-                if (context.mounted) {
-                  await Musify.updateAppState(
-                    context,
-                    newThemeMode: themeMode,
-                    newLocale: languageSetting,
-                    newAccentColor: primaryColorSetting,
-                    useSystemColor: useSystemColor.value,
-                  );
-                  NavigationManager.refreshRouter();
-                }
-              }
-              if (context.mounted) {
-                showToast(
-                  context,
-                  result.message,
-                  icon: result.success
-                      ? null
-                      : FluentIcons.error_circle_24_regular,
-                );
-              }
-            } catch (e, str) {
-              logger.log('Error restoring data', error: e, stackTrace: str);
-              if (context.mounted) {
-                showToast(
-                  context,
-                  context.l10n.error,
-                  icon: FluentIcons.error_circle_24_regular,
-                );
-              }
-            }
-          },
-        ),
+
         Padding(
           padding: const EdgeInsets.symmetric(vertical: 28),
           child: Center(
             child: Column(
               children: [
                 Text(
-                  'Musified v$appVersion (Build 5)',
+                  'Musified v$appVersion (Build 1)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -704,7 +634,7 @@ class SettingsPage extends StatelessWidget {
           onTap: () async => showToast(context, await logger.copyLogs(context)),
         ),
         CustomBar(
-          'Musified iOS v1.1.0',
+          'Musified iOS v$appVersion',
           FluentIcons.info_24_regular,
           borderRadius: commonCustomBarRadiusLast,
           onTap: () {},
@@ -897,11 +827,7 @@ class SettingsPage extends StatelessWidget {
     showToast(context, context.l10n.settingChangedMsg);
   }
 
-  void _toggleSponsorBlock(BuildContext context, bool value) {
-    addOrUpdateData<bool>('settings', 'sponsorBlockSupport', value);
-    sponsorBlockSupport.value = value;
-    showToast(context, context.l10n.settingChangedMsg);
-  }
+
 
   void _toggleAutoPlayNext(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'playNextSongAutomatically', value);
@@ -939,27 +865,7 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _backupUserData(BuildContext context) async {
-    try {
-      final result = await backupData(context);
-      if (context.mounted) {
-        showToast(
-          context,
-          result.message,
-          icon: result.success ? null : FluentIcons.error_circle_24_regular,
-        );
-      }
-    } catch (e, stackTrace) {
-      logger.log('Error backing up data', error: e, stackTrace: stackTrace);
-      if (context.mounted) {
-        showToast(
-          context,
-          context.l10n.error,
-          icon: FluentIcons.error_circle_24_regular,
-        );
-      }
-    }
-  }
+
 
   void _showPreferredSourcePicker(BuildContext context) {
     final availableSources = ['auto', 'youtube', 'saavn'];
