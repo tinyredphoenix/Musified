@@ -224,6 +224,9 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
 
 IconData audioSourceIcon(MediaItem metadata) {
   final extras = metadata.extras ?? {};
+  final ytid = extras['ytid']?.toString() ?? '';
+  final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
+  if (isOffline) return CupertinoIcons.device_phone_portrait;
   if (extras['resolvedSource'] == 'jiosaavn') {
     return CupertinoIcons.music_note_2;
   }
@@ -232,6 +235,9 @@ IconData audioSourceIcon(MediaItem metadata) {
 
 Color audioSourceColor(MediaItem metadata) {
   final extras = metadata.extras ?? {};
+  final ytid = extras['ytid']?.toString() ?? '';
+  final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
+  if (isOffline) return CupertinoColors.systemGrey;
   if (extras['resolvedSource'] == 'jiosaavn') {
     return CupertinoColors.systemGreen;
   }

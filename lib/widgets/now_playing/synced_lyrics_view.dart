@@ -196,9 +196,14 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
             final isCurrent = index == _currentIndex;
             final isPast = index < _currentIndex;
 
-            return GestureDetector(
+                        return GestureDetector(
+              behavior: HitTestBehavior.opaque,
               onTap: () {
                 audioHandler.seek(line.time);
+                setState(() {
+                  _currentIndex = index;
+                });
+                _scrollToCurrentLine();
               },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 12.0),

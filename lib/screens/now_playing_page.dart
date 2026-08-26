@@ -46,9 +46,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         : 44.0;
     final miniIconSize = screenWidth < 360 ? 18.0 : 22.0;
 
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: bg,
-      body: Material(
+      child: Material(
         type: MaterialType.transparency,
         child: DefaultTextStyle(
           style: TextStyle(
