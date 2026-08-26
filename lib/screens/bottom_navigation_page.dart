@@ -147,28 +147,34 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                   ),
                 ),
                 bottomNavigationBar: !isLargeScreen
-                    ? CupertinoTabBar(
-                        currentIndex: _getCurrentIndex(items, isOfflineMode),
-                        onTap: (index) => _onTabTapped(index, items),
-                        activeColor: Theme.of(context).colorScheme.primary,
-                        inactiveColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
-                        iconSize: 23,
-                        border: Border(
-                          top: BorderSide(
-                            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
-                            width: 0.5,
-                          ),
+                    ? CupertinoTheme(
+                        data: CupertinoThemeData(
+                          brightness: Theme.of(context).brightness,
+                          primaryColor: Theme.of(context).colorScheme.primary,
                         ),
-                        items: items
-                            .map(
-                              (item) => BottomNavigationBarItem(
-                                icon: Icon(item.icon),
-                                activeIcon: Icon(item.selectedIcon),
-                                label: item.label,
-                              ),
-                            )
-                            .toList(),
+                        child: CupertinoTabBar(
+                          currentIndex: _getCurrentIndex(items, isOfflineMode),
+                          onTap: (index) => _onTabTapped(index, items),
+                          activeColor: Theme.of(context).colorScheme.primary,
+                          inactiveColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                          backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
+                          iconSize: 23,
+                          border: Border(
+                            top: BorderSide(
+                              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+                              width: 0.5,
+                            ),
+                          ),
+                          items: items
+                              .map(
+                                (item) => BottomNavigationBarItem(
+                                  icon: Icon(item.icon),
+                                  activeIcon: Icon(item.selectedIcon),
+                                  label: item.label,
+                                ),
+                              )
+                              .toList(),
+                        ),
                       )
                     : null,
               );

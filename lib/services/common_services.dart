@@ -41,22 +41,44 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 List globalSongs = [];
 
+T _safeUserGet<T>(String key, T defaultValue) {
+  try {
+    if (!Hive.isBoxOpen('user')) return defaultValue;
+    final v = Hive.box('user').get(key, defaultValue: defaultValue);
+    if (v is T) return v;
+    return defaultValue;
+  } catch (_) {
+    return defaultValue;
+  }
+}
+
+T _safeUserNoBackupGet<T>(String key, T defaultValue) {
+  try {
+    if (!Hive.isBoxOpen('userNoBackup')) return defaultValue;
+    final v = Hive.box('userNoBackup').get(key, defaultValue: defaultValue);
+    if (v is T) return v;
+    return defaultValue;
+  } catch (_) {
+    return defaultValue;
+  }
+}
+
 ValueNotifier<List> userLikedSongsList = ValueNotifier<List>(
-  Hive.box('user').get('likedSongs', defaultValue: []),
+  _safeUserGet<List>('likedSongs', []),
 );
 
 ValueNotifier<List<String>> userLikedRadioStations =
     ValueNotifier<List<String>>(
       List<String>.from(
-        Hive.box('user').get('likedRadioStations', defaultValue: []),
+        _safeUserGet<List>('likedRadioStations', []),
       ),
     );
 
 ValueNotifier<List> userRecentlyPlayed = ValueNotifier<List>(
-  Hive.box('user').get('recentlyPlayedSongs', defaultValue: []),
+  _safeUserGet<List>('recentlyPlayedSongs', []),
 );
 ValueNotifier<List> userOfflineSongs = ValueNotifier<List>(
-  Hive.box('userNoBackup').get('offlineSongs', defaultValue: []),
+  _safeUserNoBackupGet<List>('offlineSongs', []),
 );
 
 dynamic nextRecommendedSong;
@@ -68,13 +90,28 @@ final lyrics = ValueNotifier<String?>(null);
 String? lastFetchedLyrics;
 
 void reloadSongLibraryStateFromStorage() {
-  final userBox = Hive.box('user');
-  userLikedSongsList.value = List.from(
-    userBox.get('likedSongs', defaultValue: []),
-  );
-  userRecentlyPlayed.value = List.from(
-    userBox.get('recentlyPlayedSongs', defaultValue: []),
-  );
+  try {
+    if (Hive.isBoxOpen('user')) {
+      final userBox = Hive.box('user');
+      userLikedSongsList.value = List.from(
+        userBox.get('likedSongs', defaultValue: []),
+      );
+      userLikedRadioStations.value = List<String>.from(
+        userBox.get('likedRadioStations', defaultValue: []),
+      );
+      userRecentlyPlayed.value = List.from(
+        userBox.get('recentlyPlayedSongs', defaultValue: []),
+      );
+    }
+    if (Hive.isBoxOpen('userNoBackup')) {
+      final box = Hive.box('userNoBackup');
+      userOfflineSongs.value = List.from(
+        box.get('offlineSongs', defaultValue: []),
+      );
+    }
+  } catch (e) {
+    logger.log('Error reloading song library state: $e');
+  }
 }
 
 // Timeouts and durations used across manifest fetching and cache validation.

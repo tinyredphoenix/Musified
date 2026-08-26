@@ -32,10 +32,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/localization/app_localizations.dart';
 import 'package:musify/services/audio_service.dart';
+import 'package:musify/services/common_services.dart';
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/io_service.dart';
 import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/logger_service.dart';
+import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/playlist_sharing.dart';
 import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
@@ -285,14 +287,53 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Always ensure we show something even if initialization fails
-  await initialisation();
 
-  // Guard: never let a late init crash leave a blank screen
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return Material(
+      color: const Color(0xFF121212),
+      child: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Initialization Notice',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${details.exception}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                  textAlign: TextAlign.center,
+                  maxLines: 5,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     logger.log('FlutterError', error: details.exception, stackTrace: details.stack);
   };
+
+  try {
+    await initialisation().timeout(const Duration(seconds: 4));
+  } catch (e, st) {
+    logger.log('initialisation error or timeout: $e', stackTrace: st);
+  }
 
   runApp(const Musify());
 }
@@ -311,6 +352,9 @@ Future<void> initialisation() async {
     // Restore persisted settings into ValueNotifiers + theme globals
     reloadSettingsFromStorage();
     syncThemeFromSettings();
+    reloadSongLibraryStateFromStorage();
+    reloadPlaylistsStateFromStorage();
+    OfflinePlaylistService().reloadOfflinePlaylistsFromStorage();
   } catch (e, stackTrace) {
     logger.log('Hive Initialization Error', error: e, stackTrace: stackTrace);
   }

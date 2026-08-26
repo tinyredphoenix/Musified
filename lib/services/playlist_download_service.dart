@@ -48,9 +48,24 @@ class OfflinePlaylistService {
   final List<String> activeDownloads = [];
 
   // List of playlists that are fully available offline
-  final offlinePlaylists = ValueNotifier<List<dynamic>>(
-    Hive.box('userNoBackup').get('offlinePlaylists', defaultValue: []),
-  );
+  final offlinePlaylists = ValueNotifier<List<dynamic>>(() {
+    try {
+      if (Hive.isBoxOpen('userNoBackup')) {
+        return Hive.box('userNoBackup').get('offlinePlaylists', defaultValue: []);
+      }
+    } catch (_) {}
+    return [];
+  }());
+
+  void reloadOfflinePlaylistsFromStorage() {
+    try {
+      if (Hive.isBoxOpen('userNoBackup')) {
+        offlinePlaylists.value = List.from(
+          Hive.box('userNoBackup').get('offlinePlaylists', defaultValue: []),
+        );
+      }
+    } catch (_) {}
+  }
 
   ValueNotifier<DownloadProgress> getProgressNotifier(String playlistId) {
     if (!downloadProgressNotifiers.containsKey(playlistId)) {

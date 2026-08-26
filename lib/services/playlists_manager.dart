@@ -39,24 +39,61 @@ import 'package:musify/utilities/playlist_utils.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 List<Map> playlists = [...playlistsDB, ...albumsDB];
+
+T _safeUserListGet<T>(String key, T defaultValue) {
+  try {
+    if (!Hive.isBoxOpen('user')) return defaultValue;
+    final v = Hive.box('user').get(key, defaultValue: defaultValue);
+    if (v is T) return v;
+    return defaultValue;
+  } catch (_) {
+    return defaultValue;
+  }
+}
+
 final userPlaylists = ValueNotifier<List<String>>(
-  List<String>.from(Hive.box('user').get('playlists', defaultValue: [])),
+  List<String>.from(_safeUserListGet<List>('playlists', [])),
 );
 final userCustomPlaylists = ValueNotifier<List<Map>>(
-  List<Map>.from(Hive.box('user').get('customPlaylists', defaultValue: [])),
+  List<Map>.from(_safeUserListGet<List>('customPlaylists', [])),
 );
 final userLikedPlaylists = ValueNotifier<List<Map>>(
-  List<Map>.from(Hive.box('user').get('likedPlaylists', defaultValue: [])),
+  List<Map>.from(_safeUserListGet<List>('likedPlaylists', [])),
 );
 final userPlaylistFolders = ValueNotifier<List<Map>>(
-  List<Map>.from(Hive.box('user').get('playlistFolders', defaultValue: [])),
+  List<Map>.from(_safeUserListGet<List>('playlistFolders', [])),
 );
 final pinnedPlaylistIds = ValueNotifier<List<String>>(
   List<String>.from(
-    Hive.box('user').get('pinnedPlaylistIds', defaultValue: <String>[]),
+    _safeUserListGet<List>('pinnedPlaylistIds', []),
   ),
 );
 final onlinePlaylists = ValueNotifier<List<Map>>([]);
+
+void reloadPlaylistsStateFromStorage() {
+  try {
+    if (Hive.isBoxOpen('user')) {
+      final userBox = Hive.box('user');
+      userPlaylists.value = List<String>.from(
+        userBox.get('playlists', defaultValue: []),
+      );
+      userCustomPlaylists.value = List<Map>.from(
+        userBox.get('customPlaylists', defaultValue: []),
+      );
+      userLikedPlaylists.value = List<Map>.from(
+        userBox.get('likedPlaylists', defaultValue: []),
+      );
+      userPlaylistFolders.value = List<Map>.from(
+        userBox.get('playlistFolders', defaultValue: []),
+      );
+      pinnedPlaylistIds.value = List<String>.from(
+        userBox.get('pinnedPlaylistIds', defaultValue: []),
+      );
+    }
+  } catch (e) {
+    logger.log('Error reloading playlists state: $e');
+  }
+}
 
 bool isArtistPlaylist(dynamic playlist) =>
     PlaylistUtils.isArtistPlaylist(playlist);

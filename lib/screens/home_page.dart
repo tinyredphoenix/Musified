@@ -134,7 +134,6 @@ class _HomePageState extends State<HomePage> {
         ? context.l10n!.backToFavorites
         : context.l10n!.suggestedPlaylists;
     final itemsNumber = playlists.length.clamp(0, recommendedCubesNumber);
-    final isLargeScreen = MediaQuery.of(context).size.width > 480;
 
     return Column(
       children: [
@@ -144,50 +143,26 @@ class _HomePageState extends State<HomePage> {
               ? FluentIcons.heart_24_filled
               : FluentIcons.list_24_filled,
         ),
-        ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: playlistHeight),
-          child: isLargeScreen
-              ? _buildHorizontalList(playlists, itemsNumber, playlistHeight)
-              : _buildCarouselView(playlists, itemsNumber, playlistHeight),
+        SizedBox(
+          height: playlistHeight,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: itemsNumber,
+            itemBuilder: (context, index) {
+              final playlist = playlists[index];
+              return Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () =>
+                      context.push('/home/playlist/${playlist['ytid']}'),
+                  child: PlaylistCube(playlist, size: playlistHeight),
+                ),
+              );
+            },
+          ),
         ),
       ],
-    );
-  }
-
-  Widget _buildHorizontalList(
-    List<dynamic> playlists,
-    int itemCount,
-    double height,
-  ) {
-    return ListView.builder(
-      scrollDirection: Axis.horizontal,
-      itemCount: itemCount,
-      itemBuilder: (context, index) {
-        final playlist = playlists[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: GestureDetector(
-            onTap: () => context.push('/home/playlist/${playlist['ytid']}'),
-            child: PlaylistCube(playlist, size: height),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildCarouselView(
-    List<dynamic> playlists,
-    int itemCount,
-    double height,
-  ) {
-    return CarouselView.weighted(
-      flexWeights: const <int>[3, 2, 1],
-      itemSnapping: true,
-      onTap: (index) =>
-          context.push('/home/playlist/${playlists[index]['ytid']}'),
-      children: List.generate(itemCount, (index) {
-        return PlaylistCube(playlists[index], size: height * 2);
-      }),
     );
   }
 
