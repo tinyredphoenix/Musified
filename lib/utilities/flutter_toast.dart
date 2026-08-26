@@ -31,7 +31,8 @@ void showToast(
   IconData? icon,
 }) {
   final colorScheme = Theme.of(context).colorScheme;
-  final isMiniPlayerVisible = audioHandler.mediaItem.value != null;
+  final isMiniPlayerVisible =
+      isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
   final bottomMargin =
       12.0 + (isMiniPlayerVisible ? MiniPlayer.playerHeight : 0.0);
 
@@ -64,7 +65,8 @@ void showToastWithButton(
   IconData? icon,
 }) {
   final colorScheme = Theme.of(context).colorScheme;
-  final isMiniPlayerVisible = audioHandler.mediaItem.value != null;
+  final isMiniPlayerVisible =
+      isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
   final bottomMargin =
       12.0 + (isMiniPlayerVisible ? MiniPlayer.playerHeight : 0.0);
 

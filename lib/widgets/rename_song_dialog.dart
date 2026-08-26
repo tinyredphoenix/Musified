@@ -63,7 +63,8 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
     final newArtist = _artistController.text.trim();
 
     if (newTitle.isEmpty || newArtist.isEmpty) {
-      final isMiniPlayerVisible = audioHandler.mediaItem.value != null;
+      final isMiniPlayerVisible =
+          isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
       final bottomMargin =
           12.0 + (isMiniPlayerVisible ? MiniPlayer.playerHeight : 0.0);
 

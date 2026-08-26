@@ -220,32 +220,29 @@ void main() async {
     return Material(
       color: const Color(0xFF121212),
       child: SafeArea(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 48),
-                const SizedBox(height: 16),
-                const Text(
-                  'Initialization Notice',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.redAccent, size: 44),
+              const SizedBox(height: 12),
+              const Text(
+                'Musified Notice',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '${details.exception}',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                  textAlign: TextAlign.center,
-                  maxLines: 5,
-                ),
-              ],
-            ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              SelectableText(
+                '${details.exception}\n\n${details.stack?.toString().split('\n').take(12).join('\n') ?? ''}',
+                style: const TextStyle(color: Colors.grey, fontSize: 11, fontFamily: 'monospace'),
+                textAlign: TextAlign.left,
+              ),
+            ],
           ),
         ),
       ),
