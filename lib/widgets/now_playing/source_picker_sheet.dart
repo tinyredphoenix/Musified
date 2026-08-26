@@ -1,5 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:flutter/services.dart';
 import 'package:musify/main.dart';
 import 'package:musify/services/common_services.dart';
@@ -106,102 +107,114 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
 
       return SafeArea(
         minimum: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: sheetBg,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        child: Material(
+          type: MaterialType.transparency,
+          child: DefaultTextStyle(
+            style: TextStyle(
+              fontFamily: '.SF Pro Text',
+              decoration: TextDecoration.none,
+              color: label,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: sheetBg,
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+                        child: Text(
+                          'Audio source',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: secondary,
+                            letterSpacing: 0.2,
+                            decoration: TextDecoration.none,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                        decoration: BoxDecoration(
+                          color: rowBg,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            row(
+                              icon: CupertinoIcons.music_note_2,
+                              iconColor: CupertinoColors.systemGreen,
+                              title: 'JioSaavn',
+                              subtitle: isOffline
+                                  ? 'Unavailable while playing offline'
+                                  : '320k AAC Lossless',
+                              selected: !isOffline && currentSource == 'jiosaavn',
+                              enabled: !isOffline,
+                              onTap: () => select('jiosaavn'),
+                            ),
+                            Container(height: 0.5, color: separator),
+                            row(
+                              icon: CupertinoIcons.play_circle_fill,
+                              iconColor: const Color(0xFFFF0033),
+                              title: 'YouTube Music',
+                              subtitle: isOffline
+                                  ? 'Unavailable while playing offline'
+                                  : '160k AAC',
+                              selected: !isOffline && currentSource == 'youtube',
+                              enabled: !isOffline,
+                              onTap: () => select('youtube'),
+                            ),
+                            Container(height: 0.5, color: separator),
+                            row(
+                              icon: CupertinoIcons.arrow_down_circle_fill,
+                              iconColor: CupertinoColors.systemBlue,
+                              title: 'Downloaded',
+                              subtitle: isOffline
+                                  ? 'Playing from this device'
+                                  : 'Download this track to use offline',
+                              selected: isOffline,
+                              enabled: false,
+                              onTap: null,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: CupertinoButton(
+                    color: rowBg,
+                    borderRadius: BorderRadius.circular(14),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    onPressed: () => Navigator.pop(ctx),
                     child: Text(
-                      'Audio source',
+                      'Cancel',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 17,
                         fontWeight: FontWeight.w600,
-                        color: secondary,
-                        letterSpacing: 0.2,
+                        decoration: TextDecoration.none,
+                        color: CupertinoDynamicColor.resolve(
+                          CupertinoColors.activeBlue,
+                          ctx,
+                        ),
                       ),
                     ),
                   ),
-                  Container(
-                    margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    decoration: BoxDecoration(
-                      color: rowBg,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        row(
-                          icon: CupertinoIcons.music_note,
-                          iconColor: CupertinoColors.systemGreen,
-                          title: 'JioSaavn',
-                          subtitle: isOffline
-                              ? 'Unavailable while playing offline'
-                              : '320k AAC',
-                          selected: !isOffline && currentSource == 'jiosaavn',
-                          enabled: !isOffline,
-                          onTap: () => select('jiosaavn'),
-                        ),
-                        Container(height: 0.5, color: separator),
-                        row(
-                          icon: CupertinoIcons.play_rectangle_fill,
-                          iconColor: CupertinoColors.systemRed,
-                          title: 'YouTube Music',
-                          subtitle: isOffline
-                              ? 'Unavailable while playing offline'
-                              : '160k Opus',
-                          selected: !isOffline && currentSource == 'youtube',
-                          enabled: !isOffline,
-                          onTap: () => select('youtube'),
-                        ),
-                        Container(height: 0.5, color: separator),
-                        row(
-                          icon: CupertinoIcons.arrow_down_circle_fill,
-                          iconColor: CupertinoColors.systemGrey,
-                          title: 'Downloaded',
-                          subtitle: isOffline
-                              ? 'Playing from this device'
-                              : 'Download this track to use offline',
-                          selected: isOffline,
-                          enabled: false,
-                          onTap: null,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: CupertinoButton(
-                color: rowBg,
-                borderRadius: BorderRadius.circular(14),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  'Cancel',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                    color: CupertinoDynamicColor.resolve(
-                      CupertinoColors.activeBlue,
-                      ctx,
-                    ),
-                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       );
     },

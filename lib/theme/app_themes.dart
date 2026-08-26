@@ -175,6 +175,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       fontWeight: FontWeight.w400,
       color: onSurface,
       letterSpacing: -0.2,
+      decoration: TextDecoration.none,
     ),
     bodyMedium: MusifiedStyle.songSubtitle(onVariant),
     bodySmall: MusifiedStyle.caption(onVariant),
@@ -183,6 +184,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       fontWeight: FontWeight.w600,
       color: onSurface,
       letterSpacing: -0.1,
+      decoration: TextDecoration.none,
     ),
     labelMedium: MusifiedStyle.caption(onVariant),
   );

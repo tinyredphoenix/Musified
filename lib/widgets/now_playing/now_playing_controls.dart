@@ -132,6 +132,7 @@ class NowPlayingControls extends StatelessWidget {
                                       ),
                                 fontSize: artistFontSize * fontScale,
                                 fontWeight: FontWeight.w500,
+                                decoration: TextDecoration.none,
                               ),
                             ),
                           ),

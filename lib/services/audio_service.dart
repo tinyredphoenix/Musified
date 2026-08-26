@@ -762,6 +762,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
   Future<void> _backgroundAddSongsToQueue() async {
     // Fire and forget - this runs as a background task without blocking playback
     if (offlineMode.value) return;
+    if (_queueList.isNotEmpty && _currentQueueIndex < _queueList.length - 1) {
+      return;
+    }
 
     // Use microtask to avoid blocking the current operation
     unawaited(

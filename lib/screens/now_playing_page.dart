@@ -4,7 +4,9 @@
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart' show Material, MaterialType;
 import 'package:musify/main.dart';
+import 'package:musify/theme/musified_style.dart';
 import 'package:musify/widgets/flip_card.dart';
 import 'package:musify/widgets/now_playing/bottom_actions_row.dart';
 import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
@@ -46,16 +48,24 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
     return CupertinoPageScaffold(
       backgroundColor: bg,
-      child: GestureDetector(
-        onVerticalDragEnd: (details) {
-          if ((details.primaryVelocity ?? 0) > 300) {
-            Navigator.pop(context);
-          }
-        },
-        child: ColoredBox(
-          color: bg,
-          child: SafeArea(
-            child: StreamBuilder<MediaItem?>(
+      child: Material(
+        type: MaterialType.transparency,
+        child: DefaultTextStyle(
+          style: TextStyle(
+            fontFamily: MusifiedStyle.uiFont,
+            decoration: TextDecoration.none,
+            color: CupertinoDynamicColor.resolve(CupertinoColors.label, context),
+          ),
+          child: GestureDetector(
+            onVerticalDragEnd: (details) {
+              if ((details.primaryVelocity ?? 0) > 300) {
+                Navigator.pop(context);
+              }
+            },
+            child: ColoredBox(
+              color: bg,
+              child: SafeArea(
+                child: StreamBuilder<MediaItem?>(
               stream: audioHandler.mediaItem,
               builder: (context, snapshot) {
                 final metadata = snapshot.data;
@@ -90,7 +100,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 }
 

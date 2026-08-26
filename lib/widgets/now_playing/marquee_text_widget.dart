@@ -46,6 +46,7 @@ class MarqueeTextWidget extends StatelessWidget {
           fontWeight: fontWeight,
           color: fontColor,
           letterSpacing: 0.2,
+          decoration: TextDecoration.none,
         ),
       ),
     );

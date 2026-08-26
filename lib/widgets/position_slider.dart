@@ -189,6 +189,7 @@ class _PositionSliderState extends State<PositionSlider> {
                 context,
               ),
               fontWeight: FontWeight.w500,
+              decoration: TextDecoration.none,
             ),
           ),
           Text(
@@ -201,6 +202,7 @@ class _PositionSliderState extends State<PositionSlider> {
                 context,
               ),
               fontWeight: FontWeight.w500,
+              decoration: TextDecoration.none,
             ),
           ),
         ],

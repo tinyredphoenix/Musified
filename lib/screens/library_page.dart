@@ -135,6 +135,7 @@ class _LibraryPageState extends State<LibraryPage> {
             padding: commonSingleChildScrollViewPadding,
             child: CustomScrollView(
               slivers: [
+                ..._buildTopLibrarySections(),
                 if (!offlineMode.value) ..._buildYouTubePlaylistsSlivers(),
                 ..._buildPinnedSlivers(),
                 if (!offlineMode.value) ..._buildLikedPlaylistsSlivers(),
@@ -146,6 +147,64 @@ class _LibraryPageState extends State<LibraryPage> {
         },
       ),
     );
+  }
+
+  List<Widget> _buildTopLibrarySections() {
+    return [
+      SliverToBoxAdapter(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Column(
+            children: [
+              ValueListenableBuilder<List>(
+                valueListenable: userOfflineSongs,
+                builder: (context, offline, _) {
+                  return PlaylistBar(
+                    context.l10n.offlineSongs,
+                    subtitle: '${offline.length} tracks',
+                    onPressed: () => NavigationManager.router.go(
+                      '/library/userSongs/offline',
+                    ),
+                    cubeIcon: CupertinoIcons.arrow_down_circle_fill,
+                    borderRadius: commonCustomBarRadiusFirst,
+                    showBuildActions: false,
+                  );
+                },
+              ),
+              ValueListenableBuilder<List>(
+                valueListenable: userLikedSongsList,
+                builder: (context, liked, _) {
+                  return PlaylistBar(
+                    context.l10n.likedSongs,
+                    subtitle: '${liked.length} tracks',
+                    onPressed: () => NavigationManager.router.go(
+                      '/library/userSongs/liked',
+                    ),
+                    cubeIcon: CupertinoIcons.heart_fill,
+                    showBuildActions: false,
+                  );
+                },
+              ),
+              ValueListenableBuilder<List>(
+                valueListenable: userRecentlyPlayed,
+                builder: (context, recents, _) {
+                  return PlaylistBar(
+                    context.l10n.recentlyPlayed,
+                    subtitle: '${recents.length} tracks',
+                    onPressed: () => NavigationManager.router.go(
+                      '/library/userSongs/recents',
+                    ),
+                    cubeIcon: CupertinoIcons.clock_fill,
+                    borderRadius: commonCustomBarRadiusLast,
+                    showBuildActions: false,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    ];
   }
 
   List<Widget> _buildYouTubePlaylistsSlivers() {

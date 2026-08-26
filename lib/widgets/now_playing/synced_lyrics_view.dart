@@ -147,68 +147,76 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   @override
   Widget build(BuildContext context) {
     if (_parsedLyrics == null) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        physics: const BouncingScrollPhysics(),
-        child: Text(
-          widget.lyrics,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w500,
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
-            height: 1.6,
+      return Material(
+        type: MaterialType.transparency,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          physics: const BouncingScrollPhysics(),
+          child: Text(
+            widget.lyrics,
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w500,
+              color: Theme.of(context).colorScheme.onSecondaryContainer,
+              height: 1.6,
+              decoration: TextDecoration.none,
+            ),
+            textAlign: TextAlign.center,
           ),
-          textAlign: TextAlign.center,
         ),
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 120, horizontal: 28),
-      physics: const BouncingScrollPhysics(),
-      itemCount: _parsedLyrics!.length,
-      itemBuilder: (context, index) {
-        final line = _parsedLyrics![index];
-        final isCurrent = index == _currentIndex;
-        final isPast = index < _currentIndex;
+    return Material(
+      type: MaterialType.transparency,
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.symmetric(vertical: 120, horizontal: 28),
+        physics: const BouncingScrollPhysics(),
+        itemCount: _parsedLyrics!.length,
+        itemBuilder: (context, index) {
+          final line = _parsedLyrics![index];
+          final isCurrent = index == _currentIndex;
+          final isPast = index < _currentIndex;
 
-        return GestureDetector(
-          onTap: () {
-            audioHandler.seek(line.time);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            curve: Curves.easeOut,
-            padding: EdgeInsets.symmetric(
-              vertical: isCurrent ? 16.0 : 10.0,
-            ),
-            child: Text(
-              line.text,
-              style: TextStyle(
-                fontSize: isCurrent ? 26 : 21,
-                fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                color: isCurrent
-                    ? Colors.white
-                    : (isPast
-                        ? Colors.white.withValues(alpha: 0.55)
-                        : Colors.white.withValues(alpha: 0.28)),
-                height: 1.35,
-                shadows: isCurrent
-                    ? [
-                        Shadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
-                      ]
-                    : null,
+          return GestureDetector(
+            onTap: () {
+              audioHandler.seek(line.time);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeOut,
+              padding: EdgeInsets.symmetric(
+                vertical: isCurrent ? 16.0 : 10.0,
               ),
-              textAlign: TextAlign.center,
+              child: Text(
+                line.text,
+                style: TextStyle(
+                  fontSize: isCurrent ? 26 : 21,
+                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                  color: isCurrent
+                      ? Colors.white
+                      : (isPast
+                          ? Colors.white.withValues(alpha: 0.55)
+                          : Colors.white.withValues(alpha: 0.28)),
+                  height: 1.35,
+                  decoration: TextDecoration.none,
+                  shadows: isCurrent
+                      ? [
+                          Shadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 16,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : null,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

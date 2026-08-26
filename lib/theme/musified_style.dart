@@ -49,6 +49,7 @@ abstract final class MusifiedStyle {
     letterSpacing: -0.6,
     height: 1.1,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static TextStyle largeTitle(Color color) => TextStyle(
@@ -58,6 +59,7 @@ abstract final class MusifiedStyle {
     letterSpacing: -0.6,
     height: 1.15,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static TextStyle sectionTitle(Color color) => TextStyle(
@@ -67,6 +69,7 @@ abstract final class MusifiedStyle {
     letterSpacing: -0.4,
     height: 1.2,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static TextStyle songTitle(Color color) => TextStyle(
@@ -76,6 +79,7 @@ abstract final class MusifiedStyle {
     letterSpacing: -0.2,
     height: 1.25,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static TextStyle songSubtitle(Color color) => TextStyle(
@@ -85,6 +89,7 @@ abstract final class MusifiedStyle {
     letterSpacing: -0.08,
     height: 1.25,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static TextStyle caption(Color color) => TextStyle(
@@ -93,6 +98,7 @@ abstract final class MusifiedStyle {
     fontWeight: FontWeight.w500,
     letterSpacing: -0.05,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static TextStyle playerTitle(Color color) => TextStyle(
@@ -102,6 +108,7 @@ abstract final class MusifiedStyle {
     letterSpacing: -0.4,
     height: 1.2,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static TextStyle playerArtist(Color color) => TextStyle(
@@ -110,6 +117,7 @@ abstract final class MusifiedStyle {
     fontWeight: FontWeight.w500,
     letterSpacing: -0.2,
     color: color,
+    decoration: TextDecoration.none,
   );
 
   static BorderSide hairlineBorder([Color? color]) =>

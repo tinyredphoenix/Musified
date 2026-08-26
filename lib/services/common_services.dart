@@ -787,9 +787,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     final preference = requestedPreference == 'saavn'
         ? 'jiosaavn'
         : requestedPreference;
+    final isExplicitForce = forceSource != null;
     final sources = switch (preference) {
-      'youtube' => ['youtube'],
-      'jiosaavn' => ['jiosaavn'],
+      'youtube' => isExplicitForce ? ['youtube'] : ['youtube', 'jiosaavn'],
+      'jiosaavn' => isExplicitForce ? ['jiosaavn'] : ['jiosaavn', 'youtube'],
       _ => ['jiosaavn', 'youtube'],
     };
 

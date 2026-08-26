@@ -108,15 +108,6 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                 },
                 size: iconSize,
               ),
-              if (queue.isNotEmpty && !widget.isLargeScreen)
-                _iconButton(
-                  icon: CupertinoIcons.list_bullet,
-                  onPressed: () => showCustomBottomSheet(
-                    context,
-                    const QueueWidget(isBottomSheet: true),
-                  ),
-                  size: iconSize,
-                ),
               ValueListenableBuilder<bool>(
                 valueListenable: _downloadInProgress,
                 builder: (_, busy, __) {
@@ -127,16 +118,51 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                       child: Center(child: CupertinoActivityIndicator()),
                     );
                   }
-                  return ValueListenableBuilder<Duration?>(
-                    valueListenable: sleepTimerNotifier,
-                    builder: (_, timer, __) {
+                  return ValueListenableBuilder<bool>(
+                    valueListenable: _songOfflineStatus,
+                    builder: (_, isOffline, __) {
                       return _iconButton(
-                        icon: CupertinoIcons.ellipsis_circle,
-                        onPressed: () => _showMoreSheet(context, l10n),
+                        icon: isOffline
+                            ? CupertinoIcons.arrow_down_circle_fill
+                            : CupertinoIcons.arrow_down_circle,
+                        color: isOffline
+                            ? CupertinoColors.activeBlue
+                            : null,
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          unawaited(
+                            _toggleOffline(
+                              context,
+                              _songOfflineStatus,
+                              _audioId,
+                              widget.metadata,
+                              isDownloading: _downloadInProgress,
+                            ),
+                          );
+                        },
                         size: iconSize,
-                        active: timer != null || _songOfflineStatus.value,
                       );
                     },
+                  );
+                },
+              ),
+              if (queue.isNotEmpty && !widget.isLargeScreen)
+                _iconButton(
+                  icon: CupertinoIcons.list_bullet,
+                  onPressed: () => showCustomBottomSheet(
+                    context,
+                    const QueueWidget(isBottomSheet: true),
+                  ),
+                  size: iconSize,
+                ),
+              ValueListenableBuilder<Duration?>(
+                valueListenable: sleepTimerNotifier,
+                builder: (_, timer, __) {
+                  return _iconButton(
+                    icon: CupertinoIcons.ellipsis,
+                    onPressed: () => _showMoreSheet(context, l10n),
+                    size: iconSize,
+                    active: timer != null,
                   );
                 },
               ),
