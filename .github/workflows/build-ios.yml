@@ -70,6 +70,25 @@ jobs:
           zip -r Musified.ipa Payload
           ls -la Musified.ipa
 
+      - name: Update apps.json with build metadata
+        run: |
+          IPA_SIZE=$(wc -c < build/ipa/Musified.ipa | tr -d ' ')
+          DATE_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          python3 -c "
+          import json
+          with open('apps.json', 'r') as f:
+              data = json.load(f)
+          data['apps'][0]['size'] = int('$IPA_SIZE')
+          data['apps'][0]['versionDate'] = '$DATE_NOW'
+          with open('apps.json', 'w') as f:
+              json.dump(data, f, indent=2)
+          "
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add apps.json
+          git commit -m "Update apps.json metadata [skip ci]" || true
+          git push origin main || true
+
       - name: Delete existing release
         run: gh release delete v2.0 --yes || true
         env:
@@ -83,7 +102,9 @@ jobs:
           body: "Ready-to-install unsigned iOS IPA for Musified (YouTube Music + JioSaavn 320k client)."
           draft: false
           prerelease: false
-          files: build/ipa/Musified.ipa
+          files: |
+            build/ipa/Musified.ipa
+            apps.json
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

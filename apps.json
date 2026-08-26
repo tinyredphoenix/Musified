@@ -1,0 +1,24 @@
+{
+  "name": "Musified Source",
+  "identifier": "com.tinyred.musified.source",
+  "subtitle": "Apple Music UI with YouTube & JioSaavn 320k",
+  "description": "Official SideStore, AltStore, and LiveContainer source for Musified.",
+  "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
+  "website": "https://github.com/tinyredphoenix/Musified",
+  "apps": [
+    {
+      "name": "Musified",
+      "bundleIdentifier": "com.tinyred.musified",
+      "developerName": "TinyRed",
+      "subtitle": "Apple Music style UI with YouTube & JioSaavn lossless audio",
+      "localizedDescription": "Musified is a fast, clean, Apple Music style streaming app with YouTube Music & JioSaavn 320kbps integration, background playback, and offline caching.",
+      "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
+      "tintColor": "007AFF",
+      "version": "2.0.0",
+      "versionDate": "2026-08-26T00:00:00+00:00",
+      "versionDescription": "v2.0 release with Apple Music UI, JioSaavn 320k lossless streaming, background audio, and zero crashes.",
+      "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/download/v2.0/Musified.ipa",
+      "size": 12688583
+    }
+  ]
+}
