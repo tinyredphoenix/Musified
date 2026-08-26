@@ -34,13 +34,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pub-
 
-      - name: Cache CocoaPods
+      - name: Cache CocoaPods & Specs
         uses: actions/cache@v4
         with:
-          path: ios/Pods
+          path: |
+            ios/Pods
+            ~/Library/Caches/CocoaPods
           key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
           restore-keys: |
             ${{ runner.os }}-pods-
+
+      - name: Cache Xcode DerivedData
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ hashFiles('ios/Podfile.lock', 'pubspec.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-deriveddata-
 
       - name: Install dependencies
         run: flutter pub get
@@ -66,7 +76,7 @@ jobs:
         with:
           tag_name: v1.0.0
           name: "Musified iOS v1.0.0"
-          body: "Ready-to-install unsigned iOS IPA for Musified."
+          body: "Ready-to-install unsigned iOS IPA for Musified (YouTube Music + JioSaavn 320k client)."
           draft: false
           prerelease: false
           files: build/ipa/Musified.ipa
