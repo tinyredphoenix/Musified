@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
       "version": "2.0.0",
-      "versionDate": "2026-08-26T10:29:04Z",
+      "versionDate": "2026-08-26T10:34:13Z",
       "versionDescription": "v2.0 release with Apple Music UI, JioSaavn 320k lossless streaming, background audio, and zero crashes.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/download/v2.0/Musified.ipa",
-      "size": 14483806
+      "size": 14497574
     }
   ]
 }
