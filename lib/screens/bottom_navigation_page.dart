@@ -19,9 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'dart:ui';
-
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -143,38 +141,28 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                   ),
                 ),
                 bottomNavigationBar: !isLargeScreen
-                    ? DecoratedBox(
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
-                              width: 0.5,
-                            ),
+                    ? CupertinoTabBar(
+                        currentIndex: _getCurrentIndex(items, isOfflineMode),
+                        onTap: (index) => _onTabTapped(index, items),
+                        activeColor: Theme.of(context).colorScheme.primary,
+                        inactiveColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
+                        iconSize: 23,
+                        border: Border(
+                          top: BorderSide(
+                            color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+                            width: 0.5,
                           ),
                         ),
-                        child: ClipRect(
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
-                            child: NavigationBar(
-                              height: 54,
-                              backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
-                              elevation: 0,
-                              indicatorColor: Colors.transparent,
-                              selectedIndex: _getCurrentIndex(items, isOfflineMode),
-                              onDestinationSelected: (index) =>
-                                  _onTabTapped(index, items),
-                              destinations: items
-                                  .map(
-                                    (item) => NavigationDestination(
-                                      icon: Icon(item.icon, size: 22),
-                                      selectedIcon: Icon(item.selectedIcon, size: 22, color: Theme.of(context).colorScheme.primary),
-                                      label: item.label,
-                                    ),
-                                  )
-                                  .toList(),
-                            ),
-                          ),
-                        ),
+                        items: items
+                            .map(
+                              (item) => BottomNavigationBarItem(
+                                icon: Icon(item.icon),
+                                activeIcon: Icon(item.selectedIcon),
+                                label: item.label,
+                              ),
+                            )
+                            .toList(),
                       )
                     : null,
               );
@@ -188,8 +176,8 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
   List<_NavigationItem> _getNavigationItems(bool isOfflineMode) {
     final items = <_NavigationItem>[
       _NavigationItem(
-        icon: FluentIcons.home_24_regular,
-        selectedIcon: FluentIcons.home_24_filled,
+        icon: CupertinoIcons.house,
+        selectedIcon: CupertinoIcons.house_fill,
         label: context.l10n?.home ?? 'Home',
         shellIndex: 0,
       ),
@@ -199,8 +187,8 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
     if (!isOfflineMode) {
       items.add(
         _NavigationItem(
-          icon: FluentIcons.search_24_regular,
-          selectedIcon: FluentIcons.search_24_filled,
+          icon: CupertinoIcons.search,
+          selectedIcon: CupertinoIcons.search,
           label: context.l10n?.search ?? 'Search',
           shellIndex: 1,
         ),
@@ -209,14 +197,14 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
     items.addAll([
       _NavigationItem(
-        icon: FluentIcons.book_24_regular,
-        selectedIcon: FluentIcons.book_24_filled,
+        icon: CupertinoIcons.music_albums,
+        selectedIcon: CupertinoIcons.music_albums_fill,
         label: context.l10n?.library ?? 'Library',
         shellIndex: 2,
       ),
       _NavigationItem(
-        icon: FluentIcons.settings_24_regular,
-        selectedIcon: FluentIcons.settings_24_filled,
+        icon: CupertinoIcons.gear_alt,
+        selectedIcon: CupertinoIcons.gear_alt_fill,
         label: context.l10n?.settings ?? 'Settings',
         shellIndex: 3,
       ),

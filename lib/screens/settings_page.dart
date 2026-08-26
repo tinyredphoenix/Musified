@@ -19,8 +19,6 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'dart:io';
-
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
@@ -115,12 +113,6 @@ class SettingsPage extends StatelessWidget {
           FluentIcons.music_note_1_24_regular,
           onTap: () => _showAudioQualityPicker(context),
         ),
-        if (Platform.isAndroid)
-          CustomBar(
-            context.l10n!.equalizer,
-            FluentIcons.data_histogram_24_regular,
-            onTap: () => context.push('/settings/equalizer'),
-          ),
         if (themeMode == ThemeMode.dark)
           CustomBar(
             context.l10n!.pureBlackTheme,
@@ -131,15 +123,6 @@ class SettingsPage extends StatelessWidget {
               onChanged: (value) => _togglePureBlack(context, value),
             ),
           ),
-        CustomBar(
-          context.l10n!.dynamicColor,
-          FluentIcons.toggle_left_24_regular,
-          description: context.l10n!.dynamicColorDescription,
-          trailing: Switch(
-            value: useSystemColor.value,
-            onChanged: (value) => _toggleSystemColor(context, value),
-          ),
-        ),
 
         ValueListenableBuilder<bool>(
           valueListenable: showAudioQualityBadge,
@@ -533,7 +516,7 @@ class SettingsPage extends StatelessWidget {
           onTap: () async => showToast(context, await logger.copyLogs(context)),
         ),
         CustomBar(
-          'Musified iOS v1.0.0',
+          'Musified iOS v1.1.0',
           FluentIcons.info_24_regular,
           borderRadius: commonCustomBarRadiusLast,
           onTap: () {},
@@ -717,16 +700,6 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  void _toggleSystemColor(BuildContext context, bool value) {
-    addOrUpdateData<bool>('settings', 'useSystemColor', value);
-    useSystemColor.value = value;
-    Musify.updateAppState(
-      context,
-      newAccentColor: primaryColorSetting,
-      useSystemColor: value,
-    );
-    showToast(context, context.l10n!.settingChangedMsg);
-  }
 
   void _togglePureBlack(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'usePureBlackColor', value);

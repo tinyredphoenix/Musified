@@ -809,8 +809,6 @@ Future<bool> makeSongOffline(dynamic song, {String? source, String? quality}) as
         final response = await http.Client().send(http.Request('GET', Uri.parse(url)));
         fileStream = audioFile.openWrite();
         await response.stream.pipe(fileStream);
-        await fileStream.flush();
-        await fileStream.close();
         fileStream = null;
       } else {
         final audioManifest = await fetchBestAudioStream(ytid);
@@ -824,8 +822,6 @@ Future<bool> makeSongOffline(dynamic song, {String? source, String? quality}) as
         final stream = ytClient.videos.streamsClient.get(audioManifest);
         fileStream = audioFile.openWrite();
         await stream.pipe(fileStream);
-        await fileStream.flush();
-        await fileStream.close();
         fileStream = null;
       }
     } catch (e, stackTrace) {

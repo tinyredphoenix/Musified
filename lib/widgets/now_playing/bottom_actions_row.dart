@@ -365,7 +365,9 @@ Future<void> _toggleOffline(
           await OfflinePlaylistService().removeSongFromOfflineAndResync(
             audioId,
           );
-      if (!success) {
+      if (success) {
+        showToast(context, 'Removed from downloads');
+      } else {
         status.value = originalValue;
       }
     } catch (e) {
@@ -375,13 +377,18 @@ Future<void> _toggleOffline(
   } else {
     unawaited(
       showDownloadPicker(context, mediaItemToMap(metadata), (source, quality) async {
+        showToast(context, 'Downloading song...');
         try {
           final success = await makeSongOffline(mediaItemToMap(metadata), source: source, quality: quality);
           if (success) {
             status.value = true;
+            showToast(context, 'Downloaded successfully');
+          } else {
+            showToast(context, 'Download failed');
           }
         } catch (e) {
-          logger.log('Error toggling offline status', error: e);
+          logger.log('Error downloading song', error: e);
+          showToast(context, 'Download failed');
         }
       }),
     );

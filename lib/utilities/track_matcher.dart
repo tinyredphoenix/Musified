@@ -1,19 +1,13 @@
 class TrackMatcher {
-  /// Normalize a song title for matching.
-  static String normalizeTitle(String title) {
-    if (title.isEmpty) return '';
-
-    var t = title.toLowerCase();
+  /// Clean a string from parentheses, brackets, noise words, and punctuation.
+  static String cleanText(String s) {
+    if (s.isEmpty) return '';
+    var t = s.toLowerCase();
 
     // Remove ALL content in parentheses (), brackets [], braces {}
     t = t.replaceAll(RegExp(r'\([^)]*\)'), ' ');
     t = t.replaceAll(RegExp(r'\[[^\]]*\]'), ' ');
     t = t.replaceAll(RegExp(r'\{[^}]*\}'), ' ');
-
-    // Remove after ' - ' suffixes
-    if (t.contains(' - ')) {
-      t = t.split(' - ').first;
-    }
 
     // Remove known noise words
     final noiseWords = [
@@ -30,58 +24,52 @@ class TrackMatcher {
       'hq',
       'full',
       'song',
+      'visualizer',
+      'prod',
+      'feat',
+      'ft',
     ];
 
-    // Remove trailing noise words
-    var changed = true;
-    while (changed) {
-      changed = false;
-      for (final word in noiseWords) {
-        if (t.endsWith(' $word')) {
-          t = t.substring(0, t.length - word.length - 1);
-          changed = true;
-        }
-      }
-    }
-    
-    // Just in case, some noise words can be scattered
     for (final word in noiseWords) {
-      t = t.replaceAll(RegExp('\\b$word\\b'), '');
+      t = t.replaceAll(RegExp('\\b$word\\b'), ' ');
     }
 
-    // Collapse multiple spaces to single space and trim
+    // Keep only alphanumeric characters and spaces
+    t = t.replaceAll(RegExp(r'[^a-zA-Z0-9\s]'), ' ');
     t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
-
     return t;
   }
 
-  /// Normalize artist names into a sorted Set for comparison.
-  static Set<String> normalizeArtists(String artist) {
-    if (artist.isEmpty) return <String>{};
-    var a = artist.toLowerCase();
-
-    // Remove known noise
-    final noise = ['- topic', 'vevo', 'official', 'music'];
-    for (final n in noise) {
-      a = a.replaceAll(n, '');
-    }
-
-    // Split on delimiters
-    final parts = a.split(RegExp(r' & |, | ft\. | feat\. | ft | feat | x | × | and '));
-
-    final result = <String>{};
-    for (final p in parts) {
-      final clean = p.replaceAll(RegExp(r'\s+'), ' ').trim();
-      if (clean.isNotEmpty) {
-        result.add(clean);
+  /// Get candidate titles (e.g. from "Artist - Song", both the full and sub parts).
+  static List<String> getTitleCandidates(String title) {
+    final full = cleanText(title);
+    final list = <String>[full];
+    if (title.contains(' - ')) {
+      final parts = title.split(' - ');
+      for (final p in parts) {
+        final cp = cleanText(p);
+        if (cp.isNotEmpty) list.add(cp);
       }
     }
-
-    final sortedList = result.toList()..sort();
-    return sortedList.toSet();
+    return list.where((e) => e.isNotEmpty).toList();
   }
 
-  /// Parse various duration formats (e.g. 204, '204', '3:24', '03:24', '1:02:15') to seconds.
+  /// Check if two titles match based on candidates.
+  static bool titlesMatch(String a, String b) {
+    final candA = getTitleCandidates(a);
+    final candB = getTitleCandidates(b);
+    for (final ca in candA) {
+      for (final cb in candB) {
+        if (ca == cb) return true;
+        if (ca.length >= 3 && cb.length >= 3) {
+          if (ca.contains(cb) || cb.contains(ca)) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Parse various duration formats to seconds.
   static int? parseDurationInSeconds(dynamic duration) {
     if (duration == null) return null;
     if (duration is int) return duration;
@@ -105,14 +93,7 @@ class TrackMatcher {
     return null;
   }
 
-  /// Check if duration matches within tolerance.
-  /// |a - b| <= 5 seconds. If duration is missing on either track, returns true.
-  static bool durationMatches(int? durationA, int? durationB, {int tolerance = 5}) {
-    if (durationA == null || durationB == null) return true;
-    return (durationA - durationB).abs() <= tolerance;
-  }
-
-  /// Check if two tracks are an EXACT match.
+  /// Check if two tracks match.
   static bool isExactMatch({
     required String titleA,
     required String artistA,
@@ -121,28 +102,30 @@ class TrackMatcher {
     required String artistB,
     dynamic durationB,
   }) {
-    final normTitleA = normalizeTitle(titleA);
-    final normTitleB = normalizeTitle(titleB);
+    if (!titlesMatch(titleA, titleB)) return false;
 
-    if (normTitleA != normTitleB) return false;
+    // Artist check: flexible substring or combined matching
+    final cleanArtA = cleanText(artistA);
+    final cleanArtB = cleanText(artistB);
+    final combinedA = cleanText('$titleA $artistA');
+    final combinedB = cleanText('$titleB $artistB');
 
-    final artistsA = normalizeArtists(artistA);
-    final artistsB = normalizeArtists(artistB);
+    final artistMatches = cleanArtA.isEmpty ||
+        cleanArtB.isEmpty ||
+        cleanArtA.contains(cleanArtB) ||
+        cleanArtB.contains(cleanArtA) ||
+        combinedA.contains(cleanArtB) ||
+        combinedB.contains(cleanArtA);
 
-    // At least one overlap
-    var overlap = false;
-    for (final a in artistsA) {
-      if (artistsB.contains(a)) {
-        overlap = true;
-        break;
-      }
-    }
-    
-    if (!overlap) return false;
+    if (!artistMatches) return false;
 
+    // Duration check
     final durA = parseDurationInSeconds(durationA);
     final durB = parseDurationInSeconds(durationB);
+    if (durA != null && durB != null && durA > 0 && durB > 0) {
+      if ((durA - durB).abs() > 8) return false;
+    }
 
-    return durationMatches(durA, durB);
+    return true;
   }
 }

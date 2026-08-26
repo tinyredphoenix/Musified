@@ -20,7 +20,7 @@
  */
 
 import 'package:audio_service/audio_service.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
@@ -60,7 +60,7 @@ Widget buildPlaybackIconButton(
         semanticLabel = context.l10n!.loading;
       } else if (processingState == AudioProcessingState.completed) {
         iconWidget = Icon(
-          FluentIcons.arrow_counterclockwise_24_regular,
+          CupertinoIcons.arrow_counterclockwise,
           color: iconColor,
           size: iconSize,
         );
@@ -69,8 +69,8 @@ Widget buildPlaybackIconButton(
       } else {
         iconWidget = Icon(
           isPlaying
-              ? FluentIcons.pause_24_regular
-              : FluentIcons.play_24_regular,
+              ? CupertinoIcons.pause_fill
+              : CupertinoIcons.play_fill,
           color: iconColor,
           size: iconSize,
         );

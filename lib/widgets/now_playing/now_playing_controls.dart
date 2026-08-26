@@ -22,7 +22,7 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -311,22 +311,18 @@ class PlayerControlButtons extends StatelessWidget {
       builder: (_, value, __) {
         return IconButton(
           icon: Icon(
-            value
-                ? FluentIcons.arrow_shuffle_24_filled
-                : FluentIcons.arrow_shuffle_off_24_regular,
-            color: value ? colorScheme.onPrimary : colorScheme.onSurfaceVariant,
+            CupertinoIcons.shuffle,
+            color: value ? colorScheme.primary : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+            size: size * 0.9,
           ),
           tooltip: context.l10n!.shuffle,
-          iconSize: size,
           constraints: buttonConstraints,
           padding: buttonPadding,
           style: IconButton.styleFrom(
             backgroundColor: value
-                ? colorScheme.primary
-                : colorScheme.surfaceContainerHighest,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+                ? colorScheme.primary.withValues(alpha: 0.15)
+                : Colors.transparent,
+            shape: const CircleBorder(),
           ),
           onPressed: () {
             audioHandler.setShuffleMode(
@@ -359,25 +355,21 @@ class PlayerControlButtons extends StatelessWidget {
             return IconButton(
               icon: Icon(
                 repeatMode == AudioServiceRepeatMode.one
-                    ? FluentIcons.arrow_repeat_1_24_filled
-                    : isActive
-                    ? FluentIcons.arrow_repeat_all_24_filled
-                    : FluentIcons.arrow_repeat_all_off_24_regular,
+                    ? CupertinoIcons.repeat_1
+                    : CupertinoIcons.repeat,
                 color: isActive
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurfaceVariant,
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                size: size * 0.9,
               ),
               tooltip: context.l10n!.repeat,
-              iconSize: size,
               constraints: buttonConstraints,
               padding: buttonPadding,
               style: IconButton.styleFrom(
                 backgroundColor: isActive
-                    ? colorScheme.primary
-                    : colorScheme.surfaceContainerHighest,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+                    ? colorScheme.primary.withValues(alpha: 0.15)
+                    : Colors.transparent,
+                shape: const CircleBorder(),
               ),
               onPressed: () {
                 final AudioServiceRepeatMode newMode;
@@ -434,7 +426,7 @@ class _PlaybackControlsRow extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _PlaybackControlButton(
-                    icon: FluentIcons.previous_24_regular,
+                    icon: CupertinoIcons.backward_fill,
                     isEnabled:
                         audioHandler.hasPrevious ||
                         repeatMode != AudioServiceRepeatMode.none,
@@ -455,7 +447,7 @@ class _PlaybackControlsRow extends StatelessWidget {
                   ),
                   SizedBox(width: buttonSpacing),
                   _PlaybackControlButton(
-                    icon: FluentIcons.next_24_regular,
+                    icon: CupertinoIcons.forward_fill,
                     isEnabled:
                         audioHandler.hasNext ||
                         repeatMode == AudioServiceRepeatMode.one,
@@ -510,15 +502,14 @@ class _PlaybackControlButton extends StatelessWidget {
         color: isEnabled
             ? colorScheme.onSurface
             : colorScheme.onSurface.withValues(alpha: 0.3),
+        size: controlIconSize * 0.75,
       ),
       tooltip: tooltip,
       constraints: buttonConstraints,
-      iconSize: controlIconSize * 0.65,
       onPressed: isEnabled ? onPressed : null,
       style: IconButton.styleFrom(
-        backgroundColor: colorScheme.surfaceContainerHighest,
-        disabledBackgroundColor: colorScheme.surfaceContainerHighest,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.transparent,
+        disabledBackgroundColor: Colors.transparent,
         padding: buttonPadding,
         minimumSize: Size(minButtonSize, minButtonSize),
       ),
