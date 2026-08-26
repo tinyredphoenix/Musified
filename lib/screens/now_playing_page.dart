@@ -4,7 +4,7 @@
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Material, MaterialType;
+import 'package:flutter/material.dart';
 import 'package:musify/main.dart';
 import 'package:musify/theme/musified_style.dart';
 import 'package:musify/widgets/flip_card.dart';
@@ -46,9 +46,9 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         : 44.0;
     final miniIconSize = screenWidth < 360 ? 18.0 : 22.0;
 
-    return CupertinoPageScaffold(
+    return Scaffold(
       backgroundColor: bg,
-      child: Material(
+      body: Material(
         type: MaterialType.transparency,
         child: DefaultTextStyle(
           style: TextStyle(

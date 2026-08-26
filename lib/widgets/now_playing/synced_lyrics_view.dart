@@ -99,7 +99,8 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
       final lyrics = _parsedLyrics;
       if (lyrics != null) {
         for (int i = 0; i < lyrics.length; i++) {
-          if (position >= lyrics[i].time) {
+          // Look ahead slightly for karaoke effect (lead by 200ms)
+          if (position.inMilliseconds + 200 >= lyrics[i].time.inMilliseconds) {
             newIndex = i;
           } else {
             break;
@@ -125,13 +126,14 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   void _scrollToCurrentLine() {
     if (_scrollController.hasClients && _currentIndex >= 0) {
-      final double targetOffset = (_currentIndex * 58.0).clamp(
+      // Assuming roughly 64px per item for scrolling math
+      final double targetOffset = (_currentIndex * 64.0).clamp(
         0.0,
         _scrollController.position.maxScrollExtent,
       );
       _scrollController.animateTo(
         targetOffset,
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 400),
         curve: Curves.easeOutCubic,
       );
     }
@@ -169,53 +171,59 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
     return Material(
       type: MaterialType.transparency,
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(vertical: 120, horizontal: 28),
-        physics: const BouncingScrollPhysics(),
-        itemCount: _parsedLyrics!.length,
-        itemBuilder: (context, index) {
-          final line = _parsedLyrics![index];
-          final isCurrent = index == _currentIndex;
-          final isPast = index < _currentIndex;
+      child: DefaultTextStyle(
+        style: const TextStyle(decoration: TextDecoration.none),
+        child: ListView.builder(
+          controller: _scrollController,
+          padding: EdgeInsets.symmetric(
+            vertical: MediaQuery.sizeOf(context).height * 0.35, 
+            horizontal: 24,
+          ),
+          physics: const BouncingScrollPhysics(),
+          itemCount: _parsedLyrics!.length,
+          itemBuilder: (context, index) {
+            final line = _parsedLyrics![index];
+            final isCurrent = index == _currentIndex;
+            final isPast = index < _currentIndex;
 
-          return GestureDetector(
-            onTap: () {
-              audioHandler.seek(line.time);
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.symmetric(
-                vertical: isCurrent ? 16.0 : 10.0,
-              ),
-              child: Text(
-                line.text,
-                style: TextStyle(
-                  fontSize: isCurrent ? 26 : 21,
-                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                  color: isCurrent
-                      ? Colors.white
-                      : (isPast
-                          ? Colors.white.withValues(alpha: 0.55)
-                          : Colors.white.withValues(alpha: 0.28)),
-                  height: 1.35,
-                  decoration: TextDecoration.none,
-                  shadows: isCurrent
-                      ? [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 16,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : null,
+            return GestureDetector(
+              onTap: () {
+                audioHandler.seek(line.time);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                alignment: Alignment.center,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 300),
+                  curve: Curves.easeOutBack,
+                  style: TextStyle(
+                    fontFamily: '.SF Pro Display',
+                    fontSize: isCurrent ? 34 : 22,
+                    fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                    letterSpacing: isCurrent ? 0.0 : 0.5,
+                    color: isCurrent
+                        ? Colors.white
+                        : (isPast
+                            ? Colors.white.withOpacity(0.4)
+                            : Colors.white.withOpacity(0.15)),
+                    height: 1.25,
+                    decoration: TextDecoration.none,
+                    shadows: isCurrent
+                        ? [
+                            Shadow(
+                              color: Colors.white.withOpacity(0.3),
+                              blurRadius: 16,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  textAlign: TextAlign.center,
+                  child: Text(line.text),
                 ),
-                textAlign: TextAlign.center,
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

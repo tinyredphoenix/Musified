@@ -67,12 +67,13 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                             color: label,
+                            decoration: TextDecoration.none,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           subtitle,
-                          style: TextStyle(fontSize: 13, color: secondary),
+                          style: TextStyle(fontSize: 13, color: secondary, decoration: TextDecoration.none),
                         ),
                       ],
                     ),
@@ -223,9 +224,14 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
 
 IconData audioSourceIcon(MediaItem metadata) {
   final extras = metadata.extras ?? {};
+  if (extras['resolvedSource'] == 'jiosaavn') {
+    return CupertinoIcons.music_note_2;
+  }
+  return CupertinoIcons.play_circle_fill;
+};
   final ytid = extras['ytid']?.toString() ?? '';
   final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
-  if (isOffline) return CupertinoIcons.arrow_down_circle_fill;
+  if (extras['resolvedSource'] == 'jiosaavn') {
   if (extras['resolvedSource'] == 'jiosaavn') {
     return CupertinoIcons.music_note;
   }
@@ -234,6 +240,11 @@ IconData audioSourceIcon(MediaItem metadata) {
 
 Color audioSourceColor(MediaItem metadata) {
   final extras = metadata.extras ?? {};
+  if (extras['resolvedSource'] == 'jiosaavn') {
+    return CupertinoColors.systemGreen;
+  }
+  return const Color(0xFFFF0033);
+};
   final ytid = extras['ytid']?.toString() ?? '';
   final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
   if (isOffline) return CupertinoColors.systemGrey;
