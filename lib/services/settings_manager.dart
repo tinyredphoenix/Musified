@@ -62,13 +62,8 @@ final offlineMode = ValueNotifier<bool>(
   _safeBoxGet<bool>('offlineMode', false),
 );
 
-final wrappedEnabled = ValueNotifier<bool>(
-  _safeBoxGet<bool>('wrappedEnabled', true),
-);
-
-final sponsorBlockSupport = ValueNotifier<bool>(
-  _safeBoxGet<bool>('sponsorBlockSupport', false),
-);
+final wrappedEnabled = ValueNotifier<bool>(false);
+final sponsorBlockSupport = ValueNotifier<bool>(false);
 
 final externalRecommendations = ValueNotifier<bool>(
   // Prefer YouTube-related recommendations for new installs. Existing users
@@ -185,11 +180,6 @@ void reloadSettingsFromStorage() {
     defaultValue: false,
   );
   offlineMode.value = settings.get('offlineMode', defaultValue: false);
-  wrappedEnabled.value = settings.get('wrappedEnabled', defaultValue: true);
-  sponsorBlockSupport.value = settings.get(
-    'sponsorBlockSupport',
-    defaultValue: false,
-  );
   externalRecommendations.value = settings.get(
     'externalRecommendations',
     // Related YouTube recommendations are the default for new installs.

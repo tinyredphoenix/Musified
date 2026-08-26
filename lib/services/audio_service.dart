@@ -29,7 +29,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/position_data.dart';
 import 'package:musify/services/common_services.dart';
-import 'package:musify/services/listening_stats_service.dart';
+
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/map_utils.dart';
 import 'package:musify/utilities/mediaitem.dart';
@@ -200,10 +200,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
         .throttleTime(const Duration(milliseconds: 100))
         .listen(
           (state) {
-            listeningStatsService.handlePlayerStateForListeningStats(
-              state,
-              currentSong: currentSong,
-            );
             if (state.processingState == ProcessingState.idle &&
                 !state.playing &&
                 _lastError != null) {
@@ -306,10 +302,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
         mediaItem.add(currentMediaItem.copyWith(duration: duration));
       }
 
-      listeningStatsService.updateListeningSessionDuration(
-        currentSongYtid,
-        duration,
-      );
+
 
       final existingQueue = queue.valueOrNull;
       if (existingQueue != null && queueIndex < existingQueue.length) {
@@ -338,22 +331,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  void resetListeningStatsSession({
-    bool countCurrentTick = false,
-    bool flushStats = true,
-  }) {
-    listeningStatsService.finishListeningSession(
-      countCurrentTick: countCurrentTick,
-      flushStats: flushStats,
-    );
-  }
 
-  void startListeningStatsSessionIfNeeded() {
-    listeningStatsService.startListeningSessionIfNeeded(
-      currentSong: currentSong,
-      isPlaying: audioPlayer.playing,
-    );
-  }
 
   Future<void> _initialize() async {
     try {
@@ -480,10 +458,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
           return;
         }
 
-        listeningStatsService.finishListeningSession(
-          countCurrentTick: true,
-          wasPlaying: true,
-        );
+
 
         if (!sleepTimerExpired && !_completionEventPending) {
           _completionEventPending = true;
@@ -1542,7 +1517,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
           _lastError = e.toString();
         }),
       );
-      listeningStatsService.resumeListeningSession(currentSong: currentSong);
     } catch (e, stackTrace) {
       logger.log('Error in play()', error: e, stackTrace: stackTrace);
       _lastError = e.toString();
@@ -1552,10 +1526,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> pause() async {
     try {
-      listeningStatsService.recordListeningSessionProgress(
-        wasPlaying: audioPlayer.playing,
-      );
-      unawaited(listeningStatsService.flush());
       await audioPlayer.pause();
     } catch (e, stackTrace) {
       logger.log('Error in pause()', error: e, stackTrace: stackTrace);
@@ -1571,10 +1541,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
     _lastError = null;
     _consecutiveErrors = 0;
     try {
-      listeningStatsService.finishListeningSession(
-        countCurrentTick: true,
-        wasPlaying: audioPlayer.playing,
-      );
       await audioPlayer.stop();
       _resetPreloadingState();
     } catch (e, stackTrace) {
@@ -1625,9 +1591,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
     try {
       final wasPlaying = audioPlayer.playing;
-      listeningStatsService.recordListeningSessionProgress(
-        wasPlaying: wasPlaying,
-      );
 
       // Perform seek with a 2.5 second timeout so a dropped native AVPlayer callback never hangs the isolate
       await audioPlayer.seek(target).timeout(
@@ -1642,7 +1605,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
         await audioPlayer.play();
       }
 
-      unawaited(listeningStatsService.flush());
       _updatePlaybackState();
     } catch (e, stackTrace) {
       logger.log('Error in seek()', error: e, stackTrace: stackTrace);
@@ -1745,9 +1707,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
         includeMediaItem: true,
         mediaId: mediaId,
       );
-      if (audioPlayer.playing) {
-        listeningStatsService.recordListeningSessionProgress(wasPlaying: true);
-      }
+
       final playback = await _resolvePlaybackSource(songData).timeout(
         const Duration(seconds: 14),
         onTimeout: () {
@@ -1994,10 +1954,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
         return false;
       }
 
-      // Snapshot the pre-swap playing state now: by the time we're committed
-      // to this transition (below), audioPlayer.playing reflects the new
-      // source, not whatever session we're about to finish.
-      final wasPlayingBeforeSwap = audioPlayer.playing;
+
 
       await audioPlayer
           .setAudioSource(audioSource, preload: false)
@@ -2022,17 +1979,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
         _updateCurrentMediaItemWithDuration(audioPlayer.duration!);
       }
 
-      // Finish the old session and start the new one as one atomic pair, only
-      // after every abort path above is cleared. Finishing before the staleness
-      // re-check let a stale transition kill a newer transition's session.
-      // Do this before awaiting play() so Wrapped starts counting from the
-      // first moments of the new track, not after the async handoff.
-      listeningStatsService
-        ..finishListeningSession(
-          countCurrentTick: true,
-          wasPlaying: wasPlayingBeforeSwap,
-        )
-        ..startListeningSession(song, duration: audioPlayer.duration);
+
       // just_audio's play() future completes when playback stops, not when it
       // starts. Awaiting it kept transitions in a loading state for the whole
       // song and allowed a later request to race the old one.
@@ -2167,88 +2114,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  /// Play a radio stream directly without queue management
-  Future<bool> playRadioStream({
-    required String id,
-    required String name,
-    required String streamUrl,
-    required String image,
-    String? genre,
-  }) async {
-    try {
-      // Create a song-like map for the radio stream
-      final radioSong = {
-        'id': id,
-        'ytid': id, // Use radio ID as ytid for compatibility
-        'title': name,
-        'artist': genre ?? 'Radio Station',
-        'album': 'Live Stream',
-        'highResImage': image,
-        'lowResImage': image,
-        'duration': null, // Radio streams are live
-        'isLive': true,
-      };
 
-      _lastError = null;
-      final wasPlayingBeforeSwap = audioPlayer.playing;
-      if (audioPlayer.playing) {
-        listeningStatsService.recordListeningSessionProgress(
-          wasPlaying: audioPlayer.playing,
-        );
-        await audioPlayer.pause();
-      }
-
-      // Update media item and queue for mini player visibility
-      final mediaItem = mapToMediaItem(radioSong);
-      this.mediaItem.add(mediaItem);
-      queue.add([mediaItem]);
-
-      // Build audio source from stream URL
-      final audioSource = await buildAudioSource(
-        radioSong,
-        streamUrl,
-        false, // Radio streams are always online
-      );
-
-      if (audioSource == null) {
-        logger.log('Failed to build audio source for radio stream: $id');
-        _lastError = 'Failed to load radio stream';
-        return false;
-      }
-
-      // Play the radio stream
-      await audioPlayer
-          .setAudioSource(audioSource, preload: false)
-          .timeout(_songTransitionTimeout);
-
-      listeningStatsService.finishListeningSession(
-        countCurrentTick: true,
-        wasPlaying: wasPlayingBeforeSwap,
-      );
-
-      unawaited(
-        audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
-          logger.log(
-            'Error starting radio playback',
-            error: e,
-            stackTrace: stackTrace,
-          );
-          _lastError = e.toString();
-        }),
-      );
-
-      _updatePlaybackState();
-      return true;
-    } catch (e, stackTrace) {
-      logger.log(
-        'Error playing radio stream',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      _lastError = e.toString();
-      return false;
-    }
-  }
 
   Future<AudioSource?> buildAudioSource(
     Map song,
@@ -2291,71 +2157,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     }
   }
 
-  AudioSource? _applyOfflineSponsorBlock(
-    UriAudioSource audioSource,
-    String songId,
-  ) {
-    final segments = getCachedSponsorBlockSegments(songId);
-    if (segments != null) {
-      return segments.isEmpty
-          ? null
-          : _buildSkippedAudioSource(audioSource, segments);
-    }
-    // Nothing stored yet, e.g. a song downloaded before this existed: look it
-    // up now so the next playback of it skips offline too.
-    if (!offlineMode.value) unawaited(cacheSponsorBlockSegments(songId));
-    return null;
-  }
 
-  Future<AudioSource?> checkIfSponsorBlockIsAvailable(
-    UriAudioSource audioSource,
-    String songId,
-  ) async {
-    try {
-      final segments = await getSkipSegments(songId);
-      if (segments.isEmpty) return null;
-      return _buildSkippedAudioSource(audioSource, segments);
-    } catch (e, stackTrace) {
-      logger.log(
-        'Error checking sponsor block',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      return null;
-    }
-  }
-
-  static AudioSource? _buildSkippedAudioSource(
-    UriAudioSource source,
-    List<Map<String, int>> segments,
-  ) {
-    segments.sort((a, b) => (a['start'] ?? 0).compareTo(b['start'] ?? 0));
-    final children = <AudioSource>[];
-    var lastEnd = 0;
-    for (final segment in segments) {
-      final start = segment['start'] ?? 0;
-      final end = segment['end'] ?? 0;
-      if (start > lastEnd) {
-        children.add(
-          ClippingAudioSource(
-            child: source,
-            start: Duration(seconds: lastEnd),
-            end: Duration(seconds: start),
-          ),
-        );
-      }
-      if (end > lastEnd) lastEnd = end;
-    }
-    children.add(
-      ClippingAudioSource(
-        child: source,
-        start: Duration(seconds: lastEnd),
-      ),
-    );
-    if (children.length == 1) return children.first;
-    // ignore: deprecated_member_use
-    return ConcatenatingAudioSource(children: children);
-  }
 
   Future<void> skipToSong(int newIndex) async {
     try {
@@ -2440,17 +2242,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   Future<void> playAgain() async {
     try {
-      listeningStatsService.finishListeningSession(
-        countCurrentTick: true,
-        wasPlaying: audioPlayer.playing,
-      );
       await audioPlayer.seek(Duration.zero);
       final song = currentSong;
       if (song != null) {
-        listeningStatsService.startListeningSession(
-          song,
-          duration: audioPlayer.duration,
-        );
         unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));
       }
     } catch (e, stackTrace) {

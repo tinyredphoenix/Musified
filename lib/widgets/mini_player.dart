@@ -20,8 +20,6 @@
  */
 
 
-import 'dart:ui' as ui;
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';

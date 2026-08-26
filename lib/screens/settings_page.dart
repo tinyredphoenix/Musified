@@ -36,7 +36,6 @@ import 'package:musify/main.dart';
 import 'package:musify/screens/search_page.dart';
 import 'package:musify/services/common_services.dart';
 import 'package:musify/services/data_manager.dart';
-import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
@@ -323,20 +322,7 @@ class SettingsPage extends StatelessWidget {
             );
           },
         ),
-        ValueListenableBuilder<bool>(
-          valueListenable: wrappedEnabled,
-          builder: (_, value, __) {
-            return CustomBar(
-              context.l10n.listeningStats,
-              FluentIcons.clock_24_regular,
-              description: context.l10n.listeningStatsDescription,
-              trailing: Switch(
-                value: value,
-                onChanged: (value) => _toggleWrapped(context, value),
-              ),
-            );
-          },
-        ),
+
         ValueListenableBuilder<bool>(
           valueListenable: offlineMode,
           builder: (_, value, __) {
@@ -536,24 +522,7 @@ class SettingsPage extends StatelessWidget {
             },
           ),
         ),
-        CustomBar(
-          context.l10n.clearListeningStats,
-          FluentIcons.clock_24_regular,
-          onTap: () => _showConfirmationDialog(
-            context: context,
-            confirmationMessage: context.l10n.clearListeningStatsQuestion,
-            submitMessage: context.l10n.delete,
-            isDangerous: true,
-            onSubmit: () async {
-              audioHandler.resetListeningStatsSession(flushStats: false);
-              await listeningStatsService.clearStats();
-              audioHandler.startListeningStatsSessionIfNeeded();
-              if (context.mounted) {
-                showToast(context, '${context.l10n.listeningStatsCleared}!');
-              }
-            },
-          ),
-        ),
+
         CustomBar(
           context.l10n.deleteDownloads,
           FluentIcons.delete_24_regular,
@@ -584,7 +553,7 @@ class SettingsPage extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  'Musified v$appVersion (Build 1)',
+                  'Musified v$appVersion (Build 2)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -797,25 +766,7 @@ class SettingsPage extends StatelessWidget {
     showToast(context, context.l10n.settingChangedMsg);
   }
 
-  Future<void> _toggleWrapped(BuildContext context, bool value) async {
-    if (!value) {
-      audioHandler.resetListeningStatsSession(
-        countCurrentTick: true,
-        flushStats: false,
-      );
-      await listeningStatsService.flush();
-    }
 
-    await addOrUpdateData<bool>('settings', 'wrappedEnabled', value);
-    wrappedEnabled.value = value;
-    listeningStatsService.reload();
-    if (value) {
-      audioHandler.startListeningStatsSessionIfNeeded();
-    }
-    if (context.mounted) {
-      showToast(context, context.l10n.settingChangedMsg);
-    }
-  }
 
   void _toggleOfflineMode(BuildContext context, bool value) {
     addOrUpdateData<bool>('settings', 'offlineMode', value);

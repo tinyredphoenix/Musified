@@ -34,7 +34,6 @@ import 'package:musify/services/audio_service.dart';
 import 'package:musify/services/common_services.dart';
 import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/io_service.dart';
-import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/logger_service.dart';
 import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/playlist_sharing.dart';
@@ -153,17 +152,6 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.detached) {
-      if (isAudioHandlerInitialized) {
-        listeningStatsService.recordListeningSessionProgress(
-          wasPlaying: audioHandler.audioPlayer.playing,
-        );
-        unawaited(listeningStatsService.flush());
-      }
-    }
   }
 
   @override
