@@ -26,93 +26,111 @@ import 'package:musify/screens/playlist_page.dart';
 import 'package:musify/screens/user_songs_page.dart';
 import 'package:musify/utilities/language_utils.dart';
 
-// Preferences
-
-final shouldWeCheckUpdates = ValueNotifier<bool?>(
-  Hive.box('settings').get('shouldWeCheckUpdates', defaultValue: null),
-);
-
-final playNextSongAutomatically = ValueNotifier<bool>(
-  Hive.box('settings').get('playNextSongAutomatically', defaultValue: false),
-);
-
-final useSystemColor = ValueNotifier<bool>(
-  Hive.box('settings').get('useSystemColor', defaultValue: true),
-);
-
-final usePureBlackColor = ValueNotifier<bool>(
-  Hive.box('settings').get('usePureBlackColor', defaultValue: false),
-);
-
-final offlineMode = ValueNotifier<bool>(
-  Hive.box('settings').get('offlineMode', defaultValue: false),
-);
-
-final wrappedEnabled = ValueNotifier<bool>(
-  Hive.box('settings').get('wrappedEnabled', defaultValue: true),
-);
-
-final sponsorBlockSupport = ValueNotifier<bool>(
-  Hive.box('settings').get('sponsorBlockSupport', defaultValue: false),
-);
-
-final externalRecommendations = ValueNotifier<bool>(
-  Hive.box('settings').get('externalRecommendations', defaultValue: false),
-);
-
-final useProxy = ValueNotifier<bool>(
-  Hive.box('settings').get('useProxy', defaultValue: false),
-);
-
-final audioQualitySetting = ValueNotifier<String>(
-  Hive.box('settings').get('audioQuality', defaultValue: 'high'),
-);
-
-final showAudioQualityBadge = ValueNotifier<bool>(
-  Hive.box('settings').get('showAudioQualityBadge', defaultValue: true),
-);
-
-List<double> _readEqualizerGains() {
-  final raw = Hive.box('settings')
-      .get('equalizerBandGains', defaultValue: const <dynamic>[]);
-
-  if (raw is List) {
-    return raw.map((value) => value is num ? value.toDouble() : 0.0).toList();
+T _safeBoxGet<T>(String key, T defaultValue) {
+  try {
+    if (!Hive.isBoxOpen('settings')) return defaultValue;
+    final v = Hive.box('settings').get(key, defaultValue: defaultValue);
+    if (v is T) return v;
+    // Handle nullable bool case where Hive returns null
+    if (v == null && null is T) return v as T;
+    return defaultValue;
+  } catch (_) {
+    return defaultValue;
   }
+}
 
+List<double> _readEqualizerGainsSafe() {
+  try {
+    if (!Hive.isBoxOpen('settings')) return <double>[];
+    final raw = Hive.box('settings')
+        .get('equalizerBandGains', defaultValue: const <dynamic>[]);
+    if (raw is List) {
+      return raw.map((value) => value is num ? value.toDouble() : 0.0).toList();
+    }
+  } catch (_) {}
   return <double>[];
 }
 
-final equalizerEnabled = ValueNotifier<bool>(
-  Hive.box('settings').get('equalizerEnabled', defaultValue: false),
+// Preferences - safely initialized even before Hive is open.
+// After Hive opens, reloadSettingsFromStorage() restores persisted values.
+
+final shouldWeCheckUpdates = ValueNotifier<bool?>(
+  _safeBoxGet<bool?>('shouldWeCheckUpdates', null),
 );
 
-final equalizerBandGains = ValueNotifier<List<double>>(_readEqualizerGains());
+final playNextSongAutomatically = ValueNotifier<bool>(
+  _safeBoxGet<bool>('playNextSongAutomatically', false),
+);
+
+final useSystemColor = ValueNotifier<bool>(
+  _safeBoxGet<bool>('useSystemColor', true),
+);
+
+final usePureBlackColor = ValueNotifier<bool>(
+  _safeBoxGet<bool>('usePureBlackColor', false),
+);
+
+final offlineMode = ValueNotifier<bool>(
+  _safeBoxGet<bool>('offlineMode', false),
+);
+
+final wrappedEnabled = ValueNotifier<bool>(
+  _safeBoxGet<bool>('wrappedEnabled', true),
+);
+
+final sponsorBlockSupport = ValueNotifier<bool>(
+  _safeBoxGet<bool>('sponsorBlockSupport', false),
+);
+
+final externalRecommendations = ValueNotifier<bool>(
+  _safeBoxGet<bool>('externalRecommendations', false),
+);
+
+final useProxy = ValueNotifier<bool>(
+  _safeBoxGet<bool>('useProxy', false),
+);
+
+final audioQualitySetting = ValueNotifier<String>(
+  _safeBoxGet<String>('audioQuality', 'high'),
+);
+
+final showAudioQualityBadge = ValueNotifier<bool>(
+  _safeBoxGet<bool>('showAudioQualityBadge', true),
+);
+
+List<double> _readEqualizerGains() => _readEqualizerGainsSafe();
+
+final equalizerEnabled = ValueNotifier<bool>(
+  _safeBoxGet<bool>('equalizerEnabled', false),
+);
+
+final equalizerBandGains = ValueNotifier<List<double>>(_readEqualizerGainsSafe());
 
 Locale languageSetting = getLocaleFromLanguageCode(
-  Hive.box('settings').get('languageCode', defaultValue: 'en') as String,
+  _safeBoxGet<String>('languageCode', 'en'),
 );
 
-int themeModeSetting =
-    Hive.box('settings').get('themeIndex', defaultValue: 0) as int;
+int themeModeSetting = _safeBoxGet<int>('themeIndex', 0);
 
-String playlistSortSetting = Hive.box('settings')
-    .get('playlistSortType', defaultValue: PlaylistSortType.default_.name);
+String playlistSortSetting =
+    _safeBoxGet<String>('playlistSortType', PlaylistSortType.default_.name);
 
-String offlineSortSetting = Hive.box('settings')
-    .get('offlineSortType', defaultValue: OfflineSortType.default_.name);
+String offlineSortSetting =
+    _safeBoxGet<String>('offlineSortType', OfflineSortType.default_.name);
 
 Color primaryColorSetting = Color(
-  Hive.box('settings').get('accentColor', defaultValue: 0xff91cef4),
+  _safeBoxGet<int>('accentColor', 0xff91cef4),
 );
 
 final shuffleNotifier = ValueNotifier<bool>(
-  Hive.box('settings').get('shuffleEnabled', defaultValue: false),
+  _safeBoxGet<bool>('shuffleEnabled', false),
 );
 
 final repeatNotifier = ValueNotifier<AudioServiceRepeatMode>(
-  AudioServiceRepeatMode.values[Hive.box('settings')
-      .get('repeatMode', defaultValue: 0)],
+  AudioServiceRepeatMode.values[_safeBoxGet<int>('repeatMode', 0).clamp(
+    0,
+    AudioServiceRepeatMode.values.length - 1,
+  )],
 );
 
 // Non-storage notifiers

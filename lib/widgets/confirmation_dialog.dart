@@ -20,6 +20,7 @@
  */
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 
@@ -40,6 +41,29 @@ class ConfirmationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (Theme.of(context).platform == TargetPlatform.iOS) {
+      return CupertinoAlertDialog(
+        title: Text(context.l10n!.confirmation),
+        content: confirmationMessage != null
+            ? Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(confirmationMessage!),
+              )
+            : null,
+        actions: [
+          CupertinoDialogAction(
+            onPressed: onCancel,
+            child: Text(context.l10n!.cancel),
+          ),
+          CupertinoDialogAction(
+            isDestructiveAction: isDangerous,
+            isDefaultAction: !isDangerous,
+            onPressed: onSubmit,
+            child: Text(submitMessage),
+          ),
+        ],
+      );
+    }
     final colorScheme = Theme.of(context).colorScheme;
 
     return AlertDialog(

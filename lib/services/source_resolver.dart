@@ -74,7 +74,16 @@ class SourceResolver {
 
     for (final query in queries) {
       if (query.isEmpty) continue;
-      final results = await _saavnService.searchTracks(query);
+      var results = <Map<String, dynamic>>[];
+      try {
+        results = await _saavnService
+            .searchTracks(query)
+            .timeout(const Duration(seconds: 4), onTimeout: () => []);
+      } catch (e) {
+        logger.log('JioSaavn search error for "$query": $e');
+        continue;
+      }
+      if (results.isEmpty) continue;
 
       for (final track in results) {
         final isMatch = TrackMatcher.isExactMatch(
@@ -90,12 +99,13 @@ class SourceResolver {
           unawaited(cacheMatch(ytid, track));
           
           final encryptedUrl = track['encrypted_media_url']?.toString() ?? '';
+          if (encryptedUrl.isEmpty) continue;
           final streamUrl = await _saavnService.getStreamUrl(
             encryptedUrl,
             quality: quality ?? jiosaavnQuality.value,
           );
           
-          if (streamUrl != null) {
+          if (streamUrl != null && streamUrl.isNotEmpty) {
             logger.log('JioSaavn matched [${track['title']} by ${track['artist']}] for $ytid');
             return {
               'url': streamUrl,

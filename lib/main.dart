@@ -50,7 +50,15 @@ import 'package:musify/utilities/sharing_intent.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
-late MusifyAudioHandler audioHandler;
+MusifyAudioHandler? _audioHandlerInstance;
+MusifyAudioHandler get audioHandler {
+  final h = _audioHandlerInstance;
+  if (h != null) return h;
+  throw StateError('audioHandler not initialized yet');
+}
+
+bool get isAudioHandlerInitialized => _audioHandlerInstance != null;
+
 late StreamSubscription<String?> sharingIntentSubscription;
 
 final logger = Logger();
@@ -132,24 +140,30 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
     offlineMode.addListener(_onOfflineModeChanged);
 
-    sharingIntentSubscription = ReceiveSharingIntent.getTextStream().listen(
-      (String? value) async {
-        await consumeYoutubeSharedTextIntent(
-          value,
-          audioHandler: audioHandler,
-          onError: (error, stackTrace) {
-            logger.log(
-              'Error while playing shared song:',
-              error: error,
-              stackTrace: stackTrace,
-            );
-          },
-        );
-      },
-      onError: (err) {
-        logger.log('getTextStream error:', error: err);
-      },
-    );
+    if (isAudioHandlerInitialized) {
+      sharingIntentSubscription = ReceiveSharingIntent.getTextStream().listen(
+        (String? value) async {
+          await consumeYoutubeSharedTextIntent(
+            value,
+            audioHandler: audioHandler,
+            onError: (error, stackTrace) {
+              logger.log(
+                'Error while playing shared song:',
+                error: error,
+                stackTrace: stackTrace,
+              );
+            },
+          );
+        },
+        onError: (err) {
+          logger.log('getTextStream error:', error: err);
+        },
+      );
+    } else {
+      // Create dummy subscription so dispose doesn't crash
+      sharingIntentSubscription =
+          const Stream<String?>.empty().listen((_) {});
+    }
 
     try {
       LicenseRegistry.addLicense(() async* {
@@ -203,10 +217,12 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
         state == AppLifecycleState.detached) {
-      listeningStatsService.recordListeningSessionProgress(
-        wasPlaying: audioHandler.audioPlayer.playing,
-      );
-      unawaited(listeningStatsService.flush());
+      if (isAudioHandlerInitialized) {
+        listeningStatsService.recordListeningSessionProgress(
+          wasPlaying: audioHandler.audioPlayer.playing,
+        );
+        unawaited(listeningStatsService.flush());
+      }
     }
   }
 
@@ -269,12 +285,20 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Always ensure we show something even if initialization fails
   await initialisation();
+
+  // Guard: never let a late init crash leave a blank screen
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    logger.log('FlutterError', error: details.exception, stackTrace: details.stack);
+  };
 
   runApp(const Musify());
 }
 
 Future<void> initialisation() async {
+  // Phase 1: Hive + settings (never let this kill the app)
   try {
     await Hive.initFlutter();
 
@@ -284,10 +308,36 @@ Future<void> initialisation() async {
       Hive.openBox('userNoBackup'),
       Hive.openBox('cache'),
     ]);
+    // Restore persisted settings into ValueNotifiers + theme globals
+    reloadSettingsFromStorage();
+    syncThemeFromSettings();
+  } catch (e, stackTrace) {
+    logger.log('Hive Initialization Error', error: e, stackTrace: stackTrace);
+  }
 
+  // Phase 2: directories (must succeed for offline)
+  try {
+    applicationDirPath = (await getApplicationDocumentsDirectory()).path;
+    await FilePaths.ensureDirectoriesExist();
+  } catch (e, stackTrace) {
+    logger.log('Directory init error', error: e, stackTrace: stackTrace);
+    // Fallback to temp dir so app still launches
+    try {
+      applicationDirPath = (await getApplicationDocumentsDirectory()).path;
+    } catch (_) {
+      applicationDirPath = '/tmp';
+    }
+  }
+
+  // Phase 3: audio + saavn (isolated so router always initializes)
+  try {
     await SourceResolver().init();
+  } catch (e, stackTrace) {
+    logger.log('SourceResolver init error', error: e, stackTrace: stackTrace);
+  }
 
-    audioHandler = await AudioService.init(
+  try {
+    _audioHandlerInstance = await AudioService.init(
       builder: MusifyAudioHandler.new,
       config: const AudioServiceConfig(
         androidNotificationChannelId: 'com.gokadzev.musify',
@@ -297,31 +347,55 @@ Future<void> initialisation() async {
         androidStopForegroundOnPause: false,
       ),
     );
-
-    // Init router
-    NavigationManager.instance;
-
-    try {
-      // Listen to incoming links while app is running
-      appLinks.uriLinkStream.listen(
-        handleIncomingLink,
-        onError: (err) {
-          logger.log('URI link error:', error: err);
-        },
-      );
-    } on PlatformException {
-      logger.log('Failed to get initial uri');
-    }
-
-    if (isFdroidBuild && !offlineMode.value) {
-      await fetchAnnouncementOnly();
-    }
   } catch (e, stackTrace) {
-    logger.log('Initialization Error', error: e, stackTrace: stackTrace);
+    logger.log('AudioService init error', error: e, stackTrace: stackTrace);
+    // Fallback: create handler directly so UI never sees a LateError.
+    try {
+      _audioHandlerInstance = MusifyAudioHandler();
+      logger.log('Created fallback MusifyAudioHandler without AudioService');
+    } catch (e2, st2) {
+      logger.log('Fallback handler also failed', error: e2, stackTrace: st2);
+    }
+  }
+  if (_audioHandlerInstance == null) {
+    try {
+      _audioHandlerInstance = MusifyAudioHandler();
+    } catch (e, st) {
+      logger.log('Last-resort handler failed', error: e, stackTrace: st);
+    }
   }
 
-  applicationDirPath = (await getApplicationDocumentsDirectory()).path;
-  await FilePaths.ensureDirectoriesExist();
+  // Phase 4: router - MUST always run
+  try {
+    NavigationManager.instance;
+  } catch (e, stackTrace) {
+    logger.log('Router init error', error: e, stackTrace: stackTrace);
+  }
+
+  // Phase 5: deep links
+  try {
+    appLinks.uriLinkStream.listen(
+      handleIncomingLink,
+      onError: (err) {
+        logger.log('URI link error:', error: err);
+      },
+    );
+  } on PlatformException {
+    logger.log('Failed to get initial uri');
+  } catch (e, stackTrace) {
+    logger.log('AppLinks listen error', error: e, stackTrace: stackTrace);
+  }
+
+  // Wrap F-Droid announce check so it never blocks
+  if (isFdroidBuild) {
+    try {
+      if (!offlineMode.value) {
+        await fetchAnnouncementOnly();
+      }
+    } catch (e, stackTrace) {
+      logger.log('Announcement fetch error', error: e, stackTrace: stackTrace);
+    }
+  }
 }
 
 void handleIncomingLink(Uri? uri) async {

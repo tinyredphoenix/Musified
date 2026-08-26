@@ -1,4 +1,5 @@
 // ignore_for_file: deprecated_member_use
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:musify/services/settings_manager.dart';
 
@@ -18,12 +19,14 @@ class DownloadPickerSheet extends StatefulWidget {
 
 class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
   late String _selectedSource = downloadSource.value;
-  late final String _selectedQuality = downloadQuality.value;
+  late String _selectedQuality = downloadQuality.value;
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.song['title'] ?? 'Song';
+    final title = widget.song['title']?.toString() ?? 'Song';
+    final artist = widget.song['artist']?.toString() ?? '';
     final colorScheme = Theme.of(context).colorScheme;
+    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -36,56 +39,180 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Download "$title"',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          const Text('Source:', style: TextStyle(fontSize: 16)),
-          RadioListTile<String>(
-            title: const Text('Best Quality (JioSaavn 320k if available, YouTube otherwise)'),
-            value: 'best',
-            groupValue: _selectedSource,
-            activeColor: colorScheme.primary,
-            onChanged: (value) => setState(() => _selectedSource = value!),
-            contentPadding: EdgeInsets.zero,
-          ),
-          RadioListTile<String>(
-            title: const Text('JioSaavn (320k AAC)'),
-            value: 'saavn',
-            groupValue: _selectedSource,
-            activeColor: colorScheme.primary,
-            onChanged: (value) => setState(() => _selectedSource = value!),
-            contentPadding: EdgeInsets.zero,
-          ),
-          RadioListTile<String>(
-            title: const Text('YouTube (160k Opus)'),
-            value: 'youtube',
-            groupValue: _selectedSource,
-            activeColor: colorScheme.primary,
-            onChanged: (value) => setState(() => _selectedSource = value!),
-            contentPadding: EdgeInsets.zero,
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: colorScheme.primary,
-                foregroundColor: colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
               ),
-              onPressed: () {
-                Navigator.pop(context);
-                widget.onDownload(_selectedSource, _selectedQuality);
-              },
-              child: const Text('Download'),
             ),
           ),
+          const SizedBox(height: 16),
+          Text(
+            'Download',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface,
+              letterSpacing: -0.3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            artist.isEmpty ? title : '$title • $artist',
+            style: TextStyle(
+              fontSize: 13,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Source',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurfaceVariant,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildSourceOption('best', 'Best Quality',
+              'JioSaavn 320k if available, YouTube otherwise', colorScheme, isIOS),
+          _buildSourceOption('saavn', 'JioSaavn', '320k AAC', colorScheme, isIOS),
+          _buildSourceOption('youtube', 'YouTube', 'Up to 160k Opus', colorScheme, isIOS),
+          const SizedBox(height: 16),
+          Text(
+            'Quality',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: colorScheme.onSurfaceVariant,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                for (final q in ['128', '160', '320'])
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => setState(() => _selectedQuality = q),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: _selectedQuality == q
+                              ? colorScheme.primary
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$q kbps',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 13,
+                            color: _selectedQuality == q
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: isIOS
+                ? CupertinoButton.filled(
+                    borderRadius: BorderRadius.circular(12),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onDownload(_selectedSource, _selectedQuality);
+                    },
+                    child: const Text(
+                      'Download',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  )
+                : ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: colorScheme.primary,
+                      foregroundColor: colorScheme.onPrimary,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      widget.onDownload(_selectedSource, _selectedQuality);
+                    },
+                    child: const Text('Download', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+          ),
+          const SizedBox(height: 4),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSourceOption(
+      String value, String title, String subtitle, ColorScheme cs, bool isIOS) {
+    final selected = _selectedSource == value;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedSource = value),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? cs.primary.withValues(alpha: 0.10) : cs.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: selected ? cs.primary.withValues(alpha: 0.4) : Colors.transparent,
+            width: 1.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? (isIOS ? CupertinoIcons.checkmark_alt_circle_fill : Icons.check_circle)
+                  : (isIOS ? CupertinoIcons.circle : Icons.radio_button_unchecked),
+              color: selected ? cs.primary : cs.onSurfaceVariant.withValues(alpha: 0.5),
+              size: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                        color: selected ? cs.primary : cs.onSurface,
+                      )),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -96,9 +223,26 @@ Future<void> showDownloadPicker(
   Map song,
   void Function(String source, String quality) onDownload,
 ) {
+  final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+  if (isIOS) {
+    return showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        child: SafeArea(
+          top: false,
+          child: DownloadPickerSheet(song: song, onDownload: onDownload),
+        ),
+      ),
+    );
+  }
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),

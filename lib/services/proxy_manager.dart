@@ -828,4 +828,7 @@ class ProxyManager {
   }
 }
 
-final ytClient = ProxyManager().getClientSync();
+/// Lazy accessor so that ProxyManager (and its Hive read of `useProxy`) is not
+/// created at import time before Hive is initialized. Each call returns the
+/// current shared client.
+YoutubeExplode get ytClient => ProxyManager().getClientSync();

@@ -19,16 +19,67 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 
 PersistentBottomSheetController? _currentBottomSheetController;
+bool _isIOSSheetOpen = false;
 
-PersistentBottomSheetController? showCustomBottomSheet(
+/// Shows a bottom sheet that feels native on each platform.
+/// On iOS it uses a Cupertino modal popup with blur, on Android it keeps
+/// the Material persistent bottom sheet.
+dynamic showCustomBottomSheet(
   BuildContext context,
   Widget content,
 ) {
+  final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
   final size = MediaQuery.sizeOf(context);
   final colorScheme = Theme.of(context).colorScheme;
+
+  if (isIOS) {
+    _isIOSSheetOpen = true;
+    // Use a modal popup so it slides from bottom like iOS sheet
+    showCupertinoModalPopup(
+      context: context,
+      builder: (ctx) => Container(
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 12, bottom: 8),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: size.width,
+                  maxHeight: size.height * 0.72,
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: content,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ).whenComplete(() => _isIOSSheetOpen = false);
+    return null;
+  }
 
   final controller = showBottomSheet(
     enableDrag: true,
@@ -85,6 +136,11 @@ PersistentBottomSheetController? showCustomBottomSheet(
 }
 
 void closeCurrentBottomSheet() {
+  if (_isIOSSheetOpen) {
+    // iOS sheet is a modal popup; try to pop if possible
+    _isIOSSheetOpen = false;
+    return;
+  }
   try {
     _currentBottomSheetController?.close();
   } catch (_) {}

@@ -542,6 +542,10 @@ class _SongBarState extends State<SongBar> {
   }
 
   void _handleSongTap() {
+    if (!isAudioHandlerInitialized) {
+      showToast(context, 'Player not ready yet');
+      return;
+    }
     if (widget.onPlay != null) {
       widget.onPlay!();
       return;

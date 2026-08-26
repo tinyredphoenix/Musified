@@ -42,9 +42,14 @@ class BottomNavigationPage extends StatefulWidget {
 }
 
 class _BottomNavigationPageState extends State<BottomNavigationPage> {
-  late final _miniPlayerVisibilityStream = audioHandler.mediaItem
-      .map((mediaItem) => mediaItem != null)
-      .distinct();
+  Stream<bool> get _miniPlayerVisibilityStream {
+    if (!isAudioHandlerInitialized) return Stream.value(false);
+    return audioHandler.mediaItem
+        .map((mediaItem) => mediaItem != null)
+        .distinct();
+  }
+
+  bool get _isAudioReady => isAudioHandlerInitialized;
 
   bool? _previousOfflineMode;
 
@@ -104,7 +109,8 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                         ),
                       Expanded(
                         child: StreamBuilder<bool>(
-                          initialData: audioHandler.mediaItem.value != null,
+                          initialData:
+                              _isAudioReady && audioHandler.mediaItem.value != null,
                           stream: _miniPlayerVisibilityStream,
                           builder: (context, snapshot) {
                             final mediaQuery = MediaQuery.of(context);

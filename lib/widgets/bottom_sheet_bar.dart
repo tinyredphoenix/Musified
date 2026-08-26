@@ -20,6 +20,7 @@
  */
 
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 
 class BottomSheetBar extends StatelessWidget {
@@ -90,7 +91,9 @@ class BottomSheetBar extends StatelessWidget {
                 if (isSelected) ...[
                   const SizedBox(width: 8),
                   Icon(
-                    FluentIcons.checkmark_circle_24_regular,
+                    Theme.of(context).platform == TargetPlatform.iOS
+                        ? CupertinoIcons.checkmark_alt_circle_fill
+                        : FluentIcons.checkmark_circle_24_regular,
                     color: colorScheme.onSecondaryContainer,
                     size: 22,
                   ),

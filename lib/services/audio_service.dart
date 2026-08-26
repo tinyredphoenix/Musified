@@ -104,9 +104,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
   static const int _maxHistorySize = 50;
   static const int _queueLookahead = 3;
   static const int _maxConcurrentPreloads = 2;
-  static const Duration _errorRetryDelay = Duration(seconds: 2);
-  static const Duration _songTransitionTimeout = Duration(seconds: 8);
-  static const Duration _debounceInterval = Duration(milliseconds: 150);
+  static const Duration _errorRetryDelay = Duration(seconds: 1);
+  static const Duration _songTransitionTimeout = Duration(seconds: 6);
+  static const Duration _debounceInterval = Duration(milliseconds: 80);
   static const Duration _positionDataThreshold = Duration(milliseconds: 250);
   static const Duration _playbackStateHeartbeat = Duration(seconds: 1);
 
@@ -1834,20 +1834,25 @@ class MusifyAudioHandler extends BaseAudioHandler {
       }
 
       _lastError = null;
-      if (audioPlayer.playing) {
-        listeningStatsService.recordListeningSessionProgress(
-          wasPlaying: audioPlayer.playing,
-        );
-      }
-      await audioPlayer.stop();
-
+      // INSTANT UI FEEDBACK: emit loading state before any await
       _emitOptimisticLoadingState(
         song: songData,
         includeMediaItem: true,
         mediaId: mediaId,
       );
-
-      final playback = await _resolvePlaybackSource(songData);
+      // Cut previous audio immediately without blocking URL fetch
+      final stopFuture = audioPlayer.stop().catchError((e, st) {
+        logger.log('stop error', error: e, stackTrace: st);
+      });
+      if (audioPlayer.playing) {
+        listeningStatsService.recordListeningSessionProgress(
+          wasPlaying: true,
+        );
+      }
+      // Resolve source in parallel with stop; stale check after both
+      final playbackFuture = _resolvePlaybackSource(songData);
+      await stopFuture;
+      final playback = await playbackFuture;
 
       // Abort if a newer song was requested while we were fetching the stream URL.
       // This is the primary guard against the race condition where a slow streaming

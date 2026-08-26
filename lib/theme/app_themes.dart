@@ -23,8 +23,33 @@ import 'package:flutter/scheduler.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/services/settings_manager.dart';
 
-ThemeMode themeMode = getThemeMode(themeModeSetting);
-Brightness brightness = getBrightnessFromThemeMode(themeMode);
+ThemeMode _themeModeCached = getThemeMode(_safeInitialThemeIndex());
+Brightness _brightnessCached = getBrightnessFromThemeMode(_themeModeCached);
+
+int _safeInitialThemeIndex() {
+  try {
+    return themeModeSetting;
+  } catch (_) {
+    return 0;
+  }
+}
+
+// Mutable globals kept for backward compat, but now safely initialized
+// and kept in sync via syncThemeFromSettings().
+ThemeMode get themeMode => _themeModeCached;
+set themeMode(ThemeMode v) {
+  _themeModeCached = v;
+  _brightnessCached = getBrightnessFromThemeMode(v);
+}
+
+Brightness get brightness => _brightnessCached;
+set brightness(Brightness v) => _brightnessCached = v;
+
+void syncThemeFromSettings() {
+  final m = getThemeMode(themeModeSetting);
+  _themeModeCached = m;
+  _brightnessCached = getBrightnessFromThemeMode(m);
+}
 
 Brightness getBrightnessFromThemeMode(ThemeMode themeMode) {
   final themeBrightnessMapping = {

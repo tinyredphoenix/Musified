@@ -679,22 +679,29 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       }
     }
 
-    // Try JioSaavn
+    // Try JioSaavn with tight timeout so it never blocks YouTube fallback
     if (jiosaavnEnabled.value && forceSource != 'youtube') {
-      final saavnSource = await SourceResolver().resolveAudioSource(song);
-      if (saavnSource != null && saavnSource['url'] != null) {
-        final url = saavnSource['url'] as String;
-        logger.log('JioSaavn stream result found: url=$url');
-        song['resolvedSource'] = 'jiosaavn';
-        song['resolvedBitrate'] = saavnSource['bitrate'];
-        song['resolvedFormat'] = saavnSource['format'];
-        if (forceSource == null) {
-          unawaited(addOrUpdateData<String>('cache', cacheKey, url));
+      try {
+        final saavnSource = await SourceResolver()
+            .resolveAudioSource(song)
+            .timeout(const Duration(seconds: 4), onTimeout: () => null);
+        if (saavnSource != null && saavnSource['url'] != null) {
+          final url = saavnSource['url'] as String;
+          if (url.isNotEmpty) {
+            logger.log('JioSaavn stream result found: url=$url');
+            song['resolvedSource'] = 'jiosaavn';
+            song['resolvedBitrate'] = saavnSource['bitrate'];
+            song['resolvedFormat'] = saavnSource['format'];
+            if (forceSource == null) {
+              unawaited(addOrUpdateData<String>('cache', cacheKey, url));
+            }
+            logger.log('Final URL resolved via jiosaavn');
+            return url;
+          }
         }
-        logger.log('Final URL resolved via jiosaavn');
-        return url;
-      } else {
         logger.log('JioSaavn search result not found or empty url');
+      } catch (e) {
+        logger.log('JioSaavn resolve error: $e');
       }
     }
 
@@ -797,8 +804,17 @@ Future<bool> makeSongOffline(dynamic song, {String? source, String? quality}) as
     IOSink? fileStream;
     try {
       Map<String, dynamic>? saavnSource;
+      var mappedQuality = quality;
+      // Saavn only supports 96/160/320, map 128 -> 96
+      if (mappedQuality == '128') mappedQuality = '96';
       if (source != 'youtube' && jiosaavnEnabled.value) {
-        saavnSource = await SourceResolver().resolveAudioSource(offlineSong, quality: quality);
+        try {
+          saavnSource = await SourceResolver()
+              .resolveAudioSource(offlineSong, quality: mappedQuality)
+              .timeout(const Duration(seconds: 6), onTimeout: () => null);
+        } catch (e) {
+          logger.log('Saavn resolve for offline failed: $e');
+        }
       }
 
       if (saavnSource != null && saavnSource['url'] != null) {
@@ -806,11 +822,23 @@ Future<bool> makeSongOffline(dynamic song, {String? source, String? quality}) as
         audioCodec = saavnSource['format'] as String?;
         final url = saavnSource['url'] as String;
 
-        final response = await http.Client().send(http.Request('GET', Uri.parse(url)));
+        final req = http.Request('GET', Uri.parse(url));
+        req.headers['User-Agent'] =
+            'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
+        final response = await http.Client().send(req).timeout(const Duration(seconds: 20));
+        if (response.statusCode != 200) {
+          logger.log('Saavn download HTTP ${response.statusCode} for $ytid');
+          throw HttpException('Saavn HTTP ${response.statusCode}');
+        }
         fileStream = audioFile.openWrite();
         await response.stream.pipe(fileStream);
         fileStream = null;
       } else {
+        // If source explicitly saavn but failed, report error
+        if (source == 'saavn') {
+          logger.log('makeSongOffline: saavn source requested but not found for $ytid');
+          return false;
+        }
         final audioManifest = await fetchBestAudioStream(ytid);
         if (audioManifest == null) {
           logger.log('makeSongOffline: audioManifest is null for $ytid');
@@ -821,7 +849,7 @@ Future<bool> makeSongOffline(dynamic song, {String? source, String? quality}) as
 
         final stream = ytClient.videos.streamsClient.get(audioManifest);
         fileStream = audioFile.openWrite();
-        await stream.pipe(fileStream);
+        await stream.pipe(fileStream).timeout(const Duration(seconds: 60));
         fileStream = null;
       }
     } catch (e, stackTrace) {
