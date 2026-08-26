@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
       "version": "4.0.0",
-      "versionDate": "2026-08-26T11:52:42Z",
+      "versionDate": "2026-08-26T12:07:08Z",
       "versionDescription": "v4.0 release: streamlined minimalist Apple Music UI, LrcLib lyrics integration, fail-safe source switcher, GPU battery thermal fix, and centered brand typography.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/download/v4.0/Musified.ipa",
-      "size": 14270662
+      "size": 14243355
     }
   ]
 }
