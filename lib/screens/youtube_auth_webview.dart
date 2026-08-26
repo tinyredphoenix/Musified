@@ -50,7 +50,10 @@ class _YouTubeAuthWebViewState extends State<YouTubeAuthWebView> {
       ..loadRequest(Uri.parse('https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/'));
   }
 
+  bool _isCompleting = false;
+
   Future<void> _extractCookiesAndComplete() async {
+    if (_isCompleting) return;
     try {
       final cookieManager = WebViewCookieManager();
       final youtubeCookies = await cookieManager.getCookies(domain: Uri.parse('https://youtube.com'));
@@ -65,8 +68,9 @@ class _YouTubeAuthWebViewState extends State<YouTubeAuthWebView> {
       
       final hasRequired = cookiesMap.containsKey('SAPISID') || cookiesMap.containsKey('__Secure-3PAPISID');
       if (hasRequired) {
+        _isCompleting = true;
         YouTubeAuthService().saveCookies(cookiesMap);
-        if (mounted) {
+        if (mounted && Navigator.canPop(context)) {
           Navigator.pop(context, true);
         }
       }

@@ -172,32 +172,44 @@ extension StringUtility2 on String? {
       return null;
     }
 
-    var parts = this!.trim().split(' ');
-    if (parts.length == 4) {
-      // Streamed x y ago
-      parts = parts.skip(1).toList();
-    }
+    // Strip out common non-numeric prefixes like 'Streamed', 'Streamed live', etc.
+    final cleaned = this!
+        .replaceAll(RegExp(r'^(Streamed\s+live|Streamed|Premiered)\s+', caseSensitive: false), '')
+        .trim();
 
+    final parts = cleaned.split(' ');
     if (parts.length != 3) {
       return null;
     }
 
-    final qty = int.parse(parts.first);
+    final qty = int.tryParse(parts.first);
+    if (qty == null) {
+      return null;
+    }
 
     // Try to get the unit
-    final unit = parts[1];
+    final unit = parts[1].toLowerCase();
 
-    final time = switch (unit) {
-      _ when unit.startsWith('second') => Duration(seconds: qty),
-      _ when unit.startsWith('minute') => Duration(minutes: qty),
-      _ when unit.startsWith('hour') => Duration(hours: qty),
-      _ when unit.startsWith('day') => Duration(days: qty),
-      _ when unit.startsWith('week') => Duration(days: qty * 7),
-      _ when unit.startsWith('month') => Duration(days: qty * 30),
-      _ when unit.startsWith('year') => Duration(days: qty * 365),
-      _ => throw StateError("Couldn't parse $unit unit of time. "
-          'Please report this to the project page!')
-    };
+    Duration? time;
+    if (unit.startsWith('second')) {
+      time = Duration(seconds: qty);
+    } else if (unit.startsWith('minute')) {
+      time = Duration(minutes: qty);
+    } else if (unit.startsWith('hour')) {
+      time = Duration(hours: qty);
+    } else if (unit.startsWith('day')) {
+      time = Duration(days: qty);
+    } else if (unit.startsWith('week')) {
+      time = Duration(days: qty * 7);
+    } else if (unit.startsWith('month')) {
+      time = Duration(days: qty * 30);
+    } else if (unit.startsWith('year')) {
+      time = Duration(days: qty * 365);
+    }
+
+    if (time == null) {
+      return null;
+    }
 
     return DateTime.now().subtract(time);
   }

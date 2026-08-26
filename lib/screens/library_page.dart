@@ -21,7 +21,9 @@
 
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -197,7 +199,14 @@ class _LibraryPageState extends State<LibraryPage> {
                           
                           return GestureDetector(
                             onTap: () {
-                      showToast(context, 'Coming soon');
+                              HapticFeedback.selectionClick();
+                              final id = playlist['playlistId']?.toString();
+                              if (id != null) {
+                                context.push(
+                                  '/home/playlist/$id',
+                                  extra: {'title': title, 'image': image},
+                                );
+                              }
                             },
                             child: Container(
                               width: 140,

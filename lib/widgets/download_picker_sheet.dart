@@ -35,14 +35,16 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
         ? CupertinoColors.activeBlue
         : colorScheme.primary;
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-      ),
-      child: Column(
+    return Material(
+      color: Colors.transparent,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        ),
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -195,8 +197,9 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
           const SizedBox(height: 4),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildSourceOption(
     String value,

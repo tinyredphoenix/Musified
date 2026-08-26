@@ -133,7 +133,6 @@ class _HomePageState extends State<HomePage> {
               _buildPersonalizedMixes(playlistHeight),
               _buildSuggestedPlaylists(playlistHeight),
               _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
-              _buildCurrentMonthRecapSection(),
               _buildRecommendedSongsSection(),
               const MiniPlayerBottomSpace(),
             ],
@@ -194,6 +193,9 @@ class _HomePageState extends State<HomePage> {
     double playlistHeight, {
     bool showOnlyLiked = false,
   }) {
+    if (!showOnlyLiked && YouTubeAuthService().isSignedIn.value) {
+      return const SizedBox.shrink();
+    }
     if (showOnlyLiked) {
       return ValueListenableBuilder<List<Map>>(
         valueListenable: userLikedPlaylists,

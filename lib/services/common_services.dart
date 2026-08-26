@@ -244,22 +244,38 @@ Future<List> fetchSongsList(String searchQuery) async {
   }
 }
 
-Future<List> getRecommendedSongs() async {
+DateTime? _lastRecTime;
+List _cachedRecs = [];
+
+Future<List> getRecommendedSongs({bool forceRefresh = false}) async {
   try {
+    if (!forceRefresh &&
+        _cachedRecs.isNotEmpty &&
+        _lastRecTime != null &&
+        DateTime.now().difference(_lastRecTime!).inSeconds < 60) {
+      return _cachedRecs;
+    }
+
+    List results;
     if (externalRecommendations.value &&
         (userRecentlyPlayed.value.isNotEmpty ||
             userLikedSongsList.value.isNotEmpty)) {
-      return await _getRecommendationsFromRecentlyPlayed();
+      results = await _getRecommendationsFromRecentlyPlayed();
     } else {
-      return await _getRecommendationsFromMixedSources();
+      results = await _getRecommendationsFromMixedSources();
     }
+    if (results.isNotEmpty) {
+      _cachedRecs = results;
+      _lastRecTime = DateTime.now();
+    }
+    return results.isNotEmpty ? results : _cachedRecs;
   } catch (e, stackTrace) {
     logger.log(
       'Error in getRecommendedSongs',
       error: e,
       stackTrace: stackTrace,
     );
-    return [];
+    return _cachedRecs;
   }
 }
 
@@ -1007,12 +1023,11 @@ Future<bool> makeSongOffline(
           client.close();
         }
       } else {
-        // If source explicitly saavn but failed, report error
+        // If source explicitly saavn but failed, gracefully fall back to YouTube
         if (normalizedSource == 'saavn') {
           logger.log(
-            'makeSongOffline: saavn source requested but not found for $ytid',
+            'makeSongOffline: saavn source not found for $ytid, falling back to YouTube',
           );
-          return false;
         }
         final audioManifest = await fetchBestAudioStream(ytid);
         if (audioManifest == null) {

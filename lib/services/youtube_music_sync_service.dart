@@ -286,16 +286,9 @@ class YouTubeMusicSyncService {
   }
 
   Future<bool> reportSongPlayed(String videoId) async {
-    try {
-      await _authenticatedPost('/playback/heartbeat', {
-        'videoId': videoId,
-        'playbackState': 1,
-      });
-      return true;
-    } catch (e) {
-      logger.log('Error reporting song played: $e');
-      return false;
-    }
+    // Playback reporting on YouTube Music requires active player playback tracking
+    // tokens from watchEndpoint; no-op gracefully to avoid redundant 404 requests.
+    return true;
   }
 
   Future<void> syncLikedSongs() async {

@@ -27,6 +27,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
+import 'package:musify/services/common_services.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/app_utils.dart';
@@ -111,14 +112,15 @@ class NowPlayingControls extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
+                  _AudioSourceChip(metadata: metadata),
                 ],
               ),
             ),
             if (!isCompact) const Spacer(),
             ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: isDesktop ? 400 : constraints.maxWidth,
+                maxWidth: isDesktop ? 450 : double.infinity,
               ),
               child: const PositionSlider(),
             ),
@@ -478,6 +480,159 @@ class _PlaybackControlButton extends StatelessWidget {
             ? colorScheme.onSurface
             : colorScheme.onSurface.withValues(alpha: 0.3),
         size: controlIconSize,
+      ),
+    );
+  }
+}
+
+class _AudioSourceChip extends StatelessWidget {
+  const _AudioSourceChip({required this.metadata});
+  final MediaItem metadata;
+
+  void _showSourcePicker(BuildContext context) {
+    final extras = metadata.extras ?? {};
+    final currentSource = extras['resolvedSource'] as String? ?? 'youtube';
+    final ytid = extras['ytid']?.toString() ?? '';
+    final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
+
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => Material(
+        color: Colors.transparent,
+        child: CupertinoActionSheet(
+          title: const Text('Audio Stream Source'),
+          message: isOffline
+              ? const Text('This song is playing from offline storage.')
+              : const Text('Select audio provider for this track:'),
+          actions: isOffline
+              ? []
+              : [
+                  CupertinoActionSheetAction(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      if (currentSource != 'jiosaavn') {
+                        audioHandler.switchSource('jiosaavn');
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.music_note,
+                          size: 18,
+                          color: CupertinoColors.systemGreen,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('JioSaavn (High Quality 320k AAC)'),
+                        if (currentSource == 'jiosaavn') ...[
+                          const SizedBox(width: 8),
+                          const Icon(
+                            CupertinoIcons.checkmark_alt_circle_fill,
+                            size: 18,
+                            color: CupertinoColors.systemGreen,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  CupertinoActionSheetAction(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      if (currentSource != 'youtube') {
+                        audioHandler.switchSource('youtube');
+                      }
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.play_rectangle_fill,
+                          size: 18,
+                          color: CupertinoColors.systemBlue,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text('YouTube (Standard 160k Opus)'),
+                        if (currentSource == 'youtube') ...[
+                          const SizedBox(width: 8),
+                          const Icon(
+                            CupertinoIcons.checkmark_alt_circle_fill,
+                            size: 18,
+                            color: CupertinoColors.systemBlue,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final extras = metadata.extras ?? {};
+    final ytid = extras['ytid']?.toString() ?? '';
+    final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
+
+    final source = extras['resolvedSource'] as String? ?? 'youtube';
+    final bitrate = extras['resolvedBitrate'] as int?;
+    final isJioSaavn = source == 'jiosaavn';
+
+    final label = isOffline
+        ? 'Offline'
+        : (isJioSaavn
+            ? 'JioSaavn ${bitrate ?? 320}k AAC'
+            : 'YouTube 160k Opus');
+
+    final color = isOffline
+        ? CupertinoColors.systemGrey
+        : (isJioSaavn
+            ? CupertinoColors.systemGreen
+            : CupertinoColors.systemBlue);
+
+    return GestureDetector(
+      onTap: () => _showSourcePicker(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.35), width: 0.8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isJioSaavn
+                  ? CupertinoIcons.music_note
+                  : CupertinoIcons.play_rectangle_fill,
+              size: 11,
+              color: color,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
+            ),
+            const SizedBox(width: 3),
+            Icon(
+              CupertinoIcons.chevron_down,
+              size: 10,
+              color: color.withValues(alpha: 0.7),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -66,28 +66,33 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         },
         child: Stack(
           children: [
-            StreamBuilder<MediaItem?>(
-              stream: audioHandler.mediaItem,
-              builder: (context, snapshot) {
-                final metadata = snapshot.data;
-                if (metadata == null) return const SizedBox.shrink();
-                return Positioned.fill(
-                  child: SongArtworkWidget(
-                    metadata: metadata,
-                    size: size.height,
-                    errorWidgetIconSize: size.width / 8,
-                    borderRadius: 0,
-                  ),
-                );
-              },
-            ),
             Positioned.fill(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-                child: Container(
-                  color: theme.brightness == Brightness.dark
-                      ? Colors.black.withValues(alpha: 0.5)
-                      : Colors.white.withValues(alpha: 0.3),
+              child: RepaintBoundary(
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    StreamBuilder<MediaItem?>(
+                      stream: audioHandler.mediaItem,
+                      builder: (context, snapshot) {
+                        final metadata = snapshot.data;
+                        if (metadata == null) return const SizedBox.shrink();
+                        return SongArtworkWidget(
+                          metadata: metadata,
+                          size: size.height,
+                          errorWidgetIconSize: size.width / 8,
+                          borderRadius: 0,
+                        );
+                      },
+                    ),
+                    BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 45, sigmaY: 45),
+                      child: Container(
+                        color: theme.brightness == Brightness.dark
+                            ? Colors.black.withValues(alpha: 0.5)
+                            : Colors.white.withValues(alpha: 0.3),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),

@@ -104,22 +104,25 @@ class _PositionSliderState extends State<PositionSlider> {
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                CupertinoSlider(
-                  value: currentValue.clamp(0.0, maxDuration),
-                  onChanged: (value) {
-                    setState(() {
-                      _isDragging = true;
-                      _dragValue = value;
-                    });
-                  },
-                  onChangeEnd: (value) {
-                    audioHandler.seek(Duration(milliseconds: value.round()));
-                    setState(() {
-                      _isDragging = false;
-                    });
-                  },
-                  max: maxDuration,
-                  activeColor: Theme.of(context).colorScheme.primary,
+                SizedBox(
+                  width: double.infinity,
+                  child: CupertinoSlider(
+                    value: currentValue.clamp(0.0, maxDuration),
+                    onChanged: (value) {
+                      setState(() {
+                        _isDragging = true;
+                        _dragValue = value;
+                      });
+                    },
+                    onChangeEnd: (value) {
+                      audioHandler.seek(Duration(milliseconds: value.round()));
+                      setState(() {
+                        _isDragging = false;
+                      });
+                    },
+                    max: maxDuration,
+                    activeColor: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
                 _buildPositionRow(context, displayPositionData),
               ],
@@ -145,7 +148,7 @@ class _PositionSliderState extends State<PositionSlider> {
         : '-${formatDuration(remainingSec)}';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
