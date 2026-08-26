@@ -74,7 +74,7 @@ class PlaylistPage extends StatefulWidget {
 
 class _PlaylistPageState extends State<PlaylistPage> {
   dynamic _playlist;
-  late List<dynamic> _originalPlaylistList; // Keep original order separately
+  List<dynamic> _originalPlaylistList = []; // Keep original order separately
 
   bool _isInitializingPlaylist = true;
 

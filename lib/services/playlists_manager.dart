@@ -964,7 +964,7 @@ Future<List> getPlaylists({
           final playlistMap = {
             'ytid': playlist.id.toString(),
             'title': playlist.title,
-            'image': playlist.thumbnails.first.url.toString(),
+            'image': playlist.thumbnails.firstOrNull?.url.toString() ?? '',
             'source': 'youtube',
             'list': [],
           };

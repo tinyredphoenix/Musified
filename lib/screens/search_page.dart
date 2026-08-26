@@ -177,6 +177,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<List<dynamic>> _fetchSongsForResolvedArtist(String query) async {
+    if (_artistsSearchResult.isEmpty) return [];
     final artistName = _artistsSearchResult.first['title']?.toString().trim();
     if (artistName == null || artistName.isEmpty) return [];
 

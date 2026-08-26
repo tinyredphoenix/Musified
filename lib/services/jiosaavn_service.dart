@@ -24,8 +24,9 @@ class JioSaavnService {
       if (response.statusCode == 200) {
         final body = response.body.trim();
         if (body.isEmpty) return [];
-        // JioSaavn sometimes returns HTML-wrapped JSON or extra prefix
-        final jsonStr = body.startsWith('{') ? body : body.substring(body.indexOf('{'));
+        final jsonStart = body.indexOf('{');
+        if (jsonStart == -1) return [];
+        final jsonStr = body.substring(jsonStart);
         final json = jsonDecode(jsonStr);
         final rawResults = json['results'];
         if (rawResults is List) {
