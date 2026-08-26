@@ -246,6 +246,8 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
       final item = items[index];
       final isReselect = _previousShellIndex == item.shellIndex;
 
+      HapticFeedback.selectionClick();
+
       // Close any open bottom sheet before switching tabs
       closeCurrentBottomSheet();
 

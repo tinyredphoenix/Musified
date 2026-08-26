@@ -21,8 +21,11 @@
 
 import 'dart:async';
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -48,21 +51,43 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late final Future<List> _suggestedPlaylistsFuture;
-  late Future<List> _recommendedSongsFuture;
+  late Future<List<dynamic>> _suggestedPlaylistsFuture;
+  late Future<List<dynamic>> _recommendedSongsFuture;
+  late Future<List<Map<String, dynamic>>> _personalizedMixesFuture;
   Timer? _recommendationRefreshDebounce;
 
   @override
   void initState() {
     super.initState();
     announcementURL.value = null;
+    _fetchData();
+    externalRecommendations.addListener(_refreshRecommendedSongs);
+    userRecentlyPlayed.addListener(_refreshRecommendedSongs);
+    userLikedSongsList.addListener(_refreshRecommendedSongs);
+  }
+
+  void _fetchData() {
     _suggestedPlaylistsFuture = getPlaylists(
       playlistsNum: recommendedCubesNumber,
     );
     _recommendedSongsFuture = getRecommendedSongs();
-    externalRecommendations.addListener(_refreshRecommendedSongs);
-    userRecentlyPlayed.addListener(_refreshRecommendedSongs);
-    userLikedSongsList.addListener(_refreshRecommendedSongs);
+    if (YouTubeAuthService().isSignedIn.value) {
+      _personalizedMixesFuture = YouTubeMusicSyncService().fetchPersonalizedMixes();
+    } else {
+      _personalizedMixesFuture = Future.value([]);
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _fetchData();
+    });
+    await Future.wait([
+      _suggestedPlaylistsFuture,
+      _recommendedSongsFuture,
+      _personalizedMixesFuture,
+    ]);
   }
 
   @override
@@ -98,18 +123,70 @@ class _HomePageState extends State<HomePage> {
           style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: -0.5),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: commonSingleChildScrollViewPadding,
-        child: Column(
-          children: [
-            _buildSuggestedPlaylists(playlistHeight),
-            _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
-            _buildCurrentMonthRecapSection(),
-            _buildRecommendedSongsSection(),
-            const MiniPlayerBottomSpace(),
-          ],
+      body: RefreshIndicator(
+        onRefresh: _handleRefresh,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: commonSingleChildScrollViewPadding,
+          child: Column(
+            children: [
+              _buildPersonalizedMixes(playlistHeight),
+              _buildSuggestedPlaylists(playlistHeight),
+              _buildSuggestedPlaylists(playlistHeight, showOnlyLiked: true),
+              _buildCurrentMonthRecapSection(),
+              _buildRecommendedSongsSection(),
+              const MiniPlayerBottomSpace(),
+            ],
+          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildPersonalizedMixes(double playlistHeight) {
+    if (!YouTubeAuthService().isSignedIn.value) return const SizedBox.shrink();
+
+    return AsyncLoader<List<Map<String, dynamic>>>(
+      future: _personalizedMixesFuture,
+      builder: (context, mixes) {
+        if (mixes.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          children: [
+            SectionHeader(
+              title: 'Your Mixes',
+              icon: CupertinoIcons.music_note_list,
+            ),
+            SizedBox(
+              height: playlistHeight,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: mixes.length,
+                itemBuilder: (context, index) {
+                  final mix = mixes[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        context.push(
+                          '/home/playlist/${mix['playlistId']}',
+                          extra: {
+                            'title': mix['title'],
+                            'image': mix['image'],
+                          },
+                        );
+                      },
+                      child: PlaylistCube(mix, size: playlistHeight),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -155,8 +232,8 @@ class _HomePageState extends State<HomePage> {
         SectionHeader(
           title: sectionTitle,
           icon: showOnlyLiked
-              ? FluentIcons.heart_24_filled
-              : FluentIcons.list_24_filled,
+              ? CupertinoIcons.heart_fill
+              : CupertinoIcons.list_bullet,
         ),
         SizedBox(
           height: playlistHeight,
@@ -169,8 +246,10 @@ class _HomePageState extends State<HomePage> {
               return Padding(
                 padding: const EdgeInsets.only(right: 12),
                 child: GestureDetector(
-                  onTap: () =>
-                      context.push('/home/playlist/${playlist['ytid']}'),
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    context.push('/home/playlist/${playlist['ytid']}');
+                  },
                   child: PlaylistCube(playlist, size: playlistHeight),
                 ),
               );
@@ -215,7 +294,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             SectionHeader(
               title: context.l10n.timeMachine,
-              icon: FluentIcons.data_trending_24_filled,
+              icon: CupertinoIcons.chart_bar_fill,
             ),
             ListeningRecapCard(
               periodLabel: periodLabel,
@@ -229,7 +308,7 @@ class _HomePageState extends State<HomePage> {
                 width: double.infinity,
                 child: FilledButton.tonalIcon(
                   onPressed: () => context.push('/home/timeMachine'),
-                  icon: const Icon(FluentIcons.arrow_right_24_regular),
+                  icon: const Icon(CupertinoIcons.arrow_right),
                   label: Text(context.l10n.listeningStats),
                 ),
               ),
@@ -261,7 +340,7 @@ class _HomePageState extends State<HomePage> {
       children: [
         SectionHeader(
           title: recommendedTitle,
-          icon: FluentIcons.sparkle_24_filled,
+          icon: CupertinoIcons.sparkles,
           actionButton: IconButton(
             onPressed: () async {
               await audioHandler.playPlaylistSong(
@@ -270,7 +349,7 @@ class _HomePageState extends State<HomePage> {
               );
             },
             icon: Icon(
-              FluentIcons.play_circle_24_filled,
+              CupertinoIcons.play_circle_fill,
               color: Theme.of(context).colorScheme.primary,
               size: 30,
             ),
