@@ -43,6 +43,37 @@ Map mediaItemToMap(MediaItem mediaItem) {
   };
 }
 
+String upgradeArtworkUrl(String url, {int targetSize = 800}) {
+  if (url.isEmpty || url == 'null') return url;
+
+  var upgraded = url;
+  // 1. Google / YouTube Music CDN URLs with sizing parameters (=w120-h120, =s120, etc.)
+  if (upgraded.contains('googleusercontent.com') ||
+      upgraded.contains('ggpht.com')) {
+    upgraded = upgraded
+        .replaceAll(RegExp(r'=w\d+-h\d+[^?]*'), '=w$targetSize-h$targetSize-l90-rj')
+        .replaceAll(RegExp(r'=s\d+[^?]*'), '=s$targetSize');
+  }
+
+  // 2. JioSaavn CDN artwork (e.g. 50x50.jpg, 150x150.jpg -> 500x500.jpg)
+  if (upgraded.contains('saavncdn.com')) {
+    upgraded = upgraded
+        .replaceAll('50x50.jpg', '500x500.jpg')
+        .replaceAll('150x150.jpg', '500x500.jpg');
+  }
+
+  // 3. YouTube standard thumbnails: upgrade hqdefault (480x360) / default (120x90) / sddefault (640x480)
+  if (upgraded.contains('ytimg.com/vi/')) {
+    upgraded = upgraded
+        .replaceAll('/default.jpg', '/maxresdefault.jpg')
+        .replaceAll('/mqdefault.jpg', '/maxresdefault.jpg')
+        .replaceAll('/hqdefault.jpg', '/maxresdefault.jpg')
+        .replaceAll('/sddefault.jpg', '/maxresdefault.jpg');
+  }
+
+  return upgraded;
+}
+
 MediaItem mapToMediaItem(Map song) {
   final ytid = song['ytid']?.toString();
   final offlineSong = ytid != null
@@ -60,14 +91,20 @@ MediaItem mapToMediaItem(Map song) {
       song['thumbnail']?.toString() ??
       song['artwork']?.toString() ??
       (ytid != null && ytid.isNotEmpty
-          ? 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg'
+          ? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg'
           : null);
+
+  final highQualityImageUrl = rawImageUrl != null
+      ? upgradeArtworkUrl(rawImageUrl)
+      : null;
 
   final artUri = isOffline && offlineSong['artworkPath'] != null
       ? Uri.file(offlineSong['artworkPath'].toString())
-      : (rawImageUrl != null && rawImageUrl.isNotEmpty && rawImageUrl != 'null'
-          ? Uri.parse(rawImageUrl)
-          : Uri.parse('https://i.ytimg.com/vi/${song['id'] ?? ytid}/hqdefault.jpg'));
+      : (highQualityImageUrl != null &&
+              highQualityImageUrl.isNotEmpty &&
+              highQualityImageUrl != 'null'
+          ? Uri.parse(highQualityImageUrl)
+          : Uri.parse('https://i.ytimg.com/vi/${song['id'] ?? ytid}/maxresdefault.jpg'));
   // ytid is the canonical track identity shared by YouTube and JioSaavn.
   // Provider URLs, source labels, and queue-entry ids must never change it.
   final stableId = (ytid == null || ytid.isEmpty)

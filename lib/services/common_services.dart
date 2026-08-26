@@ -175,35 +175,29 @@ _fetchStreamManifest(String songId) async {
         .getSongManifest(songId)
         .timeout(_manifestTimeout);
     if (manifest == null) return null;
-    // Proxy manifests do not expose a client identity; the direct URL is
-    // still usable by the proxy itself, so no special User-Agent is needed.
     return (manifest: manifest, client: null);
   }
 
-  // Keep the client that minted the selected URL. YouTube binds many CDN
-  // URLs to the requesting client's User-Agent; mixing clients causes 403s
-  // and long retry chains, especially during downloads.
-  Object? lastError;
-  final deadline = DateTime.now().add(_manifestTimeout);
-  for (final client in [
-    ...customClients,
-    YoutubeApiClient.safari,
-    YoutubeApiClient.ios,
-  ]) {
-    final remaining = deadline.difference(DateTime.now());
-    if (remaining <= Duration.zero) break;
-    try {
-      final manifest = await ytClient.videos.streams
-          .getManifest(songId, ytClients: [client])
-          .timeout(remaining);
-      return (manifest: manifest, client: client);
-    } catch (error) {
-      lastError = error;
-    }
+  // 1. Fetch with fast mobile clients in parallel
+  try {
+    final manifest = await ytClient.videos.streams
+        .getManifest(songId, ytClients: customClients)
+        .timeout(_manifestTimeout);
+    return (manifest: manifest, client: YoutubeApiClient.androidVr);
+  } catch (error) {
+    logger.log('Multi-client manifest failed for $songId, trying fallback: $error');
   }
 
-  if (lastError != null) throw lastError;
-  return null;
+  // 2. Fallback to standard manifest fetch
+  try {
+    final manifest = await ytClient.videos.streams
+        .getManifest(songId)
+        .timeout(_manifestTimeout);
+    return (manifest: manifest, client: null);
+  } catch (error) {
+    logger.log('Default getManifest failed for $songId: $error');
+    rethrow;
+  }
 }
 
 /// Returns a cached song URL if present and still valid.

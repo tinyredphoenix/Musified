@@ -58,9 +58,9 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
-    if (YouTubeAuthService().isSignedIn.value &&
-        YouTubeMusicSyncService().ytMusicPlaylists.value.isEmpty) {
+    if (YouTubeAuthService().isSignedIn.value) {
       unawaited(YouTubeMusicSyncService().syncPlaylists());
+      unawaited(YouTubeMusicSyncService().syncLikedSongs());
     }
   }
 
@@ -139,10 +139,9 @@ class _LibraryPageState extends State<LibraryPage> {
                   largeTitle: Text(context.l10n.library),
                   backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.8),
                 ),
-                ..._buildPinnedSlivers(),
-                ..._buildUserPlaylistsSlivers(),
-                if (!offlineMode.value) ..._buildLikedPlaylistsSlivers(),
                 if (!offlineMode.value) ..._buildYouTubePlaylistsSlivers(),
+                ..._buildPinnedSlivers(),
+                if (!offlineMode.value) ..._buildLikedPlaylistsSlivers(),
                 ..._buildLikedArtistsSlivers(),
                 const SliverMiniPlayerBottomSpace(),
               ],

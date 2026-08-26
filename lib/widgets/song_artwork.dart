@@ -24,6 +24,7 @@ import 'dart:io';
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:musify/utilities/mediaitem.dart' show upgradeArtworkUrl;
 import 'package:musify/widgets/no_artwork_cube.dart';
 import 'package:musify/widgets/spinner.dart';
 
@@ -58,9 +59,9 @@ class SongArtworkWidget extends StatelessWidget {
     
     final fallbackUrl = metadata.extras?['highResImage']?.toString() ??
         metadata.extras?['image']?.toString() ??
-        'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/hqdefault.jpg';
+        'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/maxresdefault.jpg';
         
-    final imageUrl = isValidUri ? rawArtUri : fallbackUrl;
+    final imageUrl = upgradeArtworkUrl(isValidUri ? rawArtUri : fallbackUrl);
 
     return metadata.artUri?.scheme == 'file'
         ? SizedBox(

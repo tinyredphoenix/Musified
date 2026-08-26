@@ -66,11 +66,11 @@ class _HomePageState extends State<HomePage> {
         title: Text(
           'Musified',
           style: TextStyle(
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.5,
-            fontSize: 22,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
+            fontSize: 24,
             fontFamily: '.SF Pro Display',
-            color: Theme.of(context).colorScheme.onSurface,
+            color: Theme.of(context).colorScheme.primary,
           ),
         ),
       ),

@@ -122,11 +122,13 @@ AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   List<AudioOnlyStreamInfo> availableSources,
 ) {
   // CRITICAL FOR IOS: Apple AVPlayer does not support WebM container (AVError -11828 Cannot Open).
-  // Strictly prioritize M4A / MP4 / AAC container streams.
+  // Strictly prioritize standard AAC-LC / M4A (itag 140) streams.
+  // Exclude HE-AAC (mp4a.40.5 / SBR streams) which cause iOS CoreAudio to double the reported duration.
   final aacSources = availableSources.where((stream) {
     final codec = stream.codec.toString().toLowerCase();
     final container = stream.container.name.toLowerCase();
     if (_isDolbyCodec(codec)) return false;
+    if (codec.contains('mp4a.40.5')) return false;
     return (container == 'm4a' || container == 'mp4' || container == 'aac') ||
         (codec.contains('mp4a') || codec.contains('aac'));
   }).toList();

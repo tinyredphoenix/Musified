@@ -98,31 +98,31 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
   final isPureBlack =
       colorScheme.brightness == Brightness.dark && usePureBlackColor.value;
 
-  // Pure black theme colors
+  // Apple OLED black theme colors
   const pureBlack = Color(0xFF000000);
-  const pureBlackElevated = Color(0xFF0A0A0A);
-  const pureBlackContainer = Color(0xFF121212);
-  const pureBlackContainerHigh = Color(0xFF1A1A1A);
+  const pureBlackElevated = Color(0xFF141416);
+  const pureBlackContainer = Color(0xFF1C1C1E);
+  const pureBlackContainerHigh = Color(0xFF2C2C2E);
 
   final bgColor = isLight
       ? colorScheme.surface
-      : (isPureBlack ? pureBlack : null);
+      : pureBlack;
 
   final cardBgColor = isLight
       ? colorScheme.surfaceContainerLow
-      : (isPureBlack ? pureBlackElevated : null);
+      : pureBlackElevated;
 
-  // modified color scheme for pure black theme
-  final effectiveColorScheme = isPureBlack
-      ? colorScheme.copyWith(
+  // modified color scheme for uniform iOS dark theme
+  final effectiveColorScheme = isLight
+      ? colorScheme
+      : colorScheme.copyWith(
           surface: pureBlack,
           surfaceContainerLowest: pureBlack,
           surfaceContainerLow: pureBlackElevated,
           surfaceContainer: pureBlackContainer,
           surfaceContainerHigh: pureBlackContainerHigh,
           surfaceContainerHighest: pureBlackContainerHigh,
-        )
-      : colorScheme;
+        );
 
   return ThemeData(
     scaffoldBackgroundColor: bgColor,
@@ -138,7 +138,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
       foregroundColor: effectiveColorScheme.onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: false,
+      centerTitle: true,
       titleTextStyle: TextStyle(
         fontSize: 34,
         fontWeight: FontWeight.w700,
