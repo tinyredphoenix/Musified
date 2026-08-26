@@ -80,11 +80,18 @@ jobs:
           IPA_SIZE=$(wc -c < build/ipa/Musified.ipa | tr -d ' ')
           DATE_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           python3 -c "
-          import json
+          import json, re
+          with open('pubspec.yaml', 'r') as f:
+              pubspec = f.read()
+          ver_match = re.search(r'version:\s*([0-9]+\.[0-9]+\.[0-9]+)', pubspec)
+          version = ver_match.group(1) if ver_match else '6.0.0'
           with open('apps.json', 'r') as f:
               data = json.load(f)
+          data['apps'][0]['version'] = version
           data['apps'][0]['size'] = int('$IPA_SIZE')
           data['apps'][0]['versionDate'] = '$DATE_NOW'
+          data['apps'][0]['downloadURL'] = f'https://github.com/tinyredphoenix/Musified/releases/download/v{version}/Musified.ipa'
+          data['apps'][0]['versionDescription'] = f'v{version} release: full Apple Music UI overhaul, crystal-clear dynamic artwork upscaler, fast parallel stream resolver, OLED black theme, and karaoke synced lyrics.'
           with open('apps.json', 'w') as f:
               json.dump(data, f, indent=2)
           "
