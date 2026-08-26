@@ -706,40 +706,15 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> _armNativeSuccessor() async {
-    if (repeatNotifier.value == AudioServiceRepeatMode.one) return;
-    if (audioPlayer.sequence.isEmpty) return;
-
-    var nextIndex = _currentQueueIndex + 1;
-    if (nextIndex >= _queueList.length) {
-      if (repeatNotifier.value == AudioServiceRepeatMode.all &&
-          _queueList.isNotEmpty) {
-        nextIndex = 0;
-      } else {
-        return;
-      }
-    }
-    if (nextIndex == _currentQueueIndex) return;
-
-    try {
-      while (audioPlayer.sequence.length > 1) {
-        await audioPlayer.removeAudioSourceAt(
-          audioPlayer.sequence.length - 1,
-        );
-      }
-      final song = cloneMap(_queueList[nextIndex]);
-      final playback = await _resolvePlaybackSource(song);
-      if (playback == null) return;
-      final source = await buildAudioSource(
-        song,
-        playback.songUrl,
-        playback.isOffline,
-      );
-      if (source == null) return;
-      await audioPlayer.addAudioSource(source);
-      logger.log('Armed native successor: ${song['title']}');
-    } catch (e, st) {
-      logger.log('Failed to arm native successor', error: e, stackTrace: st);
-    }
+    // Disabled: arming a native successor in the ConcatenatingAudioSource
+    // causes broken transitions when playing from YouTube. When Song A ends,
+    // just_audio auto-advances to the armed Song B, but _onNativeQueueAdvanced
+    // hits a race condition ("Cannot fire new event") and crashes — leaving
+    // Song B's audio playing under Song A's UI/artwork/slider.
+    //
+    // The Dart-side _handleNearEndSkip and _handleProcessingStateChange already
+    // handle track advancement correctly without needing a native successor.
+    return;
   }
 
   bool _canRetryPlayback() =>
