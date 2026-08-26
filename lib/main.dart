@@ -216,7 +216,10 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
                 ),
               ),
             ),
-            child: child ?? const SizedBox.shrink(),
+            child: DefaultTextStyle(
+              style: const TextStyle(decoration: TextDecoration.none),
+              child: child ?? const SizedBox.shrink(),
+            ),
           );
         },
         localizationsDelegates: const [

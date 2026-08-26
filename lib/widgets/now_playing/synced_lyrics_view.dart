@@ -92,31 +92,41 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   void _startListening() {
     _positionSub?.cancel();
+    
+    // Immediately sync to the current position before the stream ticks
+    if (audioHandler.playbackState.value.playing) {
+      _syncToPosition(audioHandler.playbackState.value.position);
+    }
+    
     _positionSub = AudioService.position.listen((position) {
-      if (!mounted || _parsedLyrics == null) return;
-
-      int newIndex = -1;
-      final lyrics = _parsedLyrics;
-      if (lyrics != null) {
-        for (int i = 0; i < lyrics.length; i++) {
-          // Look ahead slightly for karaoke effect (lead by 200ms)
-          if (position.inMilliseconds + 200 >= lyrics[i].time.inMilliseconds) {
-            newIndex = i;
-          } else {
-            break;
-          }
-        }
-      }
-
-      if (newIndex != _currentIndex && newIndex >= 0) {
-        if (mounted) {
-          setState(() {
-            _currentIndex = newIndex;
-          });
-          _scrollToCurrentLine();
-        }
-      }
+      _syncToPosition(position);
     });
+  }
+
+  void _syncToPosition(Duration position) {
+    if (!mounted || _parsedLyrics == null) return;
+
+    int newIndex = -1;
+    final lyrics = _parsedLyrics;
+    if (lyrics != null) {
+      for (int i = 0; i < lyrics.length; i++) {
+        // Look ahead slightly for karaoke effect (lead by 200ms)
+        if (position.inMilliseconds + 200 >= lyrics[i].time.inMilliseconds) {
+          newIndex = i;
+        } else {
+          break;
+        }
+      }
+    }
+
+    if (newIndex != _currentIndex && newIndex >= 0) {
+      if (mounted) {
+        setState(() {
+          _currentIndex = newIndex;
+        });
+        _scrollToCurrentLine();
+      }
+    }
   }
 
   void _stopListening() {
@@ -204,14 +214,14 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                     color: isCurrent
                         ? Colors.white
                         : (isPast
-                            ? Colors.white.withOpacity(0.4)
-                            : Colors.white.withOpacity(0.15)),
+                            ? Colors.white.withValues(alpha: 0.4)
+                            : Colors.white.withValues(alpha: 0.15)),
                     height: 1.25,
                     decoration: TextDecoration.none,
                     shadows: isCurrent
                         ? [
                             Shadow(
-                              color: Colors.white.withOpacity(0.3),
+                              color: Colors.white.withValues(alpha: 0.3),
                               blurRadius: 16,
                             ),
                           ]

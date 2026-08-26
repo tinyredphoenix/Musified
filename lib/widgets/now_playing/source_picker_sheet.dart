@@ -228,14 +228,6 @@ IconData audioSourceIcon(MediaItem metadata) {
     return CupertinoIcons.music_note_2;
   }
   return CupertinoIcons.play_circle_fill;
-};
-  final ytid = extras['ytid']?.toString() ?? '';
-  final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
-  if (extras['resolvedSource'] == 'jiosaavn') {
-  if (extras['resolvedSource'] == 'jiosaavn') {
-    return CupertinoIcons.music_note;
-  }
-  return CupertinoIcons.play_rectangle_fill;
 }
 
 Color audioSourceColor(MediaItem metadata) {
@@ -244,12 +236,4 @@ Color audioSourceColor(MediaItem metadata) {
     return CupertinoColors.systemGreen;
   }
   return const Color(0xFFFF0033);
-};
-  final ytid = extras['ytid']?.toString() ?? '';
-  final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
-  if (isOffline) return CupertinoColors.systemGrey;
-  if (extras['resolvedSource'] == 'jiosaavn') {
-    return CupertinoColors.systemGreen;
-  }
-  return CupertinoColors.systemRed;
 }
