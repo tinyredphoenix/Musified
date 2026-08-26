@@ -263,7 +263,7 @@ class YouTubeMusicSyncService {
       final browseId = playlistId.startsWith('VL') || playlistId.startsWith('FE')
           ? playlistId
           : 'VL$playlistId';
-      return _browseAllTracks(browseId);
+      return await _browseAllTracks(browseId);
     } catch (e) {
       logger.log('Error fetching playlist tracks: $e');
       return [];
