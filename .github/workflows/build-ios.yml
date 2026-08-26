@@ -75,43 +75,46 @@ jobs:
           zip -r Musified.ipa Payload
           ls -la Musified.ipa
 
+      - name: Extract app version
+        id: app_version
+        run: |
+          VERSION=$(grep '^version:' pubspec.yaml | sed 's/version: //' | cut -d'+' -f1 | tr -d ' ')
+          echo "VERSION=${VERSION}" >> $GITHUB_ENV
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
       - name: Update apps.json with build metadata
         run: |
           IPA_SIZE=$(wc -c < build/ipa/Musified.ipa | tr -d ' ')
           DATE_NOW=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           python3 -c "
-          import json, re
-          with open('pubspec.yaml', 'r') as f:
-              pubspec = f.read()
-          ver_match = re.search(r'version:\s*([0-9]+\.[0-9]+\.[0-9]+)', pubspec)
-          version = ver_match.group(1) if ver_match else '6.0.0'
+          import json
           with open('apps.json', 'r') as f:
               data = json.load(f)
-          data['apps'][0]['version'] = version
+          data['apps'][0]['version'] = '${{ env.VERSION }}'
           data['apps'][0]['size'] = int('$IPA_SIZE')
           data['apps'][0]['versionDate'] = '$DATE_NOW'
-          data['apps'][0]['downloadURL'] = f'https://github.com/tinyredphoenix/Musified/releases/download/v{version}/Musified.ipa'
-          data['apps'][0]['versionDescription'] = f'v{version} release: full Apple Music UI overhaul, crystal-clear dynamic artwork upscaler, fast parallel stream resolver, OLED black theme, and karaoke synced lyrics.'
+          data['apps'][0]['downloadURL'] = 'https://github.com/tinyredphoenix/Musified/releases/latest/download/Musified.ipa'
+          data['apps'][0]['versionDescription'] = 'Musified v${{ env.VERSION }}: Apple Music UI with YouTube Music & JioSaavn 320k lossless audio, karaoke synced lyrics, and OLED black theme.'
           with open('apps.json', 'w') as f:
               json.dump(data, f, indent=2)
           "
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add apps.json
-          git commit -m "Update apps.json metadata [skip ci]" || true
+          git commit -m "Update apps.json to v${{ env.VERSION }} [skip ci]" || true
           git push origin main || true
 
       - name: Delete existing release
-        run: gh release delete v6.0.0 --yes || true
+        run: gh release delete "v${{ env.VERSION }}" --yes || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v6.0.0
-          name: "Musified iOS v6.0.0"
-          body: "Ready-to-install unsigned iOS IPA for Musified (YouTube Music + JioSaavn 320k client)."
+          tag_name: "v${{ env.VERSION }}"
+          name: "Musified iOS v${{ env.VERSION }}"
+          body: "Ready-to-install unsigned iOS IPA for Musified v${{ env.VERSION }} (YouTube Music + JioSaavn 320k client)."
           draft: false
           prerelease: false
           files: |
