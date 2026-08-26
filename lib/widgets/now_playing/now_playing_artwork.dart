@@ -30,6 +30,7 @@ import 'package:musify/main.dart';
 import 'package:musify/services/common_services.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/async_loader.dart';
+import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/widgets/flip_card.dart';
 import 'package:musify/widgets/song_artwork.dart';
 
@@ -208,7 +209,7 @@ class AudioQualityBadge extends StatelessWidget {
               onPressed: () {
                 Navigator.pop(context);
                 if (currentSource != 'jiosaavn') {
-                  _replayWithSource('jiosaavn');
+                  unawaited(_replayWithSource(context, 'jiosaavn'));
                 }
               },
               child: const Row(
@@ -226,7 +227,7 @@ class AudioQualityBadge extends StatelessWidget {
               onPressed: () {
                 Navigator.pop(context);
                 if (currentSource != 'youtube') {
-                  _replayWithSource('youtube');
+                  unawaited(_replayWithSource(context, 'youtube'));
                 }
               },
               child: const Row(
@@ -247,8 +248,11 @@ class AudioQualityBadge extends StatelessWidget {
     );
   }
 
-  void _replayWithSource(String source) {
-    unawaited(audioHandler.switchSource(source));
+  Future<void> _replayWithSource(BuildContext context, String source) async {
+    final didSwitch = await audioHandler.switchSource(source);
+    if (!didSwitch && context.mounted) {
+      showToast(context, 'That source is unavailable for this track.');
+    }
   }
 
   @override
@@ -258,12 +262,15 @@ class AudioQualityBadge extends StatelessWidget {
 
     String label;
     Color color;
+    final source =
+        extras['resolvedSource']?.toString() ??
+        extras['downloadSource']?.toString() ??
+        'youtube';
 
     if (isOffline) {
       label = 'Offline';
       color = Theme.of(context).colorScheme.onSurfaceVariant;
     } else {
-      final source = extras['resolvedSource'] as String? ?? 'youtube';
       final bitrate = extras['resolvedBitrate'] as int?;
       final format = extras['resolvedFormat'] as String?;
 
@@ -302,12 +309,19 @@ class AudioQualityBadge extends StatelessWidget {
               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
             const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(
+            Semantics(
+              label: label,
+              button: true,
+              child: Icon(
+                isOffline
+                    ? source == 'jiosaavn'
+                          ? CupertinoIcons.music_note_2
+                          : CupertinoIcons.play_rectangle_fill
+                    : source == 'jiosaavn'
+                    ? CupertinoIcons.music_note_2
+                    : CupertinoIcons.play_rectangle_fill,
+                size: 16,
                 color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ],

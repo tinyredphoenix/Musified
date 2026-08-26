@@ -19,6 +19,8 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:async';
+
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -48,6 +50,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late final Future<List> _suggestedPlaylistsFuture;
   late Future<List> _recommendedSongsFuture;
+  Timer? _recommendationRefreshDebounce;
 
   @override
   void initState() {
@@ -58,19 +61,31 @@ class _HomePageState extends State<HomePage> {
     );
     _recommendedSongsFuture = getRecommendedSongs();
     externalRecommendations.addListener(_refreshRecommendedSongs);
+    userRecentlyPlayed.addListener(_refreshRecommendedSongs);
+    userLikedSongsList.addListener(_refreshRecommendedSongs);
   }
 
   @override
   void dispose() {
     externalRecommendations.removeListener(_refreshRecommendedSongs);
+    userRecentlyPlayed.removeListener(_refreshRecommendedSongs);
+    userLikedSongsList.removeListener(_refreshRecommendedSongs);
+    _recommendationRefreshDebounce?.cancel();
     super.dispose();
   }
 
   void _refreshRecommendedSongs() {
     if (!mounted) return;
-    setState(() {
-      _recommendedSongsFuture = getRecommendedSongs();
-    });
+    _recommendationRefreshDebounce?.cancel();
+    _recommendationRefreshDebounce = Timer(
+      const Duration(milliseconds: 500),
+      () {
+        if (!mounted) return;
+        setState(() {
+          _recommendedSongsFuture = getRecommendedSongs();
+        });
+      },
+    );
   }
 
   @override

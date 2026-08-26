@@ -140,26 +140,47 @@ Future<void> _cacheResolvedStream(
 }
 
 /// Fetches a stream manifest for a song, honoring proxy settings.
-Future<StreamManifest?> _fetchStreamManifest(String songId) async {
+String? _youtubeClientUserAgent(YoutubeApiClient client) {
+  final clientContext = client.payload['context']?['client'];
+  return clientContext is Map ? clientContext['userAgent']?.toString() : null;
+}
+
+Future<({StreamManifest manifest, YoutubeApiClient? client})?>
+_fetchStreamManifest(String songId) async {
   if (useProxy.value) {
-    return ProxyManager().getSongManifest(songId).timeout(_manifestTimeout);
+    final manifest = await ProxyManager()
+        .getSongManifest(songId)
+        .timeout(_manifestTimeout);
+    if (manifest == null) return null;
+    // Proxy manifests do not expose a client identity; the direct URL is
+    // still usable by the proxy itself, so no special User-Agent is needed.
+    return (manifest: manifest, client: null);
   }
 
-  try {
-    return await ytClient.videos.streams
-        .getManifest(songId, ytClients: customClients)
-        .timeout(_manifestTimeout);
-  } catch (e) {
-    // Retry with another Apple/web client set. Do not call the package
-    // default here: it includes a platform client that is not part of this
-    // iOS-only app and has been a source of inconsistent stream results.
-    return await ytClient.videos.streams
-        .getManifest(
-          songId,
-          ytClients: [YoutubeApiClient.safari, YoutubeApiClient.ios],
-        )
-        .timeout(_manifestTimeout);
+  // Keep the client that minted the selected URL. YouTube binds many CDN
+  // URLs to the requesting client's User-Agent; mixing clients causes 403s
+  // and long retry chains, especially during downloads.
+  Object? lastError;
+  final deadline = DateTime.now().add(_manifestTimeout);
+  for (final client in [
+    ...customClients,
+    YoutubeApiClient.safari,
+    YoutubeApiClient.ios,
+  ]) {
+    final remaining = deadline.difference(DateTime.now());
+    if (remaining <= Duration.zero) break;
+    try {
+      final manifest = await ytClient.videos.streams
+          .getManifest(songId, ytClients: [client])
+          .timeout(remaining);
+      return (manifest: manifest, client: client);
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  if (lastError != null) throw lastError;
+  return null;
 }
 
 /// Returns a cached song URL if present and still valid.
@@ -223,7 +244,9 @@ Future<List> fetchSongsList(String searchQuery) async {
 
 Future<List> getRecommendedSongs() async {
   try {
-    if (externalRecommendations.value && userRecentlyPlayed.value.isNotEmpty) {
+    if (externalRecommendations.value &&
+        (userRecentlyPlayed.value.isNotEmpty ||
+            userLikedSongsList.value.isNotEmpty)) {
       return await _getRecommendationsFromRecentlyPlayed();
     } else {
       return await _getRecommendationsFromMixedSources();
@@ -239,9 +262,24 @@ Future<List> getRecommendedSongs() async {
 }
 
 Future<List> _getRecommendationsFromRecentlyPlayed() async {
-  final recent = (List.from(
-    userRecentlyPlayed.value,
-  )..shuffle()).take(5).toList();
+  // Keep the most recently played items first. Shuffling the seeds made the
+  // shelf appear unrelated to the user's latest listening and prevented the
+  // home page from feeling responsive to new history.
+  final seeds = <Map>[];
+  final seenSeeds = <String>{};
+  for (final raw in [
+    ...userRecentlyPlayed.value,
+    ...userLikedSongsList.value,
+  ]) {
+    if (raw is! Map) continue;
+    final id = raw['ytid']?.toString();
+    if (id != null && id.isNotEmpty && seenSeeds.add(id)) {
+      seeds.add(raw);
+    }
+    if (seeds.length >= 5) break;
+  }
+  final recent = seeds;
+  if (recent.isEmpty) return [];
 
   final scores = <String, double>{};
   final songMap = <String, Map>{};
@@ -281,12 +319,6 @@ Future<List> _getRecommendationsFromMixedSources() async {
     ...userLikedSongsList.value,
     ...userRecentlyPlayed.value,
   ];
-
-  if (globalSongs.isEmpty) {
-    const playlistId = 'PLgzTt0k8mXzEk586ze4BjvDXR7c-TUSnx';
-    globalSongs = await getSongsFromPlaylist(playlistId);
-  }
-  playlistSongs.addAll(globalSongs.take(10));
 
   if (userCustomPlaylists.value.isNotEmpty) {
     for (final userPlaylist in userCustomPlaylists.value) {
@@ -637,7 +669,10 @@ Future<void> getSimilarSong(String songYtId) async {
 /// quality setting. The Hive cache only keeps the URL, so without this every
 /// caller that needs the stream itself (bitrate, codec) would fetch the
 /// manifest again right after playback already resolved it.
-final Map<String, ({AudioOnlyStreamInfo stream, DateTime resolvedAt})>
+final Map<
+  String,
+  ({AudioOnlyStreamInfo stream, YoutubeApiClient? client, DateTime resolvedAt})
+>
 _selectedAudioStreams = {};
 
 const _maxSelectedAudioStreams = 50;
@@ -647,7 +682,8 @@ String _selectedAudioStreamKey(String songId) =>
 
 /// Returns the stream resolved earlier for a song, unless it is old enough
 /// that its URL may have expired.
-AudioOnlyStreamInfo? _getSelectedAudioStream(String songId) {
+({AudioOnlyStreamInfo stream, YoutubeApiClient? client})?
+_getSelectedAudioStream(String songId) {
   final key = _selectedAudioStreamKey(songId);
   final entry = _selectedAudioStreams[key];
   if (entry == null) return null;
@@ -657,16 +693,21 @@ AudioOnlyStreamInfo? _getSelectedAudioStream(String songId) {
     return null;
   }
 
-  return entry.stream;
+  return (stream: entry.stream, client: entry.client);
 }
 
-void _cacheSelectedAudioStream(String songId, AudioOnlyStreamInfo stream) {
+void _cacheSelectedAudioStream(
+  String songId,
+  AudioOnlyStreamInfo stream,
+  YoutubeApiClient? client,
+) {
   if (_selectedAudioStreams.length >= _maxSelectedAudioStreams) {
     _selectedAudioStreams.remove(_selectedAudioStreams.keys.first);
   }
 
   _selectedAudioStreams[_selectedAudioStreamKey(songId)] = (
     stream: stream,
+    client: client,
     resolvedAt: DateTime.now(),
   );
 }
@@ -693,11 +734,11 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
       return null;
     }
 
-    final cachedStream = _getSelectedAudioStream(songId);
-    if (cachedStream != null) return cachedStream;
+    final cachedSelection = _getSelectedAudioStream(songId);
+    if (cachedSelection != null) return cachedSelection.stream;
 
-    final manifest = await _fetchStreamManifest(songId);
-    final audioStream = manifest?.audioOnly;
+    final resolvedManifest = await _fetchStreamManifest(songId);
+    final audioStream = resolvedManifest?.manifest.audioOnly;
     if (audioStream == null || audioStream.isEmpty) {
       logger.log('fetchBestAudioStream: no audio streams for $songId');
       return null;
@@ -706,7 +747,7 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
     final selectedStream = selectAudioOnlyStreamForQuality(
       audioStream.sortByBitrate(),
     );
-    _cacheSelectedAudioStream(songId, selectedStream);
+    _cacheSelectedAudioStream(songId, selectedStream, resolvedManifest!.client);
     return selectedStream;
   } on TimeoutException catch (_) {
     logger.log('fetchBestAudioStream request timed out for $songId');
@@ -766,6 +807,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       song['resolvedSource'] = source;
       song['resolvedBitrate'] = metadata['bitrate'];
       song['resolvedFormat'] = metadata['format'];
+      song['resolvedUserAgent'] = metadata['userAgent'];
       return cachedUrl;
     }
 
@@ -813,10 +855,16 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     song['resolvedSource'] = 'youtube';
     song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
     song['resolvedFormat'] = selectedStream.audioCodec;
+    final selectedClient = _getSelectedAudioStream(songId)?.client;
+    final userAgent = selectedClient == null
+        ? null
+        : _youtubeClientUserAgent(selectedClient);
+    song['resolvedUserAgent'] = userAgent;
 
     await _cacheResolvedStream(songId, 'youtube', url, {
       'bitrate': song['resolvedBitrate'],
       'format': song['resolvedFormat'],
+      'userAgent': userAgent,
     });
     logger.log('Final URL resolved via youtube');
 
@@ -894,6 +942,11 @@ Future<bool> makeSongOffline(
     }
 
     final offlineSong = Map<String, dynamic>.from(song as Map);
+    var downloadedSource = normalizedSource == 'saavn'
+        ? 'jiosaavn'
+        : normalizedSource == 'youtube'
+        ? 'youtube'
+        : null;
 
     final audioPath = FilePaths.getAudioPath(ytid);
     final audioFile = File(audioPath);
@@ -920,6 +973,7 @@ Future<bool> makeSongOffline(
       }
 
       if (saavnSource != null && saavnSource['url'] != null) {
+        downloadedSource = 'jiosaavn';
         audioBitrateKbps = saavnSource['bitrate'] as int?;
         audioCodec = saavnSource['format'] as String?;
         final url = saavnSource['url'] as String;
@@ -955,10 +1009,15 @@ Future<bool> makeSongOffline(
           logger.log('makeSongOffline: audioManifest is null for $ytid');
           return false;
         }
+        downloadedSource = 'youtube';
         audioBitrateKbps = audioManifest.bitrate.kiloBitsPerSecond.round();
         audioCodec = audioManifest.audioCodec;
 
-        final stream = ytClient.videos.streamsClient.get(audioManifest);
+        final selectedClient = _getSelectedAudioStream(ytid)?.client;
+        final stream = ytClient.videos.streamsClient.get(
+          audioManifest,
+          ytClient: selectedClient,
+        );
         fileStream = audioFile.openWrite();
         await stream.pipe(fileStream).timeout(const Duration(seconds: 60));
         fileStream = null;
@@ -1003,6 +1062,7 @@ Future<bool> makeSongOffline(
     offlineSong['audioPath'] = audioFile.path;
     offlineSong['audioBitrateKbps'] = audioBitrateKbps;
     offlineSong['audioCodec'] = audioCodec;
+    offlineSong['downloadSource'] = downloadedSource;
     offlineSong['dateAdded'] = DateTime.now().millisecondsSinceEpoch;
 
     try {

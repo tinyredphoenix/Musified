@@ -18,7 +18,9 @@ class DownloadPickerSheet extends StatefulWidget {
 }
 
 class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
-  late String _selectedSource = downloadSource.value;
+  late String _selectedSource = downloadSource.value == 'jiosaavn'
+      ? 'saavn'
+      : downloadSource.value;
   late String _selectedQuality = downloadQuality.value;
 
   @override
@@ -27,6 +29,11 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
     final artist = widget.song['artist']?.toString() ?? '';
     final colorScheme = Theme.of(context).colorScheme;
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
+    // Keep the sheet's selection state recognisably iOS even when the app's
+    // user accent is yellow or another high-contrast color.
+    final selectionColor = isIOS
+        ? CupertinoColors.activeBlue
+        : colorScheme.primary;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -62,10 +69,7 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
           const SizedBox(height: 4),
           Text(
             artist.isEmpty ? title : '$title • $artist',
-            style: TextStyle(
-              fontSize: 13,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -80,10 +84,30 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
             ),
           ),
           const SizedBox(height: 8),
-          _buildSourceOption('best', 'Best Quality',
-              'JioSaavn 320k if available, YouTube otherwise', colorScheme, isIOS),
-          _buildSourceOption('saavn', 'JioSaavn', '320k AAC', colorScheme, isIOS),
-          _buildSourceOption('youtube', 'YouTube', 'Up to 160k Opus', colorScheme, isIOS),
+          _buildSourceOption(
+            'best',
+            'Best Quality',
+            'JioSaavn 320k if available, YouTube otherwise',
+            colorScheme,
+            isIOS,
+            selectionColor,
+          ),
+          _buildSourceOption(
+            'saavn',
+            'JioSaavn',
+            '320k AAC',
+            colorScheme,
+            isIOS,
+            selectionColor,
+          ),
+          _buildSourceOption(
+            'youtube',
+            'YouTube',
+            'Up to 160k Opus',
+            colorScheme,
+            isIOS,
+            selectionColor,
+          ),
           const SizedBox(height: 16),
           Text(
             'Quality',
@@ -110,7 +134,7 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         decoration: BoxDecoration(
                           color: _selectedQuality == q
-                              ? colorScheme.primary
+                              ? selectionColor
                               : Colors.transparent,
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -121,7 +145,9 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                             fontWeight: FontWeight.w600,
                             fontSize: 13,
                             color: _selectedQuality == q
-                                ? colorScheme.onPrimary
+                                ? (isIOS
+                                      ? CupertinoColors.white
+                                      : colorScheme.onPrimary)
                                 : colorScheme.onSurfaceVariant,
                           ),
                         ),
@@ -160,7 +186,10 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                       Navigator.pop(context);
                       widget.onDownload(_selectedSource, _selectedQuality);
                     },
-                    child: const Text('Download', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Download',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
                   ),
           ),
           const SizedBox(height: 4),
@@ -170,7 +199,13 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
   }
 
   Widget _buildSourceOption(
-      String value, String title, String subtitle, ColorScheme cs, bool isIOS) {
+    String value,
+    String title,
+    String subtitle,
+    ColorScheme cs,
+    bool isIOS,
+    Color selectionColor,
+  ) {
     final selected = _selectedSource == value;
     return GestureDetector(
       onTap: () => setState(() => _selectedSource = value),
@@ -178,10 +213,14 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
         margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
         decoration: BoxDecoration(
-          color: selected ? cs.primary.withValues(alpha: 0.10) : cs.surfaceContainerHighest,
+          color: selected
+              ? selectionColor.withValues(alpha: 0.10)
+              : cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected ? cs.primary.withValues(alpha: 0.4) : Colors.transparent,
+            color: selected
+                ? selectionColor.withValues(alpha: 0.4)
+                : Colors.transparent,
             width: 1.5,
           ),
         ),
@@ -189,9 +228,15 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
           children: [
             Icon(
               selected
-                  ? (isIOS ? CupertinoIcons.checkmark_alt_circle_fill : Icons.check_circle)
-                  : (isIOS ? CupertinoIcons.circle : Icons.radio_button_unchecked),
-              color: selected ? cs.primary : cs.onSurfaceVariant.withValues(alpha: 0.5),
+                  ? (isIOS
+                        ? CupertinoIcons.checkmark_alt_circle_fill
+                        : Icons.check_circle)
+                  : (isIOS
+                        ? CupertinoIcons.circle
+                        : Icons.radio_button_unchecked),
+              color: selected
+                  ? selectionColor
+                  : cs.onSurfaceVariant.withValues(alpha: 0.5),
               size: 22,
             ),
             const SizedBox(width: 12),
@@ -199,15 +244,19 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: selected ? cs.primary : cs.onSurface,
-                      )),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: selected ? selectionColor : cs.onSurface,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(subtitle,
-                      style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                  ),
                 ],
               ),
             ),
@@ -246,9 +295,7 @@ Future<void> showDownloadPicker(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (context) => DownloadPickerSheet(
-      song: song,
-      onDownload: onDownload,
-    ),
+    builder: (context) =>
+        DownloadPickerSheet(song: song, onDownload: onDownload),
   );
 }

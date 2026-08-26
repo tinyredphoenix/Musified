@@ -60,6 +60,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
   int _currentQueueIndex = 0;
   int _currentLoadingIndex = -1;
   int _currentLoadingTransitionId = -1;
+  // Duration events are not tagged with their source by just_audio. Keep the
+  // transition that installed the active source so a late event from the
+  // previous track cannot overwrite the new MediaItem duration.
+  int? _installedSourceTransitionId;
   bool _isUpdatingState = false;
   bool _pendingPlaybackStateUpdate = false;
   int _songTransitionCounter = 0;
@@ -173,7 +177,13 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
     audioPlayer.durationStream.listen(
       (duration) {
-        if (_currentQueueIndex < _queueList.length && duration != null) {
+        final transitionInProgress = _currentLoadingTransitionId >= 0;
+        final sourceBelongsToCurrentTransition =
+            !transitionInProgress ||
+            _installedSourceTransitionId == _currentLoadingTransitionId;
+        if (sourceBelongsToCurrentTransition &&
+            _currentQueueIndex < _queueList.length &&
+            duration != null) {
           _updateCurrentMediaItemWithDuration(duration);
         }
       },
@@ -1946,6 +1956,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
         return false;
       }
 
+      _installedSourceTransitionId = transitionId;
+
       if (audioPlayer.duration != null) {
         _updateCurrentMediaItemWithDuration(audioPlayer.duration!);
       }
@@ -2203,7 +2215,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
         if (uri.host.contains('googlevideo.com') ||
             uri.host.contains('youtube.com')) {
           headers = {
+            // Use the same Apple client identity that minted the URL. Older
+            // cached entries have no metadata, so retain the iOS fallback.
             'User-Agent':
+                song['resolvedUserAgent']?.toString() ??
                 'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
           };
         } else if (uri.host.contains('saavncdn.com')) {

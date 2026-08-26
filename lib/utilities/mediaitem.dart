@@ -36,6 +36,7 @@ Map mediaItemToMap(MediaItem mediaItem) {
     'lowResImage': extras?['lowResImage'],
     'isLive': extras?['isLive'] ?? false,
     'isOffline': extras?['isOffline'] ?? false,
+    'downloadSource': extras?['downloadSource'],
     'resolvedSource': extras?['resolvedSource'],
     'resolvedBitrate': extras?['resolvedBitrate'],
     'resolvedFormat': extras?['resolvedFormat'],
@@ -50,6 +51,8 @@ MediaItem mapToMediaItem(Map song) {
   final isOffline = song['isOffline'] is bool
       ? song['isOffline'] as bool
       : offlineSong.isNotEmpty;
+  final downloadSource =
+      song['downloadSource'] ?? offlineSong['downloadSource'];
 
   final artUri = isOffline && offlineSong['artworkPath'] != null
       ? Uri.file(offlineSong['artworkPath'].toString())
@@ -75,6 +78,7 @@ MediaItem mapToMediaItem(Map song) {
       'videoAuthor': song['videoAuthor'],
       'isLive': song['isLive'],
       'isOffline': isOffline,
+      'downloadSource': downloadSource,
       'highResImage': song['highResImage'],
       'artWorkPath':
           (isOffline ? offlineSong['artworkPath'] : song['highResImage'])

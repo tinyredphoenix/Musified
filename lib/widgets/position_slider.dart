@@ -19,16 +19,11 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'package:audio_service/audio_service.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/position_data.dart';
 import 'package:musify/utilities/formatter.dart';
-
-PositionData _positionData = PositionData(
-  Duration.zero,
-  Duration.zero,
-  Duration.zero,
-);
 
 class PositionSlider extends StatefulWidget {
   const PositionSlider({super.key});
@@ -41,77 +36,137 @@ class _PositionSliderState extends State<PositionSlider> {
   bool _isDragging = false;
   double _dragValue = 0;
   Object? _currentMediaId;
+  PositionData _positionData = PositionData(
+    Duration.zero,
+    Duration.zero,
+    Duration.zero,
+  );
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<PositionData>(
-      stream: audioHandler.positionDataStream,
-      builder: (context, snapshot) {
-        final mediaId = audioHandler.mediaItem.valueOrNull?.id;
-        if (mediaId != _currentMediaId) {
-          _currentMediaId = mediaId;
-          _positionData = PositionData(
-            Duration.zero,
-            Duration.zero,
-            Duration.zero,
-          );
-        }
+    return StreamBuilder<MediaItem?>(
+      stream: audioHandler.mediaItem,
+      builder: (context, mediaSnapshot) {
+        return StreamBuilder<PositionData>(
+          stream: audioHandler.positionDataStream,
+          builder: (context, snapshot) {
+            final mediaId = mediaSnapshot.data?.id;
+            final mediaChanged = mediaId != _currentMediaId;
+            if (mediaChanged) {
+              _currentMediaId = mediaId;
+              _isDragging = false;
+              _positionData = PositionData(
+                Duration.zero,
+                Duration.zero,
+                Duration.zero,
+              );
+            }
 
-        if (snapshot.data != null) {
-          _positionData = snapshot.data!;
-        }
+            // The position stream can still contain the previous item's last
+            // value in the same frame as a new MediaItem. Do not copy that
+            // sample into the new track's slider.
+            if (snapshot.data != null && !mediaChanged) {
+              _positionData = snapshot.data!;
+            }
 
-        final maxDuration = _positionData.duration.inSeconds > 0
-            ? _positionData.duration.inSeconds.toDouble()
-            : 1.0;
+            final processingState =
+                audioHandler.playbackState.valueOrNull?.processingState;
+            final isSettled =
+                processingState == AudioProcessingState.ready ||
+                processingState == AudioProcessingState.completed;
+            final metadataDuration = mediaSnapshot.data?.duration;
+            // During a source transition just_audio can briefly expose the
+            // previous track's duration. Prefer the current MediaItem until
+            // the new source is ready, preventing 2-minute songs from
+            // showing as 4-minute tracks and producing an empty tail.
+            final displayDuration =
+                (mediaChanged || !isSettled) && metadataDuration != null
+                ? metadataDuration
+                : _positionData.duration;
+            final displayPositionData = PositionData(
+              processingState == AudioProcessingState.loading
+                  ? Duration.zero
+                  : _positionData.position,
+              _positionData.bufferedPosition,
+              displayDuration,
+            );
+            final maxDuration = displayDuration.inMilliseconds > 0
+                ? displayDuration.inMilliseconds.toDouble()
+                : 1.0;
 
-        final currentValue = _isDragging
-            ? _dragValue
-            : _positionData.position.inSeconds.toDouble();
+            final currentValue = _isDragging
+                ? _dragValue
+                : displayPositionData.position.inMilliseconds.toDouble();
 
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Slider(
-              value: currentValue.clamp(0.0, maxDuration),
-              onChanged: (value) {
-                setState(() {
-                  _isDragging = true;
-                  _dragValue = value;
-                });
-              },
-              onChangeEnd: (value) {
-                audioHandler.seek(Duration(seconds: value.toInt()));
-                setState(() {
-                  _isDragging = false;
-                });
-              },
-              max: maxDuration,
-              semanticFormatterCallback: (value) =>
-                  formatDuration(value.toInt()),
-            ),
-            _buildPositionRow(context, _positionData),
-          ],
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Slider(
+                  value: currentValue.clamp(0.0, maxDuration),
+                  onChanged: (value) {
+                    setState(() {
+                      _isDragging = true;
+                      _dragValue = value;
+                    });
+                  },
+                  onChangeEnd: (value) {
+                    audioHandler.seek(Duration(milliseconds: value.round()));
+                    setState(() {
+                      _isDragging = false;
+                    });
+                  },
+                  max: maxDuration,
+                  semanticFormatterCallback: (value) =>
+                      formatDuration((value / 1000).round()),
+                ),
+                _buildPositionRow(context, displayPositionData),
+              ],
+            );
+          },
         );
       },
     );
   }
 
   Widget _buildPositionRow(BuildContext context, PositionData positionData) {
-    final positionSec = _isDragging ? _dragValue.toInt() : positionData.position.inSeconds;
+    final positionSec = _isDragging
+        ? (_dragValue / 1000).round()
+        : positionData.position.inSeconds;
     final durationSec = positionData.duration.inSeconds;
     final remainingSec = (durationSec - positionSec).clamp(0, durationSec);
 
-    final positionText = formatDuration(positionSec);
-    final remainingText = '-${formatDuration(remainingSec)}';
+    final positionText = positionData.duration == Duration.zero
+        ? '--:--'
+        : formatDuration(positionSec);
+    final remainingText = positionData.duration == Duration.zero
+        ? '--:--'
+        : '-${formatDuration(remainingSec)}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 22),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(positionText, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8), fontWeight: FontWeight.w500)),
-          Text(remainingText, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.8), fontWeight: FontWeight.w500)),
+          Text(
+            positionText,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Text(
+            remainingText,
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

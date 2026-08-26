@@ -39,18 +39,6 @@ T _safeBoxGet<T>(String key, T defaultValue) {
   }
 }
 
-List<double> _readEqualizerGainsSafe() {
-  try {
-    if (!Hive.isBoxOpen('settings')) return <double>[];
-    final raw = Hive.box('settings')
-        .get('equalizerBandGains', defaultValue: const <dynamic>[]);
-    if (raw is List) {
-      return raw.map((value) => value is num ? value.toDouble() : 0.0).toList();
-    }
-  } catch (_) {}
-  return <double>[];
-}
-
 // Preferences - safely initialized even before Hive is open.
 // After Hive opens, reloadSettingsFromStorage() restores persisted values.
 
@@ -83,12 +71,12 @@ final sponsorBlockSupport = ValueNotifier<bool>(
 );
 
 final externalRecommendations = ValueNotifier<bool>(
-  _safeBoxGet<bool>('externalRecommendations', false),
+  // Prefer YouTube-related recommendations for new installs. Existing users
+  // retain their explicit setting from Hive.
+  _safeBoxGet<bool>('externalRecommendations', true),
 );
 
-final useProxy = ValueNotifier<bool>(
-  _safeBoxGet<bool>('useProxy', false),
-);
+final useProxy = ValueNotifier<bool>(_safeBoxGet<bool>('useProxy', false));
 
 final audioQualitySetting = ValueNotifier<String>(
   _safeBoxGet<String>('audioQuality', 'high'),
@@ -98,39 +86,33 @@ final showAudioQualityBadge = ValueNotifier<bool>(
   _safeBoxGet<bool>('showAudioQualityBadge', true),
 );
 
-List<double> _readEqualizerGains() => _readEqualizerGainsSafe();
-
-final equalizerEnabled = ValueNotifier<bool>(
-  _safeBoxGet<bool>('equalizerEnabled', false),
-);
-
-final equalizerBandGains = ValueNotifier<List<double>>(_readEqualizerGainsSafe());
-
 Locale languageSetting = getLocaleFromLanguageCode(
   _safeBoxGet<String>('languageCode', 'en'),
 );
 
 int themeModeSetting = _safeBoxGet<int>('themeIndex', 0);
 
-String playlistSortSetting =
-    _safeBoxGet<String>('playlistSortType', PlaylistSortType.default_.name);
-
-String offlineSortSetting =
-    _safeBoxGet<String>('offlineSortType', OfflineSortType.default_.name);
-
-Color primaryColorSetting = Color(
-  _safeBoxGet<int>('accentColor', 0xff91cef4),
+String playlistSortSetting = _safeBoxGet<String>(
+  'playlistSortType',
+  PlaylistSortType.default_.name,
 );
+
+String offlineSortSetting = _safeBoxGet<String>(
+  'offlineSortType',
+  OfflineSortType.default_.name,
+);
+
+Color primaryColorSetting = Color(_safeBoxGet<int>('accentColor', 0xff91cef4));
 
 final shuffleNotifier = ValueNotifier<bool>(
   _safeBoxGet<bool>('shuffleEnabled', false),
 );
 
 final repeatNotifier = ValueNotifier<AudioServiceRepeatMode>(
-  AudioServiceRepeatMode.values[_safeBoxGet<int>('repeatMode', 0).clamp(
+  AudioServiceRepeatMode.values[_safeBoxGet<int>(
+    'repeatMode',
     0,
-    AudioServiceRepeatMode.values.length - 1,
-  )],
+  ).clamp(0, AudioServiceRepeatMode.values.length - 1)],
 );
 
 // Non-storage notifiers
@@ -197,7 +179,9 @@ void reloadSettingsFromStorage() {
   );
   externalRecommendations.value = settings.get(
     'externalRecommendations',
-    defaultValue: false,
+    // Related YouTube recommendations are the default for new installs.
+    // Hive still preserves an existing user's explicit preference.
+    defaultValue: true,
   );
   useProxy.value = settings.get('useProxy', defaultValue: false);
   audioQualitySetting.value = settings.get(
@@ -208,12 +192,6 @@ void reloadSettingsFromStorage() {
     'showAudioQualityBadge',
     defaultValue: false,
   );
-  equalizerEnabled.value = settings.get(
-    'equalizerEnabled',
-    defaultValue: false,
-  );
-  equalizerBandGains.value = _readEqualizerGains();
-
   final restoredThemeIndex = settings.get('themeIndex', defaultValue: 0);
   if (restoredThemeIndex is int) themeModeSetting = restoredThemeIndex;
 
