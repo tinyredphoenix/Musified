@@ -24,6 +24,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -262,9 +263,8 @@ Future<void> _toggleSongOfflineStatus(
 
   if (originalValue) {
     try {
-      final success = await OfflinePlaylistService().removeSongFromOfflineAndResync(
-        ytid,
-      );
+      final success = await OfflinePlaylistService()
+          .removeSongFromOfflineAndResync(ytid);
       if (success && context.mounted) {
         showToast(context, context.l10n.songRemovedFromOffline);
       }
@@ -283,12 +283,25 @@ Future<void> _toggleSongOfflineStatus(
       showDownloadPicker(context, song as Map, (source, quality) async {
         songDownloadStatus.value = true;
         try {
-          final success = await makeSongOffline(song, source: source, quality: quality);
+          final success = await makeSongOffline(
+            song,
+            source: source,
+            quality: quality,
+          );
           if (success && context.mounted) {
             showToast(context, context.l10n.songAddedToOffline);
           }
           if (!success) {
             songOfflineStatus.value = originalValue;
+            if (context.mounted) {
+              final sourceLabel = source == 'saavn' || source == 'jiosaavn'
+                  ? 'JioSaavn'
+                  : 'YouTube';
+              showToast(
+                context,
+                '$sourceLabel download unavailable for this track. Try the other source.',
+              );
+            }
           } else {
             songOfflineStatus.value = true;
           }
@@ -362,9 +375,9 @@ class _SongBarState extends State<SongBar> {
   late final ValueNotifier<bool> _songDownloadStatus;
   late String _songTitle;
   late String _songArtist;
-  late final String? _artworkPath;
-  late final String _lowResImageUrl;
-  late final String _ytid;
+  late String? _artworkPath;
+  late String _lowResImageUrl;
+  late String _ytid;
 
   @override
   void initState() {
@@ -413,14 +426,34 @@ class _SongBarState extends State<SongBar> {
   void didUpdateWidget(SongBar oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // Update cached title and artist if they changed
+    final newYtid = widget.song['ytid']?.toString() ?? '';
     final newTitle = widget.song['title'] ?? '';
     final newArtist = widget.song['artist']?.toString() ?? '';
+    final newArtworkPath = _firstNonEmptyString([
+      widget.song['artworkPath'],
+      widget.song['artWorkPath'],
+    ]);
+    final newLowResImageUrl =
+        _firstNonEmptyString([
+          widget.song['lowResImage'],
+          widget.song['image'],
+          widget.song['highResImage'],
+        ]) ??
+        '';
 
-    if (_songTitle != newTitle || _songArtist != newArtist) {
+    if (_ytid != newYtid ||
+        _songTitle != newTitle ||
+        _songArtist != newArtist ||
+        _artworkPath != newArtworkPath ||
+        _lowResImageUrl != newLowResImageUrl) {
+      _ytid = newYtid;
+      _artworkPath = newArtworkPath;
+      _lowResImageUrl = newLowResImageUrl;
       setState(() {
         _songTitle = newTitle;
         _songArtist = newArtist;
+        _songLikeStatus.value = isSongAlreadyLiked(_ytid);
+        _songOfflineStatus.value = isSongAlreadyOffline(_ytid);
       });
     }
   }
@@ -502,7 +535,9 @@ class _SongBarState extends State<SongBar> {
                   child: Text(
                     formatDuration(widget.song['duration']),
                     style: TextStyle(
-                      color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
+                      color: colorScheme.onSurfaceVariant.withValues(
+                        alpha: 0.7,
+                      ),
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
                     ),
@@ -584,21 +619,14 @@ class _SongBarState extends State<SongBar> {
                 child: ColoredBox(
                   color: colorScheme.scrim.withValues(alpha: 0.42),
                   child: Center(
-                    child: Material(
-                      color: colorScheme.primaryContainer,
-                      elevation: 2,
-                      shape: const CircleBorder(),
-                      child: Padding(
-                        padding: const EdgeInsets.all(7),
-                        child: SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: colorScheme.onPrimaryContainer,
-                            backgroundColor: colorScheme.primaryContainer,
-                          ),
-                        ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: colorScheme.surfaceContainerHighest,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(9),
+                        child: CupertinoActivityIndicator(radius: 9),
                       ),
                     ),
                   ),

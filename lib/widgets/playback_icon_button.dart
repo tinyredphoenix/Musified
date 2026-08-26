@@ -21,7 +21,6 @@
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 
@@ -38,23 +37,15 @@ Widget buildPlaybackIconButton(
   // it's ever reached a beat early - show the same loading spinner used
   // below instead.
   if (!isAudioHandlerInitialized) {
-    return RawMaterialButton(
-      elevation: 0,
+    return CupertinoButton(
       onPressed: null,
-      fillColor: backgroundColor,
+      color: backgroundColor,
       padding: padding ?? EdgeInsets.all(iconSize * 0.35),
-      shape: const CircleBorder(),
-      constraints: BoxConstraints.tightFor(
-        width: iconSize * 2,
-        height: iconSize * 2,
-      ),
-      child: SizedBox(
-        width: iconSize,
-        height: iconSize,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          valueColor: AlwaysStoppedAnimation<Color>(iconColor),
-        ),
+      minimumSize: Size(iconSize * 2, iconSize * 2),
+      borderRadius: BorderRadius.circular(iconSize),
+      child: CupertinoActivityIndicator(
+        radius: iconSize * 0.5,
+        color: iconColor,
       ),
     );
   }
@@ -79,9 +70,9 @@ Widget buildPlaybackIconButton(
         iconWidget = SizedBox(
           width: iconSize,
           height: iconSize,
-          child: CircularProgressIndicator(
-            strokeWidth: 2.5,
-            valueColor: AlwaysStoppedAnimation<Color>(iconColor),
+          child: CupertinoActivityIndicator(
+            radius: iconSize * 0.5,
+            color: iconColor,
           ),
         );
         // Loading can be cancelled so a slow source never traps the user in
@@ -99,9 +90,7 @@ Widget buildPlaybackIconButton(
         semanticLabel = context.l10n.replay;
       } else {
         iconWidget = Icon(
-          isPlaying
-              ? CupertinoIcons.pause_fill
-              : CupertinoIcons.play_fill,
+          isPlaying ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill,
           color: iconColor,
           size: iconSize,
         );
@@ -109,18 +98,12 @@ Widget buildPlaybackIconButton(
         semanticLabel = isPlaying ? context.l10n.pause : context.l10n.play;
       }
 
-      return RawMaterialButton(
-        elevation: 0,
+      return CupertinoButton(
         onPressed: onPressed,
-        fillColor: backgroundColor,
-        splashColor: Colors.transparent,
+        color: backgroundColor,
         padding: padding ?? EdgeInsets.all(iconSize * 0.35),
-        shape: const CircleBorder(),
-        constraints: BoxConstraints.tightFor(
-          width: iconSize * 2,
-          height: iconSize * 2,
-        ),
-        materialTapTargetSize: MaterialTapTargetSize.padded,
+        minimumSize: Size(iconSize * 2, iconSize * 2),
+        borderRadius: BorderRadius.circular(iconSize),
         child: Semantics(label: semanticLabel, button: true, child: iconWidget),
       );
     },

@@ -417,16 +417,15 @@ class _ControlsWidget extends StatelessWidget {
         ),
         if (hasNext) ...[
           const SizedBox(width: 4),
-          IconButton(
+          CupertinoButton(
             onPressed: audioHandler.skipToNext,
-            splashColor: Colors.transparent,
-            highlightColor: Colors.transparent,
-            icon: Icon(
+            padding: const EdgeInsets.all(6),
+            minimumSize: const Size(36, 36),
+            child: Icon(
               CupertinoIcons.forward_fill,
               color: colorScheme.onSurfaceVariant,
               size: 24,
             ),
-            visualDensity: VisualDensity.compact,
           ),
         ],
       ],
@@ -470,30 +469,26 @@ class _CircularPlayButton extends StatelessWidget {
             ),
           ),
           if (isLoading)
-            IconButton(
-              tooltip: 'Cancel loading',
-              onPressed: audioHandler.stop,
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              icon: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    colorScheme.primary,
-                  ),
+            Tooltip(
+              message: 'Cancel loading',
+              child: CupertinoButton(
+                onPressed: audioHandler.stop,
+                padding: const EdgeInsets.all(8),
+                minimumSize: const Size(40, 40),
+                child: CupertinoActivityIndicator(
+                  radius: 12,
+                  color: colorScheme.primary,
                 ),
               ),
             )
           else
-            IconButton(
+            CupertinoButton(
               onPressed: isCompleted
                   ? () => audioHandler.playAgain()
                   : (isPlaying ? audioHandler.pause : audioHandler.play),
-              splashColor: Colors.transparent,
-              highlightColor: Colors.transparent,
-              icon: Icon(
+              padding: const EdgeInsets.all(8),
+              minimumSize: const Size(40, 40),
+              child: Icon(
                 isCompleted
                     ? CupertinoIcons.arrow_counterclockwise
                     : (isPlaying
@@ -502,7 +497,6 @@ class _CircularPlayButton extends StatelessWidget {
                 color: colorScheme.primary,
                 size: 22,
               ),
-              visualDensity: VisualDensity.compact,
             ),
         ],
       ),

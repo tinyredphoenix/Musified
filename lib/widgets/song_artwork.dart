@@ -60,6 +60,7 @@ class SongArtworkWidget extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(borderRadius),
               child: Image.file(
+                key: ValueKey('${metadata.id}:${metadata.artUri}'),
                 File(metadata.extras?['artWorkPath']),
                 fit: BoxFit.cover,
                 cacheWidth: cacheDimension,
@@ -68,6 +69,7 @@ class SongArtworkWidget extends StatelessWidget {
             ),
           )
         : CachedNetworkImage(
+            key: ValueKey('${metadata.id}:${metadata.artUri}'),
             width: size,
             height: size,
             imageUrl: metadata.artUri.toString(),

@@ -738,31 +738,35 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
 
     const cacheDuration = Duration(hours: 3);
     final forceSource = song['forceSource']?.toString();
-    final preference = forceSource ?? preferredSource.value;
+    // The UI uses `jiosaavn`, while older settings/download records use
+    // `saavn`. Normalize both spellings before selecting a provider so an
+    // explicit source switch can never silently fall back to auto mode.
+    final requestedPreference = forceSource ?? preferredSource.value;
+    final preference = requestedPreference == 'saavn'
+        ? 'jiosaavn'
+        : requestedPreference;
     final sources = switch (preference) {
       'youtube' => ['youtube'],
-      'saavn' => ['jiosaavn'],
+      'jiosaavn' => ['jiosaavn'],
       _ => ['jiosaavn', 'youtube'],
     };
 
     // Cache entries are source-specific. This prevents a JioSaavn URL from
     // being replayed after switching to YouTube (and vice versa).
-    if (forceSource == null) {
-      for (final source in sources) {
-        final sourceKey = _songStreamCacheKey(songId, source);
-        final cachedUrl = await _getCachedSongUrl(sourceKey, cacheDuration);
-        if (cachedUrl == null) continue;
-        final cacheBox = await Hive.openBox('cache');
-        final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, source));
-        if (metadata is! Map || metadata['source'] != source) {
-          await deleteData('cache', sourceKey);
-          continue;
-        }
-        song['resolvedSource'] = source;
-        song['resolvedBitrate'] = metadata['bitrate'];
-        song['resolvedFormat'] = metadata['format'];
-        return cachedUrl;
+    for (final source in sources) {
+      final sourceKey = _songStreamCacheKey(songId, source);
+      final cachedUrl = await _getCachedSongUrl(sourceKey, cacheDuration);
+      if (cachedUrl == null) continue;
+      final cacheBox = await Hive.openBox('cache');
+      final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, source));
+      if (metadata is! Map || metadata['source'] != source) {
+        await deleteData('cache', sourceKey);
+        continue;
       }
+      song['resolvedSource'] = source;
+      song['resolvedBitrate'] = metadata['bitrate'];
+      song['resolvedFormat'] = metadata['format'];
+      return cachedUrl;
     }
 
     // Try JioSaavn only when it is an allowed source. The timeout is short so
@@ -775,16 +779,16 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
         if (saavnSource != null && saavnSource['url'] != null) {
           final url = saavnSource['url'] as String;
           if (url.isNotEmpty) {
-            logger.log('JioSaavn stream result found: url=$url');
+            logger.log(
+              'JioSaavn stream result found: host=${Uri.tryParse(url)?.host}',
+            );
             song['resolvedSource'] = 'jiosaavn';
             song['resolvedBitrate'] = saavnSource['bitrate'];
             song['resolvedFormat'] = saavnSource['format'];
-            unawaited(
-              _cacheResolvedStream(songId, 'jiosaavn', url, {
-                'bitrate': saavnSource['bitrate'],
-                'format': saavnSource['format'],
-              }),
-            );
+            await _cacheResolvedStream(songId, 'jiosaavn', url, {
+              'bitrate': saavnSource['bitrate'],
+              'format': saavnSource['format'],
+            });
             logger.log('Final URL resolved via jiosaavn');
             return url;
           }
@@ -805,17 +809,15 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     }
 
     final url = selectedStream.url.toString();
-    logger.log('YouTube stream result found: url=$url');
+    logger.log('YouTube stream result found: host=${Uri.tryParse(url)?.host}');
     song['resolvedSource'] = 'youtube';
     song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
     song['resolvedFormat'] = selectedStream.audioCodec;
 
-    unawaited(
-      _cacheResolvedStream(songId, 'youtube', url, {
-        'bitrate': song['resolvedBitrate'],
-        'format': song['resolvedFormat'],
-      }),
-    );
+    await _cacheResolvedStream(songId, 'youtube', url, {
+      'bitrate': song['resolvedBitrate'],
+      'format': song['resolvedFormat'],
+    });
     logger.log('Final URL resolved via youtube');
 
     return url;
@@ -875,6 +877,7 @@ Future<bool> makeSongOffline(
   String? quality,
 }) async {
   try {
+    final normalizedSource = source == 'jiosaavn' ? 'saavn' : source;
     final String? ytid = song['ytid'];
 
     if (ytid == null || ytid.isEmpty) {
@@ -906,7 +909,7 @@ Future<bool> makeSongOffline(
       var mappedQuality = quality;
       // Saavn only supports 96/160/320, map 128 -> 96
       if (mappedQuality == '128') mappedQuality = '96';
-      if (source != 'youtube' && jiosaavnEnabled.value) {
+      if (normalizedSource != 'youtube' && jiosaavnEnabled.value) {
         try {
           saavnSource = await SourceResolver()
               .resolveAudioSource(offlineSong, quality: mappedQuality)
@@ -924,19 +927,24 @@ Future<bool> makeSongOffline(
         final req = http.Request('GET', Uri.parse(url));
         req.headers['User-Agent'] =
             'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15';
-        final response = await http.Client()
-            .send(req)
-            .timeout(const Duration(seconds: 20));
-        if (response.statusCode != 200) {
-          logger.log('Saavn download HTTP ${response.statusCode} for $ytid');
-          throw HttpException('Saavn HTTP ${response.statusCode}');
+        final client = http.Client();
+        try {
+          final response = await client
+              .send(req)
+              .timeout(const Duration(seconds: 20));
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            logger.log('Saavn download HTTP ${response.statusCode} for $ytid');
+            throw HttpException('Saavn HTTP ${response.statusCode}');
+          }
+          fileStream = audioFile.openWrite();
+          await response.stream.pipe(fileStream);
+          fileStream = null;
+        } finally {
+          client.close();
         }
-        fileStream = audioFile.openWrite();
-        await response.stream.pipe(fileStream);
-        fileStream = null;
       } else {
         // If source explicitly saavn but failed, report error
-        if (source == 'saavn') {
+        if (normalizedSource == 'saavn') {
           logger.log(
             'makeSongOffline: saavn source requested but not found for $ytid',
           );

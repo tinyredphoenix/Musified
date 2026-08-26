@@ -22,6 +22,7 @@
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
@@ -55,39 +56,43 @@ class BottomActionsRow extends StatefulWidget {
 class _BottomActionsRowState extends State<BottomActionsRow> {
   late final ValueNotifier<bool> _songLikeStatus;
   late final ValueNotifier<bool> _songOfflineStatus;
-  late final String? audioId = widget.metadata.extras?['ytid'];
-  late final bool isRadioStation = widget.metadata.extras?['isLive'] ?? false;
+  late final ValueNotifier<bool> _downloadInProgress;
+  late String? _audioId = widget.metadata.extras?['ytid']?.toString();
+  late bool _isRadioStation = widget.metadata.extras?['isLive'] == true;
 
   @override
   void initState() {
     super.initState();
-    if (isRadioStation) {
-      _songLikeStatus = ValueNotifier<bool>(isRadioStationLiked(audioId ?? ''));
+    if (_isRadioStation) {
+      _songLikeStatus = ValueNotifier<bool>(
+        isRadioStationLiked(_audioId ?? ''),
+      );
       userLikedRadioStations.addListener(_syncRadioLikeStatus);
     } else {
-      _songLikeStatus = ValueNotifier<bool>(isSongAlreadyLiked(audioId));
+      _songLikeStatus = ValueNotifier<bool>(isSongAlreadyLiked(_audioId));
       userLikedSongsList.addListener(_syncLikeStatus);
     }
-    _songOfflineStatus = ValueNotifier<bool>(isSongAlreadyOffline(audioId));
+    _songOfflineStatus = ValueNotifier<bool>(isSongAlreadyOffline(_audioId));
+    _downloadInProgress = ValueNotifier<bool>(false);
     userOfflineSongs.addListener(_syncOfflineStatus);
   }
 
   void _syncLikeStatus() {
-    final newStatus = isSongAlreadyLiked(audioId);
+    final newStatus = isSongAlreadyLiked(_audioId);
     if (_songLikeStatus.value != newStatus) {
       _songLikeStatus.value = newStatus;
     }
   }
 
   void _syncRadioLikeStatus() {
-    final newStatus = isRadioStationLiked(audioId ?? '');
+    final newStatus = isRadioStationLiked(_audioId ?? '');
     if (_songLikeStatus.value != newStatus) {
       _songLikeStatus.value = newStatus;
     }
   }
 
   void _syncOfflineStatus() {
-    final newStatus = isSongAlreadyOffline(audioId);
+    final newStatus = isSongAlreadyOffline(_audioId);
     if (_songOfflineStatus.value != newStatus) {
       _songOfflineStatus.value = newStatus;
     }
@@ -96,20 +101,31 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
   @override
   void didUpdateWidget(BottomActionsRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldAudioId = oldWidget.metadata.extras?['ytid'];
-    if (oldAudioId != audioId) {
-      if (isRadioStation) {
-        _songLikeStatus.value = isRadioStationLiked(audioId ?? '');
+    final oldAudioId = oldWidget.metadata.extras?['ytid']?.toString();
+    final newAudioId = widget.metadata.extras?['ytid']?.toString();
+    final newIsRadioStation = widget.metadata.extras?['isLive'] == true;
+    if (oldAudioId != newAudioId || _isRadioStation != newIsRadioStation) {
+      if (_isRadioStation) {
+        userLikedRadioStations.removeListener(_syncRadioLikeStatus);
       } else {
-        _songLikeStatus.value = isSongAlreadyLiked(audioId);
+        userLikedSongsList.removeListener(_syncLikeStatus);
       }
-      _songOfflineStatus.value = isSongAlreadyOffline(audioId);
+      _audioId = newAudioId;
+      _isRadioStation = newIsRadioStation;
+      if (_isRadioStation) {
+        _songLikeStatus.value = isRadioStationLiked(_audioId ?? '');
+        userLikedRadioStations.addListener(_syncRadioLikeStatus);
+      } else {
+        _songLikeStatus.value = isSongAlreadyLiked(_audioId);
+        userLikedSongsList.addListener(_syncLikeStatus);
+      }
+      _songOfflineStatus.value = isSongAlreadyOffline(_audioId);
     }
   }
 
   @override
   void dispose() {
-    if (isRadioStation) {
+    if (_isRadioStation) {
       userLikedRadioStations.removeListener(_syncRadioLikeStatus);
     } else {
       userLikedSongsList.removeListener(_syncLikeStatus);
@@ -117,6 +133,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     userOfflineSongs.removeListener(_syncOfflineStatus);
     _songLikeStatus.dispose();
     _songOfflineStatus.dispose();
+    _downloadInProgress.dispose();
     super.dispose();
   }
 
@@ -136,7 +153,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
         final queue = snapshot.data ?? [];
 
         final actions = <Widget>[
-          if (!isRadioStation)
+          if (!_isRadioStation)
             _buildActionButton(
               context: context,
               icon: FluentIcons.cloud_arrow_down_24_regular,
@@ -144,18 +161,20 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               colorScheme: colorScheme,
               size: responsiveIconSize,
               statusNotifier: _songOfflineStatus,
-              onPressed: audioId == null
+              onPressed: _audioId == null
                   ? null
                   : () => _toggleOffline(
                       context,
                       _songOfflineStatus,
-                      audioId,
+                      _audioId,
                       widget.metadata,
+                      isDownloading: _downloadInProgress,
                     ),
               tooltip: l10n.makeOffline,
+              busyNotifier: _downloadInProgress,
             ),
           _buildSleepTimerButton(context, colorScheme, responsiveIconSize),
-          if (!offlineMode.value && !isRadioStation)
+          if (!offlineMode.value && !_isRadioStation)
             _buildSimpleActionButton(
               context: context,
               icon: FluentIcons.album_add_24_regular,
@@ -167,7 +186,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               ),
               tooltip: l10n.addToPlaylist,
             ),
-          if (queue.isNotEmpty && !isRadioStation && !widget.isLargeScreen)
+          if (queue.isNotEmpty && !_isRadioStation && !widget.isLargeScreen)
             _buildSimpleActionButton(
               context: context,
               icon: FluentIcons.apps_list_24_filled,
@@ -180,7 +199,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               tooltip: l10n.queue,
             ),
           if (!offlineMode.value) ...[
-            if (!isRadioStation)
+            if (!_isRadioStation)
               _buildSimpleActionButton(
                 context: context,
                 icon: FluentIcons.text_quote_24_regular,
@@ -198,14 +217,14 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               statusNotifier: _songLikeStatus,
               activeColor: colorScheme.primary,
               onPressed: () async {
-                final id = audioId;
+                final id = _audioId;
                 if (id == null) return;
 
                 final originalValue = _songLikeStatus.value;
                 _songLikeStatus.value = !originalValue;
 
                 try {
-                  if (isRadioStation) {
+                  if (_isRadioStation) {
                     if (originalValue) {
                       await removeRadioStationFromLiked(id);
                     } else {
@@ -213,7 +232,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                     }
                   } else {
                     await updateSongLikeStatus(
-                      audioId,
+                      _audioId,
                       !originalValue,
                       songData: mediaItemToMap(widget.metadata),
                     );
@@ -253,8 +272,9 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     required VoidCallback? onPressed,
     Color? activeColor,
     String? tooltip,
+    ValueNotifier<bool>? busyNotifier,
   }) {
-    return ValueListenableBuilder<bool>(
+    final button = ValueListenableBuilder<bool>(
       valueListenable: statusNotifier,
       builder: (_, isActive, __) {
         return IconButton(
@@ -278,6 +298,18 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
           onPressed: onPressed,
         );
       },
+    );
+    if (busyNotifier == null) return button;
+    return ValueListenableBuilder<bool>(
+      valueListenable: busyNotifier,
+      builder: (_, busy, __) => busy
+          ? CupertinoButton(
+              onPressed: null,
+              padding: EdgeInsets.zero,
+              minimumSize: Size(size + 24, size + 24),
+              child: const CupertinoActivityIndicator(),
+            )
+          : button,
     );
   }
 
@@ -353,8 +385,9 @@ Future<void> _toggleOffline(
   BuildContext context,
   ValueNotifier<bool> status,
   String? audioId,
-  MediaItem metadata,
-) async {
+  MediaItem metadata, {
+  ValueNotifier<bool>? isDownloading,
+}) async {
   final originalValue = status.value;
 
   if (originalValue) {
@@ -382,19 +415,37 @@ Future<void> _toggleOffline(
     unawaited(
       showDownloadPicker(context, songMap, (source, quality) async {
         if (!context.mounted) return;
+        isDownloading?.value = true;
         showToast(context, 'Downloading...');
         try {
-          final success = await makeSongOffline(songMap, source: source, quality: quality);
+          final success = await makeSongOffline(
+            songMap,
+            source: source,
+            quality: quality,
+          );
           if (!context.mounted) return;
           if (success) {
             status.value = true;
             showToast(context, 'Downloaded successfully');
           } else {
-            showToast(context, 'Download failed - try YouTube source');
+            final sourceLabel = source == 'saavn' || source == 'jiosaavn'
+                ? 'JioSaavn'
+                : 'YouTube';
+            showToast(
+              context,
+              '$sourceLabel download unavailable for this track. Try the other source.',
+            );
           }
         } catch (e) {
           logger.log('Error downloading song', error: e);
-          if (context.mounted) showToast(context, 'Download failed');
+          if (context.mounted) {
+            showToast(
+              context,
+              'Download failed. Check your connection and try again.',
+            );
+          }
+        } finally {
+          isDownloading?.value = false;
         }
       }),
     );

@@ -29,7 +29,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/position_data.dart';
 import 'package:musify/services/common_services.dart';
-import 'package:musify/services/data_manager.dart';
 import 'package:musify/services/listening_stats_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/map_utils.dart';
@@ -73,8 +72,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
   static const int _maxConsecutiveErrors = 3;
 
   static const int _maxHistorySize = 50;
-  static const int _queueLookahead = 3;
-  static const int _maxConcurrentPreloads = 2;
+  // Resolve only the next item, and never compete with the foreground load.
+  // Multiple manifest requests were saturating the connection and making a
+  // user-initiated tap wait behind two background YouTube requests.
+  static const int _queueLookahead = 1;
+  static const int _maxConcurrentPreloads = 1;
   static const Duration _errorRetryDelay = Duration(seconds: 1);
   static const Duration _songTransitionTimeout = Duration(seconds: 6);
   static const Duration _debounceInterval = Duration(milliseconds: 80);
@@ -510,7 +512,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
           _queueList.isNotEmpty) ||
       playNextSongAutomatically.value;
 
-  void _handlePlaybackError() {
+  void _handlePlaybackError({bool advance = true}) {
     _consecutiveErrors++;
     logger.log(
       'Playback error occurred. Consecutive errors: $_consecutiveErrors',
@@ -523,7 +525,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
       return;
     }
 
-    if (_canRetryPlayback()) {
+    // A failed user selection must not silently jump to another queue item.
+    // That behavior made a slow/invalid stream look like the wrong song was
+    // playing. Automatic advancement remains enabled for genuine player
+    // failures reported by just_audio during an active queue.
+    if (advance && _canRetryPlayback()) {
       Future.delayed(_errorRetryDelay, skipToNext);
     } else {
       _lastError = null;
@@ -1096,12 +1102,12 @@ class MusifyAudioHandler extends BaseAudioHandler {
             mediaItem.add(previousMediaItem);
           }
           _updatePlaybackState();
-          _handlePlaybackError();
+          _handlePlaybackError(advance: false);
         }
       }
     } catch (e, stackTrace) {
       logger.log('Error playing from queue', error: e, stackTrace: stackTrace);
-      _handlePlaybackError();
+      _handlePlaybackError(advance: false);
     } finally {
       // Only reset if this is still the transition that started it
       if (currentTransitionId == _currentLoadingTransitionId) {
@@ -1113,10 +1119,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   void _preloadUpcomingSongs() {
     // Don't attempt to preload while offline mode is enabled
-    if (offlineMode.value) return;
+    if (offlineMode.value || _currentLoadingTransitionId != -1) return;
 
     Future.microtask(() async {
       try {
+        if (_currentLoadingTransitionId != -1) return;
         final songsToPreload = <Map>[];
 
         for (var i = 1; i <= _queueLookahead; i++) {
@@ -1147,7 +1154,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   Future<void> _preloadSongsSequentially(List<Map> songsToPreload) async {
     for (final song in songsToPreload) {
+      if (_currentLoadingTransitionId != -1) return;
       while (_activePreloadCount >= _maxConcurrentPreloads) {
+        if (_currentLoadingTransitionId != -1) return;
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
@@ -1162,7 +1171,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   Future<void> _preloadSingleSongControlled(Map nextSong) async {
     final ytid = nextSong['ytid'];
-    if (ytid == null) return;
+    if (ytid == null || _currentLoadingTransitionId != -1) return;
 
     _preloadingYtIds.add(ytid);
     _activePreloadCount++;
@@ -1723,11 +1732,13 @@ class MusifyAudioHandler extends BaseAudioHandler {
       );
       if (queueSong != null) {
         queueSong
+          ..['isOffline'] = playback.isOffline
           ..['resolvedSource'] = songData['resolvedSource']
           ..['resolvedBitrate'] = songData['resolvedBitrate']
           ..['resolvedFormat'] = songData['resolvedFormat'];
         _updateQueueMediaItems();
       }
+      songData['isOffline'] = playback.isOffline;
 
       final audioSource = await buildAudioSource(
         songData,
@@ -1748,10 +1759,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
         _lastError = 'Failed to build audio source';
         return false;
       }
-
-      logger.log(
-        'Playing [${songData['title']}] source=${songData['resolvedSource']} url=${playback.songUrl}',
-      );
 
       return await _setAudioSourceAndPlay(
         songData,
@@ -1906,8 +1913,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
     int? transitionId,
   }) async {
     try {
+      final urlHost = Uri.tryParse(songUrl)?.host ?? 'invalid-url';
       logger.log(
-        'Playing [${song['title']}] source=${song['resolvedSource']} url=$songUrl',
+        'Playing [${song['title']}] source=${song['resolvedSource']} host=$urlHost',
       );
 
       // Final staleness check before we touch the audio player.
@@ -1922,7 +1930,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
       final wasPlayingBeforeSwap = audioPlayer.playing;
 
       await audioPlayer
-          .setAudioSource(audioSource)
+          .setAudioSource(audioSource, preload: false)
           .timeout(_songTransitionTimeout);
 
       // Check once more after the async setAudioSource: a fast offline song
@@ -1967,13 +1975,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
         }),
       );
       unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));
-
-      if (!isOffline) {
-        final source = song['resolvedSource']?.toString() ?? 'youtube';
-        final cacheKey =
-            'song_${song['ytid']}_${audioQualitySetting.value}_${source}_url';
-        unawaited(addOrUpdateData<String>('cache', cacheKey, songUrl));
-      }
 
       _updatePlaybackState();
 
@@ -2145,7 +2146,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
       // Play the radio stream
       await audioPlayer
-          .setAudioSource(audioSource)
+          .setAudioSource(audioSource, preload: false)
           .timeout(_songTransitionTimeout);
 
       listeningStatsService.finishListeningSession(

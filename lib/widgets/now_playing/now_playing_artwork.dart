@@ -187,8 +187,10 @@ class AudioQualityBadge extends StatelessWidget {
   void _showSourcePicker(BuildContext context) {
     final currentSource =
         metadata.extras?['resolvedSource'] as String? ?? 'youtube';
-    final ytid = metadata.extras?['ytid']?.toString() ?? '';
-    final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
+    // Use the playback snapshot, not the mutable global download list. A
+    // download completing in the background must not relabel the currently
+    // playing online stream as offline or hide the source switcher.
+    final isOffline = metadata.extras?['isOffline'] == true;
 
     showCupertinoModalPopup<void>(
       context: context,
@@ -252,9 +254,7 @@ class AudioQualityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final extras = metadata.extras ?? {};
-    final ytid = extras['ytid']?.toString() ?? '';
-    final offlineSong = getOfflineSongByYtid(ytid);
-    final isOffline = offlineSong.isNotEmpty;
+    final isOffline = extras['isOffline'] == true;
 
     String label;
     Color color;
