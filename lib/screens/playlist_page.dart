@@ -128,7 +128,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         _playlist = initialPlaylist;
         final playlistList = _playlist?['list'] as List?;
         final shouldFetchInitialPlaylist =
-            playlistList == null || (!widget.isArtist && playlistList.isEmpty);
+            playlistList == null || playlistList.isEmpty;
         if (shouldFetchInitialPlaylist && resolvedId != null) {
           _playlist =
               await getPlaylistInfoForWidget(

@@ -57,14 +57,22 @@ class ProxyManager {
     if (useProxy.value) {
       unawaited(_initSharedProxyClient());
     }
-    useProxy.addListener(() {
-      final generation = ++_proxySettingsGeneration;
-      if (!useProxy.value) {
-        _disableProxyClient();
-        return;
-      }
-      unawaited(_initializeForGeneration(generation));
-    });
+    useProxy.addListener(_onUseProxyChanged);
+  }
+
+  void _onUseProxyChanged() {
+    final generation = ++_proxySettingsGeneration;
+    if (!useProxy.value) {
+      _disableProxyClient();
+      return;
+    }
+    unawaited(_initializeForGeneration(generation));
+  }
+
+  void dispose() {
+    useProxy.removeListener(_onUseProxyChanged);
+    _disableProxyClient();
+    _defaultYt.close();
   }
   // Timeout constants
   static const int _validateDirectTimeout = 5;

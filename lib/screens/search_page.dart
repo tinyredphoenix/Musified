@@ -98,6 +98,12 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   @override
+  void deactivate() {
+    _debounce?.cancel();
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
     _searchBar.dispose();
     _inputNode.dispose();

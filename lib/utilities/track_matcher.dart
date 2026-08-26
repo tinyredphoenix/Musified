@@ -31,7 +31,7 @@ class TrackMatcher {
     ];
 
     for (final word in noiseWords) {
-      t = t.replaceAll(RegExp('\\b$word\\b'), ' ');
+      t = t.replaceAll(RegExp(r'\b' + RegExp.escape(word) + r'\b', caseSensitive: false), ' ');
     }
 
     // Keep only alphanumeric characters and spaces

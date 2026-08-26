@@ -69,14 +69,39 @@ ValueNotifier<List> userLikedSongsList = ValueNotifier<List>(
   _safeUserGet<List>('likedSongs', []),
 );
 
-
-
 ValueNotifier<List> userRecentlyPlayed = ValueNotifier<List>(
   _safeUserGet<List>('recentlyPlayedSongs', []),
 );
 ValueNotifier<List> userOfflineSongs = ValueNotifier<List>(
   _safeUserNoBackupGet<List>('offlineSongs', []),
 );
+
+final Set<String> _likedSongIdsSet = {
+  ...userLikedSongsList.value.map((s) => s['ytid']?.toString() ?? '').where((id) => id.isNotEmpty),
+};
+final Set<String> _offlineSongIdsSet = {
+  ...userOfflineSongs.value.map((s) => s['ytid']?.toString() ?? '').where((id) => id.isNotEmpty),
+};
+
+void _syncLikedSongIdsSet() {
+  _likedSongIdsSet
+    ..clear()
+    ..addAll(
+      userLikedSongsList.value
+          .map((s) => s['ytid']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+    );
+}
+
+void _syncOfflineSongIdsSet() {
+  _offlineSongIdsSet
+    ..clear()
+    ..addAll(
+      userOfflineSongs.value
+          .map((s) => s['ytid']?.toString() ?? '')
+          .where((id) => id.isNotEmpty),
+    );
+}
 
 dynamic nextRecommendedSong;
 
@@ -96,12 +121,14 @@ void reloadSongLibraryStateFromStorage() {
       userRecentlyPlayed.value = List.from(
         userBox.get('recentlyPlayedSongs', defaultValue: []),
       );
+      _syncLikedSongIdsSet();
     }
     if (Hive.isBoxOpen('userNoBackup')) {
       final box = Hive.box('userNoBackup');
       userOfflineSongs.value = List.from(
         box.get('offlineSongs', defaultValue: []),
       );
+      _syncOfflineSongIdsSet();
     }
   } catch (e) {
     logger.log('Error reloading song library state: $e');
@@ -392,6 +419,7 @@ Future<void> updateSongLikeStatus(
       return;
 
     userLikedSongsList.value = updatedLikedSongs;
+    _syncLikedSongIdsSet();
     // Sync like/unlike to YouTube Music if authenticated
     if (YouTubeAuthService().isSignedIn.value && ytAutoSyncLikes.value) {
       unawaited(
@@ -507,9 +535,11 @@ Future<void> renameSongInLikedSongs(
 
 bool isSongAlreadyLiked(songIdToCheck) {
   final songId = songIdToCheck?.toString();
-  return userLikedSongsList.value.any(
-    (song) => song['ytid']?.toString() == songId,
-  );
+  if (songId == null || songId.isEmpty) return false;
+  if (_likedSongIdsSet.isEmpty && userLikedSongsList.value.isNotEmpty) {
+    _syncLikedSongIdsSet();
+  }
+  return _likedSongIdsSet.contains(songId);
 }
 
 bool isPlaylistAlreadyLiked(playlistIdToCheck) {
@@ -520,15 +550,21 @@ bool isPlaylistAlreadyLiked(playlistIdToCheck) {
   );
 }
 
-
-
-bool isSongAlreadyOffline(songIdToCheck) =>
-    userOfflineSongs.value.any((song) => song['ytid'] == songIdToCheck);
+bool isSongAlreadyOffline(songIdToCheck) {
+  final songId = songIdToCheck?.toString();
+  if (songId == null || songId.isEmpty) return false;
+  if (_offlineSongIdsSet.isEmpty && userOfflineSongs.value.isNotEmpty) {
+    _syncOfflineSongIdsSet();
+  }
+  return _offlineSongIdsSet.contains(songId);
+}
 
 bool isPlaylistFullyOffline(List songs) {
   if (songs.isEmpty) return false;
-  final offlineIds = userOfflineSongs.value.map((s) => s['ytid']).toSet();
-  return songs.every((s) => offlineIds.contains(s['ytid']));
+  if (_offlineSongIdsSet.isEmpty && userOfflineSongs.value.isNotEmpty) {
+    _syncOfflineSongIdsSet();
+  }
+  return songs.every((s) => _offlineSongIdsSet.contains(s['ytid']?.toString() ?? ''));
 }
 
 Map<String, dynamic> getOfflineSongByYtid(String ytid) {
@@ -1034,6 +1070,7 @@ Future<bool> makeSongOffline(
         updatedOfflineSongs.add(offlineSong);
       }
       userOfflineSongs.value = updatedOfflineSongs;
+      _syncOfflineSongIdsSet();
 
       unawaited(
         addOrUpdateData<List>(
@@ -1085,6 +1122,7 @@ Future<bool> removeSongFromOffline(dynamic songId) async {
     try {
       userOfflineSongs.value = List.from(userOfflineSongs.value)
         ..removeWhere((song) => song['ytid'] == songId);
+      _syncOfflineSongIdsSet();
       unawaited(
         addOrUpdateData<List>(
           'userNoBackup',

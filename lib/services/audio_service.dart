@@ -130,22 +130,44 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   Stream<PlaybackState> get playbackStateStream => _playbackStateStream;
 
+  static const List<MediaControl> _controlsMultiplePlaying = [
+    MediaControl.skipToPrevious,
+    MediaControl.pause,
+    MediaControl.stop,
+    MediaControl.skipToNext,
+  ];
+
+  static const List<MediaControl> _controlsMultiplePaused = [
+    MediaControl.skipToPrevious,
+    MediaControl.play,
+    MediaControl.stop,
+    MediaControl.skipToNext,
+  ];
+
+  static const List<MediaControl> _controlsSinglePlaying = [
+    MediaControl.rewind,
+    MediaControl.pause,
+    MediaControl.stop,
+    MediaControl.fastForward,
+  ];
+
+  static const List<MediaControl> _controlsSinglePaused = [
+    MediaControl.rewind,
+    MediaControl.play,
+    MediaControl.stop,
+    MediaControl.fastForward,
+  ];
+
   List<MediaControl> _controls(bool playing) {
     final hasMultipleTracks = _queueList.length > 1;
-
-    return [
-      if (hasMultipleTracks)
-        MediaControl.skipToPrevious
-      else
-        MediaControl.rewind,
-      if (playing) MediaControl.pause else MediaControl.play,
-      MediaControl.stop,
-      if (hasMultipleTracks)
-        MediaControl.skipToNext
-      else
-        MediaControl.fastForward,
-    ];
+    if (hasMultipleTracks) {
+      return playing ? _controlsMultiplePlaying : _controlsMultiplePaused;
+    } else {
+      return playing ? _controlsSinglePlaying : _controlsSinglePaused;
+    }
   }
+
+  final List<StreamSubscription> _subscriptions = [];
 
   final _processingStateMap = {
     ProcessingState.idle: AudioProcessingState.idle,
@@ -160,70 +182,91 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   void _setupEventSubscriptions() {
-    audioPlayer.playbackEventStream
-        .throttleTime(const Duration(milliseconds: 100))
-        .listen(
-          (event) {
-            _updatePlaybackState();
-          },
-          onError: (error, stackTrace) {
-            _logStreamError('Playback event stream error', error, stackTrace);
-          },
-        );
-
-    audioPlayer.processingStateStream.distinct().listen(
-      _handleProcessingStateChange,
-      onError: (error, stackTrace) {
-        _logStreamError('Processing state stream error', error, stackTrace);
-      },
+    _subscriptions.add(
+      audioPlayer.playbackEventStream
+          .throttleTime(const Duration(milliseconds: 100))
+          .listen(
+            (event) {
+              _updatePlaybackState();
+            },
+            onError: (error, stackTrace) {
+              _logStreamError('Playback event stream error', error, stackTrace);
+            },
+          ),
     );
 
-    audioPlayer.durationStream.listen(
-      (duration) {
-        final transitionInProgress = _currentLoadingTransitionId >= 0;
-        final sourceBelongsToCurrentTransition =
-            !transitionInProgress ||
-            _installedSourceTransitionId == _currentLoadingTransitionId;
-        if (sourceBelongsToCurrentTransition &&
-            _currentQueueIndex < _queueList.length &&
-            duration != null) {
-          _updateCurrentMediaItemWithDuration(duration);
-        }
-      },
-      onError: (error, stackTrace) {
-        _logStreamError('Duration stream error', error, stackTrace);
-      },
+    _subscriptions.add(
+      audioPlayer.processingStateStream.distinct().listen(
+        _handleProcessingStateChange,
+        onError: (error, stackTrace) {
+          _logStreamError('Processing state stream error', error, stackTrace);
+        },
+      ),
     );
 
-    audioPlayer.playerStateStream
-        .distinct()
-        .throttleTime(const Duration(milliseconds: 100))
-        .listen(
-          (state) {
-            if (state.processingState == ProcessingState.idle &&
-                !state.playing &&
-                _lastError != null) {
-              Future.microtask(_handlePlaybackError);
-            }
-            _debouncedStateUpdate();
-          },
-          onError: (error, stackTrace) {
-            _logStreamError('Player state stream error', error, stackTrace);
-          },
-        );
+    _subscriptions.add(
+      audioPlayer.durationStream.listen(
+        (duration) {
+          final transitionInProgress = _currentLoadingTransitionId >= 0;
+          final sourceBelongsToCurrentTransition =
+              !transitionInProgress ||
+              _installedSourceTransitionId == _currentLoadingTransitionId;
+          if (sourceBelongsToCurrentTransition &&
+              _currentQueueIndex < _queueList.length &&
+              duration != null) {
+            _updateCurrentMediaItemWithDuration(duration);
+          }
+        },
+        onError: (error, stackTrace) {
+          _logStreamError('Duration stream error', error, stackTrace);
+        },
+      ),
+    );
 
-    Rx.combineLatest2(
-          audioPlayer.currentIndexStream.distinct(),
-          audioPlayer.sequenceStateStream.distinct(),
-          (index, sequence) => {'index': index, 'sequence': sequence},
-        )
-        .throttleTime(const Duration(milliseconds: 100))
-        .listen(
-          (_) => _debouncedStateUpdate(),
-          onError: (error, stackTrace) {
-            _logStreamError('Current index stream error', error, stackTrace);
-          },
-        );
+    _subscriptions.add(
+      audioPlayer.playerStateStream
+          .distinct()
+          .throttleTime(const Duration(milliseconds: 100))
+          .listen(
+            (state) {
+              if (state.processingState == ProcessingState.idle &&
+                  !state.playing &&
+                  _lastError != null) {
+                Future.microtask(_handlePlaybackError);
+              }
+              _debouncedStateUpdate();
+            },
+            onError: (error, stackTrace) {
+              _logStreamError('Player state stream error', error, stackTrace);
+            },
+          ),
+    );
+
+    _subscriptions.add(
+      Rx.combineLatest2(
+            audioPlayer.currentIndexStream.distinct(),
+            audioPlayer.sequenceStateStream.distinct(),
+            (index, sequence) => {'index': index, 'sequence': sequence},
+          )
+          .throttleTime(const Duration(milliseconds: 100))
+          .listen(
+            (_) => _debouncedStateUpdate(),
+            onError: (error, stackTrace) {
+              _logStreamError('Current index stream error', error, stackTrace);
+            },
+          ),
+    );
+  }
+
+  Future<void> dispose() async {
+    for (final sub in _subscriptions) {
+      unawaited(sub.cancel());
+    }
+    _subscriptions.clear();
+    _sleepTimer?.cancel();
+    _debounceTimer?.cancel();
+    await _queueMapStream.close();
+    await audioPlayer.dispose();
   }
 
   void _debouncedStateUpdate() {
