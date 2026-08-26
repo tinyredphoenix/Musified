@@ -21,7 +21,7 @@
 
 import 'dart:async';
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
@@ -59,7 +59,7 @@ class PlaylistPage extends StatefulWidget {
     super.key,
     this.playlistId,
     this.playlistData,
-    this.cubeIcon = FluentIcons.text_bullet_list_24_filled,
+    this.cubeIcon = CupertinoIcons.list_bullet,
     this.isArtist = false,
   });
 
@@ -265,10 +265,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Widget _buildBackButton(BuildContext context) {
-    return IconButton(
-      icon: const Icon(FluentIcons.arrow_left_24_regular),
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
       onPressed: () => Navigator.pop(context, widget.playlistData == _playlist),
-      tooltip: context.l10n.back,
+      child: const Icon(CupertinoIcons.back),
     );
   }
 
@@ -407,7 +407,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   Widget _buildShareButton() {
     return IconButton.filledTonal(
-      icon: const Icon(FluentIcons.share_24_regular),
+      icon: const Icon(CupertinoIcons.share),
       iconSize: 24,
       onPressed: () async {
         try {
@@ -436,7 +436,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   Widget _buildSyncButton() {
     return IconButton.filledTonal(
-      icon: const Icon(FluentIcons.arrow_sync_24_filled),
+      icon: const Icon(CupertinoIcons.arrow_2_circlepath),
       iconSize: 24,
       onPressed: _handleSyncPlaylist,
       tooltip: context.l10n.update,
@@ -445,7 +445,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   Widget _buildEditButton() {
     return IconButton.filledTonal(
-      icon: const Icon(FluentIcons.edit_24_filled),
+      icon: const Icon(CupertinoIcons.pencil_circle_fill),
       iconSize: 24,
       onPressed: () async {
         final result = await showDialog<Map?>(

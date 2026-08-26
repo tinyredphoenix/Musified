@@ -21,7 +21,7 @@
 
 import 'dart:async';
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
@@ -223,7 +223,7 @@ class _ArtistPageState extends State<ArtistPage> {
                   padding: const EdgeInsets.only(top: 24),
                   child: ArtistShelf(
                     title: context.l10n.albums,
-                    icon: FluentIcons.cd_16_regular,
+                    icon: CupertinoIcons.music_albums,
                     items: _albums,
                     subtitleOf: _releaseSubtitle,
                     onTap: _openRelease,
@@ -234,7 +234,7 @@ class _ArtistPageState extends State<ArtistPage> {
                   padding: const EdgeInsets.only(top: 24),
                   child: ArtistShelf(
                     title: context.l10n.singlesAndEps,
-                    icon: FluentIcons.music_note_2_24_regular,
+                    icon: CupertinoIcons.music_note_2,
                     items: _singles,
                     subtitleOf: _releaseSubtitle,
                     onTap: _openRelease,
@@ -245,9 +245,9 @@ class _ArtistPageState extends State<ArtistPage> {
                   padding: const EdgeInsets.only(top: 24),
                   child: ArtistShelf(
                     title: context.l10n.suggestedArtists,
-                    icon: FluentIcons.person_24_regular,
+                    icon: CupertinoIcons.person_crop_circle,
                     items: _relatedArtists,
-                    cubeIcon: FluentIcons.person_24_filled,
+                    cubeIcon: CupertinoIcons.person_crop_circle_fill,
                     circular: true,
                     onTap: _openArtist,
                   ),
@@ -270,7 +270,7 @@ class _ArtistPageState extends State<ArtistPage> {
         'title': _artistTitle,
         'image': _artist?['image'] ?? widget.artistData?['image'],
       }),
-      cubeIcon: FluentIcons.person_24_filled,
+      cubeIcon: CupertinoIcons.person_crop_circle_fill,
       isArtist: true,
     );
   }
@@ -282,7 +282,7 @@ class _ArtistPageState extends State<ArtistPage> {
         slivers: [
           // Not finding an artist is an answer, not a failure of the app.
           EmptyPlaylistState(
-            icon: FluentIcons.person_24_filled,
+            icon: CupertinoIcons.person_crop_circle_fill,
             message: context.l10n.artistNotFound,
           ),
           const SliverMiniPlayerBottomSpace(),
@@ -304,7 +304,7 @@ class _ArtistPageState extends State<ArtistPage> {
             size: isLandscape
                 ? 250
                 : screenSize.width / commonPlaylistArtworkDivision,
-            cubeIcon: FluentIcons.person_24_filled,
+            cubeIcon: CupertinoIcons.person_crop_circle_fill,
             showTypeLabel: false,
           ),
           _artistTitle,
@@ -331,7 +331,7 @@ class _ArtistPageState extends State<ArtistPage> {
               requireSnapshotMatch: true,
             ),
             IconButton.filledTonal(
-              icon: const Icon(FluentIcons.arrow_sync_24_filled),
+              icon: const Icon(CupertinoIcons.arrow_2_circlepath),
               iconSize: 24,
               onPressed: _refresh,
               tooltip: context.l10n.update,
@@ -362,7 +362,7 @@ class _ArtistPageState extends State<ArtistPage> {
         const SizedBox(height: 24),
         SectionHeader(
           title: context.l10n.topSongs,
-          icon: FluentIcons.music_note_2_24_filled,
+          icon: CupertinoIcons.music_note_2,
         ),
         ListView.builder(
           shrinkWrap: true,

@@ -24,7 +24,7 @@ import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
@@ -169,7 +169,7 @@ class _QueueWidgetState extends State<QueueWidget> {
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
-              FluentIcons.apps_list_24_regular,
+              CupertinoIcons.list_bullet,
               color: colorScheme.onPrimaryContainer,
               size: compact ? 20.0 : 22.0,
             ),
@@ -178,46 +178,35 @@ class _QueueWidgetState extends State<QueueWidget> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   context.l10n.queue,
-                  style: compact
-                      ? TextStyle(
-                          color: colorScheme.onSurface,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        )
-                      : textTheme.titleMedium?.copyWith(
-                          color: colorScheme.onSurface,
-                          fontWeight: FontWeight.w600,
-                        ),
-                ),
-                if (_queue.isNotEmpty)
-                  Text(
-                    '${_queue.length} ${context.l10n.songs.toLowerCase()}',
-                    style: compact
-                        ? TextStyle(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 13,
-                          )
-                        : textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
                   ),
+                ),
+                Text(
+                  '${_queue.length} ${context.l10n.songs}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
           if (_queue.isNotEmpty)
             FilledButton.tonalIcon(
               onPressed: () => _confirmClearQueue(context),
-              icon: const Icon(FluentIcons.dismiss_24_regular, size: 18),
+              icon: const Icon(CupertinoIcons.xmark, size: 18),
               label: Text(context.l10n.clear),
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
+                  horizontal: 12,
+                  vertical: 6,
                 ),
-                visualDensity: VisualDensity.compact,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
         ],
@@ -263,7 +252,7 @@ class _QueueWidgetState extends State<QueueWidget> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                FluentIcons.music_note_1_24_regular,
+                CupertinoIcons.music_note,
                 color: colorScheme.onSurfaceVariant,
                 size: 40,
               ),
@@ -455,7 +444,7 @@ class QueueTile extends StatelessWidget {
                 const SizedBox(width: 8),
                 if (isCurrentSong) ...[
                   Icon(
-                    FluentIcons.music_note_2_24_regular,
+                    CupertinoIcons.music_note_2,
                     color: colorScheme.primary,
                     size: 16,
                   ),
@@ -469,7 +458,7 @@ class QueueTile extends StatelessWidget {
                       vertical: 14,
                     ),
                     child: Icon(
-                      FluentIcons.re_order_24_regular,
+                      CupertinoIcons.bars,
                       color: colorScheme.onSurfaceVariant,
                     ),
                   ),
@@ -572,7 +561,7 @@ class _DismissBackground extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Icon(
-        FluentIcons.delete_24_regular,
+        CupertinoIcons.trash,
         color: colorScheme.onErrorContainer,
         size: 22,
       ),

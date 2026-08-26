@@ -53,6 +53,15 @@ class SongArtworkWidget extends StatelessWidget {
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final cacheDimension = (size * devicePixelRatio).round().clamp(64, 800);
 
+    final rawArtUri = metadata.artUri?.toString();
+    final isValidUri = rawArtUri != null && rawArtUri.isNotEmpty && rawArtUri != 'null';
+    
+    final fallbackUrl = metadata.extras?['highResImage']?.toString() ??
+        metadata.extras?['image']?.toString() ??
+        'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/hqdefault.jpg';
+        
+    final imageUrl = isValidUri ? rawArtUri : fallbackUrl;
+
     return metadata.artUri?.scheme == 'file'
         ? SizedBox(
             width: size,
@@ -69,12 +78,13 @@ class SongArtworkWidget extends StatelessWidget {
             ),
           )
         : CachedNetworkImage(
-            key: ValueKey('${metadata.id}:${metadata.artUri}'),
+            key: ValueKey('${metadata.id}:$imageUrl'),
             width: size,
             height: size,
-            imageUrl: metadata.artUri.toString(),
+            imageUrl: imageUrl,
             memCacheWidth: cacheDimension,
             memCacheHeight: cacheDimension,
+            fadeInDuration: const Duration(milliseconds: 300),
             imageBuilder: (context, imageProvider) => ClipRRect(
               borderRadius: BorderRadius.circular(borderRadius),
               child: Image(image: imageProvider, fit: BoxFit.cover),

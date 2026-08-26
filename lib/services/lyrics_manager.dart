@@ -84,14 +84,12 @@ class LyricsManager {
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body) as Map<String, dynamic>;
         final plainLyrics = json['plainLyrics'] as String?;
-        if (plainLyrics != null && plainLyrics.trim().isNotEmpty) {
-          return plainLyrics.trim();
-        }
         final syncedLyrics = json['syncedLyrics'] as String?;
         if (syncedLyrics != null && syncedLyrics.trim().isNotEmpty) {
-          return syncedLyrics
-              .replaceAll(RegExp(r'\[\d{2}:\d{2}\.\d{2,3}\]'), '')
-              .trim();
+          return syncedLyrics.trim();
+        }
+        if (plainLyrics != null && plainLyrics.trim().isNotEmpty) {
+          return plainLyrics.trim();
         }
       }
     } catch (_) {}
@@ -109,14 +107,12 @@ class LyricsManager {
           for (final item in list) {
             if (item is Map) {
               final plain = item['plainLyrics'] as String?;
-              if (plain != null && plain.trim().isNotEmpty) {
-                return plain.trim();
-              }
               final synced = item['syncedLyrics'] as String?;
               if (synced != null && synced.trim().isNotEmpty) {
-                return synced
-                    .replaceAll(RegExp(r'\[\d{2}:\d{2}\.\d{2,3}\]'), '')
-                    .trim();
+                return synced.trim();
+              }
+              if (plain != null && plain.trim().isNotEmpty) {
+                return plain.trim();
               }
             }
           }
@@ -192,40 +188,6 @@ class LyricsManager {
     return null;
   }
 
-  Future<String?> _fetchLyricsFromLyricsMania1(
-    String artistName,
-    String title,
-  ) async {
-    try {
-      final uri = Uri.parse(
-        'https://www.lyricsmania.com/${_lyricsManiaUrl(title)}_lyrics_${_lyricsManiaUrl(artistName)}.html',
-      );
-      final response = await http
-          .get(uri)
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => http.Response('', 408),
-          );
-
-      if (response.statusCode == 200) {
-        final document = html_parser.parse(response.body);
-        final lyricsBodyElements = document.querySelectorAll('.lyrics-body');
-
-        if (lyricsBodyElements.isNotEmpty) {
-          return addCopyright(
-            lyricsBodyElements.first.text,
-            'www.lyricsmania.com',
-          );
-        }
-      }
-    } catch (e) {
-      // Silently fail and return null
-      return null;
-    }
-
-    return null;
-  }
-
   String _lyricsUrl(String input) {
     var result = input.replaceAll(' ', '-').toLowerCase();
     // Remove special characters
@@ -237,17 +199,6 @@ class LyricsManager {
     }
     if (result.isNotEmpty && result.startsWith('-')) {
       result = result.substring(1);
-    }
-    return result;
-  }
-
-  String _lyricsManiaUrl(String input) {
-    var result = input.replaceAll(' ', '_').toLowerCase();
-    if (result.isNotEmpty && result.startsWith('_')) {
-      result = result.substring(1);
-    }
-    if (result.isNotEmpty && result.endsWith('_')) {
-      result = result.substring(0, result.length - 1);
     }
     return result;
   }

@@ -17,16 +17,6 @@ class YouTubeAuthService {
   final userEmail = ValueNotifier<String?>(null);
   final userAvatarUrl = ValueNotifier<String?>(null);
 
-  final List<String> _requiredCookies = [
-    'SAPISID',
-    '__Secure-3PAPISID',
-    '__Secure-3PSID',
-    'LOGIN_INFO',
-    'SID',
-    'HSID',
-    'SSID'
-  ];
-
   Map<String, String> getAuthHeaders() {
     try {
       final box = Hive.box('youtube_auth');

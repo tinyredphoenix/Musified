@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -68,8 +68,8 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                 widget.folderId,
               ).where(PlaylistUtils.isPlaylistOffline).toList()
             : getPlaylistsInFolder(widget.folderId);
-        return Scaffold(
-          body: CustomScrollView(
+        return CupertinoPageScaffold(
+          child: CustomScrollView(
             slivers: [
               SliverAppBar(
                 pinned: true,
@@ -87,7 +87,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                     itemBuilder: (context) => [
                       buildPopupMenuItem<String>(
                         value: 'add',
-                        icon: FluentIcons.add_24_regular,
+                        icon: CupertinoIcons.plus,
                         label: context.l10n.addPlaylist,
                         colorScheme: Theme.of(context).colorScheme,
                         iconSize: 18,
@@ -95,7 +95,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                       ),
                       buildPopupMenuItem<String>(
                         value: 'rename',
-                        icon: FluentIcons.edit_24_regular,
+                        icon: CupertinoIcons.pencil,
                         label: context.l10n.editFolder,
                         colorScheme: Theme.of(context).colorScheme,
                         iconSize: 18,
@@ -103,7 +103,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                       ),
                       buildPopupMenuItem<String>(
                         value: 'delete',
-                        icon: FluentIcons.delete_24_regular,
+                        icon: CupertinoIcons.trash,
                         label: context.l10n.deleteFolder,
                         colorScheme: Theme.of(context).colorScheme,
                         iconColor: Theme.of(context).colorScheme.error,
@@ -182,7 +182,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
               height: 130,
               color: colorScheme.surfaceContainerHighest,
               child: Icon(
-                FluentIcons.folder_24_filled,
+                CupertinoIcons.folder_fill,
                 size: 64,
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -211,7 +211,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  FluentIcons.text_bullet_list_24_filled,
+                  CupertinoIcons.list_bullet,
                   size: 14,
                   color: colorScheme.onSecondaryContainer,
                 ),
@@ -242,7 +242,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              FluentIcons.folder_24_regular,
+              CupertinoIcons.folder,
               size: 64,
               color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
             ),
@@ -286,7 +286,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              FluentIcons.text_bullet_list_add_24_filled,
+              CupertinoIcons.text_badge_plus,
               color: colorScheme.secondary,
               size: 28,
             ),
@@ -308,7 +308,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: DialogItem(
-                    icon: FluentIcons.text_bullet_list_24_filled,
+                    icon: CupertinoIcons.list_bullet,
                     iconColor: colorScheme.tertiary,
                     iconBgColor: colorScheme.tertiaryContainer,
                     label: playlist['title'] ?? '',
@@ -354,7 +354,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
       context: context,
       builder: (context) => AlertDialog(
         icon: Icon(
-          FluentIcons.folder_24_regular,
+          CupertinoIcons.folder,
           color: colorScheme.primary,
           size: 32,
         ),
@@ -369,7 +369,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
           decoration: InputDecoration(
             labelText: context.l10n.folderName,
             prefixIcon: Icon(
-              FluentIcons.text_field_20_regular,
+              CupertinoIcons.textformat,
               color: colorScheme.onSurfaceVariant,
             ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -401,7 +401,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                 setState(() => _folderName = newName.trim());
               }
             },
-            icon: const Icon(FluentIcons.save_20_filled),
+            icon: const Icon(CupertinoIcons.checkmark_circle_fill),
             label: Text(context.l10n.update),
           ),
         ],

@@ -271,6 +271,7 @@ void main() async {
     // is now bounded (see Phase 3 below) so 12s here is just a last-resort
     // safety net, not something we expect to actually hit.
     await initialisation().timeout(const Duration(seconds: 12));
+    unawaited(cleanupOldCacheEntries());
   } catch (e, st) {
     logger.log('initialisation error or timeout: $e', stackTrace: st);
   }

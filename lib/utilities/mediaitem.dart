@@ -32,7 +32,7 @@ Map mediaItemToMap(MediaItem mediaItem) {
     'title': mediaItem.title,
     'artistId': extras?['artistId'],
     'videoAuthor': extras?['videoAuthor'],
-    'highResImage': extras?['highResImage'] ?? mediaItem.artUri.toString(),
+    'highResImage': extras?['highResImage'] ?? mediaItem.artUri?.toString(),
     'lowResImage': extras?['lowResImage'],
     'isLive': extras?['isLive'] ?? false,
     'isOffline': extras?['isOffline'] ?? false,
@@ -54,9 +54,20 @@ MediaItem mapToMediaItem(Map song) {
   final downloadSource =
       song['downloadSource'] ?? offlineSong['downloadSource'];
 
+  final rawImageUrl = song['highResImage']?.toString() ??
+      song['image']?.toString() ??
+      song['lowResImage']?.toString() ??
+      song['thumbnail']?.toString() ??
+      song['artwork']?.toString() ??
+      (ytid != null && ytid.isNotEmpty
+          ? 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg'
+          : null);
+
   final artUri = isOffline && offlineSong['artworkPath'] != null
       ? Uri.file(offlineSong['artworkPath'].toString())
-      : Uri.parse(song['highResImage'].toString());
+      : (rawImageUrl != null && rawImageUrl.isNotEmpty && rawImageUrl != 'null'
+          ? Uri.parse(rawImageUrl)
+          : Uri.parse('https://i.ytimg.com/vi/${song['id'] ?? ytid}/hqdefault.jpg'));
   // ytid is the canonical track identity shared by YouTube and JioSaavn.
   // Provider URLs, source labels, and queue-entry ids must never change it.
   final stableId = (ytid == null || ytid.isEmpty)

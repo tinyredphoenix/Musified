@@ -19,12 +19,10 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/version.dart';
-import 'package:musify/screens/about_page.dart';
 import 'package:musify/screens/artist_page.dart';
 import 'package:musify/screens/bottom_navigation_page.dart';
 import 'package:musify/screens/home_page.dart';
@@ -259,22 +257,6 @@ class NavigationManager {
             },
             routes: [
               GoRoute(
-                path: 'license',
-                pageBuilder: (context, state) => _pushPage(
-                  child: const LicensePage(
-                    applicationName: 'Musify',
-                    applicationVersion: appVersion,
-                  ),
-                  state: state,
-                ),
-              ),
-              GoRoute(
-                path: 'about',
-                pageBuilder: (context, state) =>
-                    _pushPage(child: const AboutPage(), state: state),
-              ),
-
-              GoRoute(
                 path: 'logs',
                 pageBuilder: (context, state) => _pushPage(
                   child: const LogsPage(),
@@ -308,7 +290,7 @@ class NavigationManager {
                 state.pathParameters['artistId'],
               ),
               playlistData: _extraAsMap(state.extra),
-              cubeIcon: FluentIcons.person_24_filled,
+              cubeIcon: CupertinoIcons.person_crop_circle_fill,
               isArtist: true,
             ),
             state: state,
@@ -327,7 +309,7 @@ class NavigationManager {
         child: PlaylistPage(
           playlistId: _decodePathParameter(state.pathParameters['albumId']),
           playlistData: _extraAsMap(state.extra),
-          cubeIcon: FluentIcons.cd_16_regular,
+          cubeIcon: CupertinoIcons.music_albums,
         ),
         state: state,
       ),

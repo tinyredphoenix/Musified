@@ -32,6 +32,7 @@ import 'package:musify/utilities/async_loader.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/widgets/flip_card.dart';
 import 'package:musify/widgets/song_artwork.dart';
+import 'package:musify/widgets/now_playing/synced_lyrics_view.dart';
 
 class NowPlayingArtwork extends StatelessWidget {
   const NowPlayingArtwork({
@@ -160,19 +161,10 @@ class NowPlayingArtwork extends StatelessWidget {
               ],
             ),
           ),
-          builder: (context, lyrics) => SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            physics: const BouncingScrollPhysics(),
-            child: Text(
-              lyrics ?? context.l10n.lyricsNotAvailable,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                color: colorScheme.onSecondaryContainer,
-                height: 1.6,
-              ),
-              textAlign: TextAlign.center,
-            ),
+          builder: (context, lyrics) => SyncedLyricsView(
+            metadata: metadata,
+            lyrics: lyrics ?? context.l10n.lyricsNotAvailable,
+            isActive: true,
           ),
         ),
       ),

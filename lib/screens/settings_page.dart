@@ -279,30 +279,30 @@ class SettingsPage extends StatelessWidget {
       children: [
         SectionHeader(
           title: context.l10n.preferences,
-          icon: FluentIcons.options_24_filled,
+          icon: CupertinoIcons.slider_horizontal_3,
         ),
         CustomBar(
           context.l10n.accentColor,
-          FluentIcons.color_24_regular,
+          CupertinoIcons.paintbrush,
           borderRadius: commonCustomBarRadiusFirst,
           onTap: () => _showAccentColorPicker(context),
         ),
         CustomBar(
           context.l10n.themeMode,
-          FluentIcons.weather_sunny_28_regular,
+          CupertinoIcons.sun_max,
           onTap: () => _showThemeModePicker(context),
         ),
         CustomBar(
           context.l10n.audioQuality,
-          FluentIcons.music_note_1_24_regular,
+          CupertinoIcons.music_note,
           onTap: () => _showAudioQualityPicker(context),
         ),
         if (themeMode == ThemeMode.dark)
           CustomBar(
             context.l10n.pureBlackTheme,
-            FluentIcons.color_background_24_regular,
+            CupertinoIcons.circle_righthalf_fill,
             description: context.l10n.pureBlackThemeDescription,
-            trailing: Switch(
+            trailing: CupertinoSwitch(
               value: usePureBlackColor.value,
               onChanged: (value) => _togglePureBlack(context, value),
             ),
@@ -313,9 +313,9 @@ class SettingsPage extends StatelessWidget {
           builder: (_, value, __) {
             return CustomBar(
               context.l10n.audioQualityBadge,
-              FluentIcons.badge_24_regular,
+              CupertinoIcons.app_badge,
               description: context.l10n.audioQualityBadgeDescription,
-              trailing: Switch(
+              trailing: CupertinoSwitch(
                 value: value,
                 onChanged: (value) => _toggleAudioQualityBadge(context, value),
               ),
@@ -328,12 +328,12 @@ class SettingsPage extends StatelessWidget {
           builder: (_, value, __) {
             return CustomBar(
               context.l10n.offlineMode,
-              FluentIcons.cloud_off_24_regular,
+              CupertinoIcons.cloud_download,
               description: context.l10n.offlineModeDescription,
               borderRadius: isOffline
                   ? commonCustomBarRadiusLast
                   : BorderRadius.zero,
-              trailing: Switch(
+              trailing: CupertinoSwitch(
                 value: value,
                 onChanged: (value) => _toggleOfflineMode(context, value),
               ),
@@ -352,13 +352,13 @@ class SettingsPage extends StatelessWidget {
           children: [
             const SectionHeader(
               title: 'Audio Sources',
-              icon: FluentIcons.music_note_2_24_filled,
+              icon: CupertinoIcons.music_note_list,
             ),
             CustomBar(
               'JioSaavn High Quality',
-              FluentIcons.music_note_2_24_regular,
+              CupertinoIcons.music_note_2,
               description: 'Use JioSaavn for 320kbps AAC when available',
-              trailing: Switch(
+              trailing: CupertinoSwitch(
                 value: isSaavnEnabled,
                 onChanged: (value) {
                   jiosaavnEnabled.value = value;
@@ -373,7 +373,7 @@ class SettingsPage extends StatelessWidget {
                 builder: (_, value, __) {
                   return CustomBar(
                     'Streaming Source',
-                    FluentIcons.play_circle_24_regular,
+                    CupertinoIcons.play_circle,
                     description: value == 'auto'
                         ? 'Auto (Best Quality)'
                         : (value == 'youtube'
@@ -388,7 +388,7 @@ class SettingsPage extends StatelessWidget {
                 builder: (_, value, __) {
                   return CustomBar(
                     'JioSaavn Streaming Quality',
-                    FluentIcons.cellular_data_3_24_regular,
+                    CupertinoIcons.antenna_radiowaves_left_right,
                     description: value == '320'
                         ? 'High (320 kbps)'
                         : (value == '160'
@@ -403,7 +403,7 @@ class SettingsPage extends StatelessWidget {
                 builder: (_, value, __) {
                   return CustomBar(
                     'Download Source',
-                    FluentIcons.arrow_download_24_regular,
+                    CupertinoIcons.arrow_down_circle,
                     description: value == 'best'
                         ? 'Best Quality'
                         : (value == 'youtube'
@@ -419,7 +419,7 @@ class SettingsPage extends StatelessWidget {
               builder: (_, value, __) {
                 return CustomBar(
                   'Download Quality',
-                  FluentIcons.arrow_download_24_regular,
+                  CupertinoIcons.arrow_down_circle,
                   description: value == '320'
                       ? '320 kbps'
                       : (value == '160'
@@ -443,9 +443,9 @@ class SettingsPage extends StatelessWidget {
           builder: (_, value, __) {
             return CustomBar(
               context.l10n.automaticSongPicker,
-              FluentIcons.music_note_2_play_20_regular,
+              CupertinoIcons.play_arrow,
               description: context.l10n.automaticSongPickerDescription,
-              trailing: Switch(
+              trailing: CupertinoSwitch(
                 value: value,
                 onChanged: (value) {
                   _toggleAutoPlayNext(context, value);
@@ -460,10 +460,10 @@ class SettingsPage extends StatelessWidget {
           builder: (_, value, __) {
             return CustomBar(
               context.l10n.externalRecommendations,
-              FluentIcons.channel_share_24_regular,
+              CupertinoIcons.sparkles,
               description: context.l10n.externalRecommendationsDescription,
               borderRadius: commonCustomBarRadiusLast,
-              trailing: Switch(
+              trailing: CupertinoSwitch(
                 value: value,
                 onChanged: (value) =>
                     _toggleExternalRecommendations(context, value),
@@ -482,11 +482,11 @@ class SettingsPage extends StatelessWidget {
       children: [
         SectionHeader(
           title: context.l10n.tools,
-          icon: FluentIcons.toolbox_24_filled,
+          icon: CupertinoIcons.wrench,
         ),
         CustomBar(
           context.l10n.clearCache,
-          FluentIcons.broom_24_regular,
+          CupertinoIcons.trash,
           borderRadius: commonCustomBarRadiusFirst,
           onTap: () async {
             final cleared = await clearCache();
@@ -498,7 +498,7 @@ class SettingsPage extends StatelessWidget {
         ),
         CustomBar(
           context.l10n.clearSearchHistory,
-          FluentIcons.history_24_regular,
+          CupertinoIcons.clock,
           onTap: () => _showConfirmationDialog(
             context: context,
             confirmationMessage: context.l10n.clearSearchHistoryQuestion,
@@ -511,7 +511,7 @@ class SettingsPage extends StatelessWidget {
         ),
         CustomBar(
           context.l10n.clearRecentlyPlayed,
-          FluentIcons.receipt_play_24_regular,
+          CupertinoIcons.music_albums,
           onTap: () => _showConfirmationDialog(
             context: context,
             confirmationMessage: context.l10n.clearRecentlyPlayedQuestion,
@@ -525,7 +525,7 @@ class SettingsPage extends StatelessWidget {
 
         CustomBar(
           context.l10n.deleteDownloads,
-          FluentIcons.delete_24_regular,
+          CupertinoIcons.trash,
           onTap: () => _showConfirmationDialog(
             context: context,
             confirmationMessage: context.l10n.deleteDownloadsQuestion,
@@ -553,7 +553,7 @@ class SettingsPage extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  'Musified v$appVersion (Build 2)',
+                  'Musified v$appVersion (Build 3)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -582,29 +582,17 @@ class SettingsPage extends StatelessWidget {
       children: [
         SectionHeader(
           title: context.l10n.others,
-          icon: FluentIcons.more_circle_24_filled,
-        ),
-        CustomBar(
-          context.l10n.licenses,
-          FluentIcons.document_24_regular,
-          borderRadius: commonCustomBarRadiusFirst,
-          onTap: () => NavigationManager.router.go('/settings/license'),
-        ),
-        CustomBar(
-          context.l10n.translate,
-          FluentIcons.translate_24_regular,
-          description: context.l10n.translateDescription,
-          onTap: () =>
-              launchURL(Uri.parse('https://crowdin.com/project/musify')),
+          icon: CupertinoIcons.ellipsis_circle,
         ),
         CustomBar(
           '${context.l10n.copyLogs} (${logger.getLogCount()})',
-          FluentIcons.error_circle_24_regular,
+          CupertinoIcons.doc_on_doc,
+          borderRadius: commonCustomBarRadiusFirst,
           onTap: () async => showToast(context, await logger.copyLogs(context)),
         ),
         CustomBar(
           'Musified iOS v$appVersion',
-          FluentIcons.info_24_regular,
+          CupertinoIcons.info_circle,
           borderRadius: commonCustomBarRadiusLast,
           onTap: () {},
         ),
@@ -658,7 +646,7 @@ class SettingsPage extends StatelessWidget {
                 ),
                 child: isSelected
                     ? Icon(
-                        FluentIcons.checkmark_20_filled,
+                        CupertinoIcons.checkmark_alt,
                         color: color.computeLuminance() > 0.5
                             ? Colors.black
                             : Colors.white,
@@ -676,9 +664,9 @@ class SettingsPage extends StatelessWidget {
   void _showThemeModePicker(BuildContext context) {
     final availableModes = [ThemeMode.system, ThemeMode.light, ThemeMode.dark];
     const modeIcons = [
-      FluentIcons.phone_24_regular,
-      FluentIcons.weather_sunny_24_regular,
-      FluentIcons.weather_moon_24_regular,
+      CupertinoIcons.device_phone_portrait,
+      CupertinoIcons.sun_max,
+      CupertinoIcons.moon,
     ];
 
     showCustomBottomSheet(
@@ -699,12 +687,13 @@ class SettingsPage extends StatelessWidget {
           return BottomSheetBar(
             modeNames[mode.index],
             () {
-              addOrUpdateData<int>('settings', 'themeIndex', mode.index);
+              addOrUpdateData<int>('settings', 'themeMode', mode.index);
               Musify.updateAppState(context, newThemeMode: mode);
+              showToast(context, context.l10n.settingChangedMsg);
               Navigator.pop(context);
             },
             themeMode == mode,
-            icon: modeIcons[mode.index],
+            icon: modeIcons[index],
           );
         },
       ),
@@ -721,9 +710,9 @@ class SettingsPage extends StatelessWidget {
       context.l10n.audioQualityHigh,
     ];
     const qualityIcons = [
-      FluentIcons.speaker_1_24_regular,
-      FluentIcons.speaker_2_24_regular,
-      FluentIcons.speaker_2_24_filled,
+      CupertinoIcons.speaker_1,
+      CupertinoIcons.speaker_2,
+      CupertinoIcons.speaker_3,
     ];
 
     showCustomBottomSheet(
@@ -826,9 +815,9 @@ class SettingsPage extends StatelessWidget {
       'JioSaavn Only',
     ];
     const sourceIcons = [
-      FluentIcons.sparkle_24_regular,
-      FluentIcons.video_24_regular,
-      FluentIcons.music_note_1_24_regular,
+      CupertinoIcons.sparkles,
+      CupertinoIcons.tv,
+      CupertinoIcons.music_note,
     ];
 
     showCustomBottomSheet(
@@ -865,9 +854,9 @@ class SettingsPage extends StatelessWidget {
       'High (320 kbps)',
     ];
     const qualityIcons = [
-      FluentIcons.cellular_data_1_24_regular,
-      FluentIcons.cellular_data_2_24_regular,
-      FluentIcons.cellular_data_3_24_regular,
+      CupertinoIcons.wifi,
+      CupertinoIcons.wifi,
+      CupertinoIcons.antenna_radiowaves_left_right,
     ];
 
     showCustomBottomSheet(
@@ -904,9 +893,9 @@ class SettingsPage extends StatelessWidget {
       'JioSaavn Only',
     ];
     const sourceIcons = [
-      FluentIcons.sparkle_24_regular,
-      FluentIcons.video_24_regular,
-      FluentIcons.music_note_1_24_regular,
+      CupertinoIcons.sparkles,
+      CupertinoIcons.tv,
+      CupertinoIcons.music_note,
     ];
 
     showCustomBottomSheet(
@@ -943,9 +932,9 @@ class SettingsPage extends StatelessWidget {
       '320 kbps',
     ];
     const qualityIcons = [
-      FluentIcons.cellular_data_1_24_regular,
-      FluentIcons.cellular_data_2_24_regular,
-      FluentIcons.cellular_data_3_24_regular,
+      CupertinoIcons.wifi,
+      CupertinoIcons.wifi,
+      CupertinoIcons.antenna_radiowaves_left_right,
     ];
 
     showCustomBottomSheet(

@@ -21,7 +21,7 @@
 
 import 'dart:async';
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:material_ui/material_ui.dart';
@@ -281,7 +281,7 @@ class _SearchPageState extends State<SearchPage> {
 
                                   return CustomBar(
                                     query,
-                                    FluentIcons.search_24_regular,
+                                    CupertinoIcons.search,
                                     borderRadius: borderRadius,
                                     onTap: () async {
                                       await _submitSearch(query.toString());
@@ -333,7 +333,7 @@ class _SearchPageState extends State<SearchPage> {
         SectionTitle(
           context.l10n.artists,
           primaryColor,
-          icon: FluentIcons.person_24_filled,
+          icon: CupertinoIcons.person_crop_circle_fill,
         ),
       );
 
@@ -367,7 +367,7 @@ class _SearchPageState extends State<SearchPage> {
         SectionTitle(
           context.l10n.songs,
           primaryColor,
-          icon: FluentIcons.music_note_1_24_filled,
+          icon: CupertinoIcons.music_note,
         ),
       );
 
@@ -396,7 +396,7 @@ class _SearchPageState extends State<SearchPage> {
         SectionTitle(
           context.l10n.albums,
           primaryColor,
-          icon: FluentIcons.album_24_filled,
+          icon: CupertinoIcons.music_albums_fill,
         ),
       );
 
@@ -414,7 +414,7 @@ class _SearchPageState extends State<SearchPage> {
             playlist['title'],
             playlistId: playlist['ytid'],
             playlistArtwork: playlist['image'],
-            cubeIcon: FluentIcons.cd_16_filled,
+            cubeIcon: CupertinoIcons.music_albums,
             isAlbum: true,
             borderRadius: borderRadius,
           ),
@@ -428,7 +428,7 @@ class _SearchPageState extends State<SearchPage> {
         SectionTitle(
           context.l10n.playlists,
           primaryColor,
-          icon: FluentIcons.text_bullet_list_24_filled,
+          icon: CupertinoIcons.list_bullet,
         ),
       );
 
@@ -449,7 +449,7 @@ class _SearchPageState extends State<SearchPage> {
               playlist['title'],
               playlistId: playlist['ytid'],
               playlistArtwork: playlist['image'],
-              cubeIcon: FluentIcons.apps_list_24_filled,
+              cubeIcon: CupertinoIcons.list_bullet,
               borderRadius: borderRadius,
             ),
           ),

@@ -25,8 +25,8 @@ import 'package:musify/main.dart' show logger;
 // Cache durations for different types of data
 const Duration songCacheDuration = Duration(hours: 1, minutes: 30);
 const Duration playlistCacheDuration = Duration(hours: 5);
-const Duration searchCacheDuration = Duration(days: 4);
-const Duration defaultCacheDuration = Duration(days: 7);
+const Duration searchCacheDuration = Duration(days: 1);
+const Duration defaultCacheDuration = Duration(days: 2);
 
 // In-memory cache for frequently accessed items
 final _memoryCache = <String, _CacheEntry>{};
@@ -174,8 +174,8 @@ Future<void> cleanupOldCacheEntries() async {
       }
 
       final age = now.difference(_parseCacheDate(date)!);
-      // Very old cache entries (older than 30 days) should be removed
-      if (age > const Duration(days: 30)) {
+      // Very old cache entries (older than 2 days) should be removed
+      if (age > const Duration(days: 2)) {
         await cacheBox.delete(key);
         await cacheBox.delete(dateKey);
         _memoryCache.remove(cacheKey);

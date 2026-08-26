@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 
 class OverflowMenuButton<T> extends StatelessWidget {
@@ -51,7 +51,7 @@ class OverflowMenuButton<T> extends StatelessWidget {
       onSelected: onSelected,
       itemBuilder: itemBuilder,
       icon: Icon(
-        icon ?? FluentIcons.more_vertical_24_regular,
+        icon ?? CupertinoIcons.ellipsis,
         size: iconSize,
         color: color ?? colorScheme.onSurfaceVariant,
       ),

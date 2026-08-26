@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 
@@ -35,7 +35,7 @@ class OfflineSearchPlaceholder extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              FluentIcons.cloud_off_24_regular,
+              CupertinoIcons.cloud_download,
               size: 64,
               color: Theme.of(
                 context,

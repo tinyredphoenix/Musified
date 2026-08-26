@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -141,10 +141,10 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   IconData getIcon(String page) {
     return switch (page) {
-      'liked' => FluentIcons.heart_24_regular,
-      'offline' => FluentIcons.cloud_off_24_regular,
-      'recents' => FluentIcons.history_24_regular,
-      _ => FluentIcons.heart_24_regular,
+      'liked' => CupertinoIcons.heart,
+      'offline' => CupertinoIcons.cloud_download,
+      'recents' => CupertinoIcons.clock,
+      _ => CupertinoIcons.heart,
     };
   }
 
@@ -171,7 +171,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
               children: [
                 Expanded(
                   child: FilledButton.icon(
-                    icon: const Icon(FluentIcons.play_24_filled),
+                    icon: const Icon(CupertinoIcons.play_fill),
                     label: Text(context.l10n.play),
                     onPressed: () {
                       final songsList = widget.page == 'liked'
@@ -206,7 +206,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                       backgroundColor: colorScheme.secondaryContainer,
                       foregroundColor: colorScheme.onSecondaryContainer,
                     ),
-                    icon: const Icon(FluentIcons.arrow_shuffle_24_filled),
+                    icon: const Icon(CupertinoIcons.shuffle),
                     label: Text(context.l10n.shuffle),
                     onPressed: () async {
                       final songs = widget.page == 'liked'
@@ -280,7 +280,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   Widget _buildClearRecentsButton(Color primaryColor) {
     return IconButton.filledTonal(
-      icon: Icon(FluentIcons.delete_24_regular, color: primaryColor),
+      icon: Icon(CupertinoIcons.trash, color: primaryColor),
       iconSize: 24,
       onPressed: () {
         showDialog(
@@ -336,8 +336,8 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
         if (displayList.isEmpty) {
           final emptyIcon = isLikedSongs
-              ? FluentIcons.heart_24_regular
-              : FluentIcons.text_bullet_list_24_filled;
+              ? CupertinoIcons.heart
+              : CupertinoIcons.list_bullet;
           return EmptyPlaylistState(
             icon: emptyIcon,
             message: context.l10n.playlistEmpty,

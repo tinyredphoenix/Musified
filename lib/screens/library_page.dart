@@ -22,7 +22,7 @@
 import 'dart:async';
 
 import 'package:flutter/services.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/constants/app_constants.dart';
@@ -75,32 +75,19 @@ class _LibraryPageState extends State<LibraryPage> {
           !hasOfflineArtists &&
           !hasOfflineSongs) {
         final colorScheme = Theme.of(context).colorScheme;
-        return Scaffold(
-          appBar: AppBar(title: Text(context.l10n.library)),
-          body: Center(
+        return CupertinoPageScaffold(
+          
+          child: Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: colorScheme.primaryContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      FluentIcons.cloud_off_24_regular,
-                      size: 40,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   Text(
-                    context.l10n.offlineMode,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.w600,
+                    'Looking for Music?',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -120,9 +107,9 @@ class _LibraryPageState extends State<LibraryPage> {
       }
     }
 
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.library)),
-      body: AnimatedBuilder(
+    return CupertinoPageScaffold(
+      
+      child: AnimatedBuilder(
         animation: Listenable.merge([
           pinnedPlaylistIds,
           offlineMode,
@@ -139,6 +126,10 @@ class _LibraryPageState extends State<LibraryPage> {
             padding: commonSingleChildScrollViewPadding,
             child: CustomScrollView(
               slivers: [
+                CupertinoSliverNavigationBar(
+                  largeTitle: Text(context.l10n.library),
+                  backgroundColor: Theme.of(context).scaffoldBackgroundColor.withValues(alpha: 0.8),
+                ),
                 ..._buildPinnedSlivers(),
                 ..._buildUserPlaylistsSlivers(),
                 if (!offlineMode.value) ..._buildLikedPlaylistsSlivers(),
@@ -281,7 +272,7 @@ class _LibraryPageState extends State<LibraryPage> {
       SliverToBoxAdapter(
         child: SectionHeader(
           title: context.l10n.pinnedPlaylists,
-          icon: FluentIcons.pin_24_filled,
+          icon: CupertinoIcons.pin_fill,
         ),
       ),
       _buildSliverPlaylistList(items),
@@ -332,7 +323,7 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               SectionHeader(
                 title: context.l10n.customPlaylists,
-                icon: FluentIcons.library_24_filled,
+                icon: CupertinoIcons.music_albums_fill,
                 actionButton: isOffline
                     ? null
                     : Row(
@@ -342,7 +333,7 @@ class _LibraryPageState extends State<LibraryPage> {
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             onPressed: _showCreateFolderDialog,
                             icon: Icon(
-                              FluentIcons.folder_add_24_regular,
+                              CupertinoIcons.folder_badge_plus,
                               color: colorScheme.onSurfaceVariant,
                             ),
                             tooltip: context.l10n.createFolder,
@@ -351,7 +342,7 @@ class _LibraryPageState extends State<LibraryPage> {
                             padding: const EdgeInsets.symmetric(horizontal: 2),
                             onPressed: () => showCreatePlaylistDialog(context),
                             icon: Icon(
-                              FluentIcons.add_24_regular,
+                              CupertinoIcons.plus,
                               color: colorScheme.onSurfaceVariant,
                             ),
                           ),
@@ -363,7 +354,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   context.l10n.recentlyPlayed,
                   onPressed: () =>
                       NavigationManager.router.go('/library/userSongs/recents'),
-                  cubeIcon: FluentIcons.history_24_regular,
+                  cubeIcon: CupertinoIcons.clock,
                   borderRadius: commonCustomBarRadiusFirst,
                   showBuildActions: false,
                 ),
@@ -371,14 +362,14 @@ class _LibraryPageState extends State<LibraryPage> {
                   context.l10n.likedSongs,
                   onPressed: () =>
                       NavigationManager.router.go('/library/userSongs/liked'),
-                  cubeIcon: FluentIcons.heart_24_regular,
+                  cubeIcon: CupertinoIcons.heart,
                   showBuildActions: false,
                 ),
                 PlaylistBar(
                   context.l10n.offlineSongs,
                   onPressed: () =>
                       NavigationManager.router.go('/library/userSongs/offline'),
-                  cubeIcon: FluentIcons.cloud_off_24_regular,
+                  cubeIcon: CupertinoIcons.cloud_download,
                   borderRadius: hasCustomPlaylists || hasFolders
                       ? BorderRadius.zero
                       : commonCustomBarRadiusLast,
@@ -408,7 +399,7 @@ class _LibraryPageState extends State<LibraryPage> {
           SliverToBoxAdapter(
             child: SectionHeader(
               title: context.l10n.offlinePlaylists,
-              icon: FluentIcons.cloud_off_24_filled,
+              icon: CupertinoIcons.cloud_download,
             ),
           ),
         )
@@ -424,12 +415,12 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               SectionHeader(
                 title: context.l10n.addedPlaylists,
-                icon: FluentIcons.add_circle_24_filled,
+                icon: CupertinoIcons.plus_circle_fill,
                 actionButton: IconButton(
                   padding: const EdgeInsets.only(right: 5),
                   onPressed: () => showCreatePlaylistDialog(context),
                   icon: Icon(
-                    FluentIcons.add_24_regular,
+                    CupertinoIcons.plus,
                     color: colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -464,7 +455,7 @@ class _LibraryPageState extends State<LibraryPage> {
       SliverToBoxAdapter(
         child: SectionHeader(
           title: context.l10n.likedPlaylists,
-          icon: FluentIcons.heart_24_filled,
+          icon: CupertinoIcons.heart_fill,
         ),
       ),
       _buildSliverPlaylistList(likedPlaylists),
@@ -478,7 +469,7 @@ class _LibraryPageState extends State<LibraryPage> {
       SliverToBoxAdapter(
         child: SectionHeader(
           title: context.l10n.artist,
-          icon: FluentIcons.person_24_filled,
+          icon: CupertinoIcons.person_crop_circle_fill,
         ),
       ),
       _buildSliverPlaylistList(likedArtists),
@@ -510,8 +501,8 @@ class _LibraryPageState extends State<LibraryPage> {
             playlistId: playlist['ytid'],
             playlistArtwork: playlist['image'],
             cubeIcon: isArtist
-                ? FluentIcons.person_24_filled
-                : FluentIcons.text_bullet_list_24_filled,
+                ? CupertinoIcons.person_crop_circle_fill
+                : CupertinoIcons.list_bullet,
             isAlbum: isArtist ? false : playlist['isAlbum'],
             playlistData:
                 isArtist ||
@@ -650,7 +641,7 @@ class _LibraryPageState extends State<LibraryPage> {
             shape: BoxShape.circle,
           ),
           child: Icon(
-            FluentIcons.folder_add_24_regular,
+            CupertinoIcons.folder_badge_plus,
             color: colorScheme.primary,
             size: 32,
           ),
@@ -667,7 +658,7 @@ class _LibraryPageState extends State<LibraryPage> {
             labelText: context.l10n.folderName,
             hintText: context.l10n.newFolder,
             prefixIcon: Icon(
-              FluentIcons.folder_20_regular,
+              CupertinoIcons.folder,
               color: colorScheme.onSurfaceVariant,
             ),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -700,7 +691,7 @@ class _LibraryPageState extends State<LibraryPage> {
               }
               Navigator.pop(context);
             },
-            icon: const Icon(FluentIcons.add_20_regular),
+            icon: const Icon(CupertinoIcons.plus),
             label: Text(context.l10n.create),
           ),
         ],

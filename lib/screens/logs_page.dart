@@ -1,4 +1,4 @@
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:musify/main.dart' show logger;
 
@@ -17,15 +17,15 @@ class _LogsPageState extends State<LogsPage> {
       appBar: AppBar(
         title: const Text('Debug Logs'),
         actions: [
-          IconButton(
-            icon: const Icon(FluentIcons.delete_24_regular),
-            tooltip: 'Clear Logs',
+          CupertinoButton(
+            padding: const EdgeInsets.all(8),
             onPressed: () => setState(logger.clearLogs),
+            child: const Icon(CupertinoIcons.trash),
           ),
-          IconButton(
-            icon: const Icon(FluentIcons.copy_24_regular),
-            tooltip: 'Copy All',
+          CupertinoButton(
+            padding: const EdgeInsets.all(8),
             onPressed: () => logger.copyLogs(context),
+            child: const Icon(CupertinoIcons.doc_on_doc),
           ),
         ],
       ),

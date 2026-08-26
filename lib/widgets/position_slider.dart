@@ -74,9 +74,6 @@ class _PositionSliderState extends State<PositionSlider> {
 
             final processingState =
                 audioHandler.playbackState.valueOrNull?.processingState;
-            final isSettled =
-                processingState == AudioProcessingState.ready ||
-                processingState == AudioProcessingState.completed;
             final metadataDuration = mediaSnapshot.data?.duration;
             // The metadata duration is canonical from YouTube/JioSaavn catalog.
             // On iOS CoreAudio, HE-AAC/SBR stream timescales often cause AVPlayer to report
@@ -106,24 +103,48 @@ class _PositionSliderState extends State<PositionSlider> {
               children: [
                 SizedBox(
                   width: double.infinity,
-                  child: CupertinoSlider(
-                    value: currentValue.clamp(0.0, maxDuration),
-                    onChanged: (value) {
-                      setState(() {
-                        _isDragging = true;
-                        _dragValue = value;
-                      });
-                    },
-                    onChangeEnd: (value) {
-                      audioHandler.seek(Duration(milliseconds: value.round()));
-                      setState(() {
-                        _isDragging = false;
-                      });
-                    },
-                    max: maxDuration,
-                    activeColor: Theme.of(context).colorScheme.primary,
+                  height: 24, // reduced height for a tighter layout
+                  child: SliderTheme(
+                    data: SliderThemeData(
+                      trackHeight: 2.5,
+                      thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 4,
+                        elevation: 0,
+                        pressedElevation: 0,
+                      ),
+                      overlayShape: const RoundSliderOverlayShape(
+                        overlayRadius: 14,
+                      ),
+                      activeTrackColor: Theme.of(context).colorScheme.primary,
+                      inactiveTrackColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.2),
+                      thumbColor: Theme.of(context).colorScheme.primary,
+                      overlayColor: Theme.of(context)
+                          .colorScheme
+                          .primary
+                          .withValues(alpha: 0.1),
+                    ),
+                    child: Slider(
+                      value: currentValue.clamp(0.0, maxDuration),
+                      onChanged: (value) {
+                        setState(() {
+                          _isDragging = true;
+                          _dragValue = value;
+                        });
+                      },
+                      onChangeEnd: (value) {
+                        audioHandler.seek(Duration(milliseconds: value.round()));
+                        setState(() {
+                          _isDragging = false;
+                        });
+                      },
+                      max: maxDuration,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 4),
                 _buildPositionRow(context, displayPositionData),
               ],
             );

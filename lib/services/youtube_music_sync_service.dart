@@ -40,15 +40,6 @@ class YouTubeMusicSyncService {
           lastSyncTime.value = DateTime.fromMillisecondsSinceEpoch(syncTime);
         }
       }
-
-      // Auto-sync on startup if signed in and last sync was > 6 hours ago (daily schedule)
-      if (YouTubeAuthService().isSignedIn.value) {
-        final last = lastSyncTime.value;
-        final now = DateTime.now();
-        if (last == null || now.difference(last).inHours >= 6) {
-          unawaited(fullSync());
-        }
-      }
     } catch (e) {
       logger.log('Error initializing YouTubeMusicSyncService: $e');
     }
@@ -317,32 +308,9 @@ class YouTubeMusicSyncService {
     if (!ytAutoSyncLikes.value) return;
     try {
       final ytLikes = await fetchLikedSongs();
-      final localLikes = List<dynamic>.from(userLikedSongsList.value);
 
-      final ytIds = ytLikes.map((e) => e['ytid']?.toString()).whereType<String>().toSet();
-      final localIds = localLikes.map((e) => (e as Map)['ytid']?.toString()).whereType<String>().toSet();
-
-      // Liked locally but not on YT
-      for (final localId in localIds) {
-        if (!ytIds.contains(localId)) {
-          unawaited(likeSong(localId));
-        }
-      }
-
-      // Liked on YT but not locally
-      bool updatedLocal = false;
-      for (final ytSong in ytLikes) {
-        final ytid = ytSong['ytid']?.toString();
-        if (ytid != null && !localIds.contains(ytid)) {
-          localLikes.insert(0, ytSong);
-          updatedLocal = true;
-        }
-      }
-
-      if (updatedLocal) {
-        userLikedSongsList.value = localLikes;
-        unawaited(addOrUpdateData<List>('user', 'likedSongs', localLikes));
-      }
+      userLikedSongsList.value = ytLikes;
+      unawaited(addOrUpdateData<List>('user', 'likedSongs', ytLikes));
 
       _updateSyncTime();
     } catch (e) {

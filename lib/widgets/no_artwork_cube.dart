@@ -19,13 +19,13 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 
 class NullArtworkWidget extends StatelessWidget {
   const NullArtworkWidget({
     super.key,
-    this.icon = FluentIcons.music_note_1_24_regular,
+    this.icon = CupertinoIcons.music_note,
     this.size = 220,
     this.iconSize,
     this.title,
