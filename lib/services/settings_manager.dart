@@ -155,6 +155,19 @@ final downloadQuality = ValueNotifier<String>(
   _safeBoxGet<String>('downloadQuality', '320'),
 );
 
+// YouTube Music sync settings
+final ytAutoSyncLikes = ValueNotifier<bool>(
+  _safeBoxGet<bool>('ytAutoSyncLikes', true),
+);
+
+final ytAutoSyncPlaylists = ValueNotifier<bool>(
+  _safeBoxGet<bool>('ytAutoSyncPlaylists', true),
+);
+
+final ytReportHistory = ValueNotifier<bool>(
+  _safeBoxGet<bool>('ytReportHistory', true),
+);
+
 void reloadSettingsFromStorage() {
   final settings = Hive.box('settings');
 
@@ -237,4 +250,8 @@ void reloadSettingsFromStorage() {
   preferredSource.value = settings.get('preferredSource', defaultValue: 'auto');
   downloadSource.value = settings.get('downloadSource', defaultValue: 'best');
   downloadQuality.value = settings.get('downloadQuality', defaultValue: '320');
+
+  ytAutoSyncLikes.value = settings.get('ytAutoSyncLikes', defaultValue: true);
+  ytAutoSyncPlaylists.value = settings.get('ytAutoSyncPlaylists', defaultValue: true);
+  ytReportHistory.value = settings.get('ytReportHistory', defaultValue: true);
 }

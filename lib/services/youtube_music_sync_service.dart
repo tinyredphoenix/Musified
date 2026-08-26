@@ -1,0 +1,378 @@
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'package:musify/main.dart' show logger;
+import 'package:musify/services/common_services.dart';
+import 'package:musify/services/data_manager.dart';
+import 'package:musify/services/settings_manager.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+
+class YouTubeMusicSyncService {
+  static final YouTubeMusicSyncService _instance = YouTubeMusicSyncService._internal();
+
+  factory YouTubeMusicSyncService() => _instance;
+
+  YouTubeMusicSyncService._internal();
+
+  static const _remixContext = {
+    'client': {
+      'clientName': 'WEB_REMIX',
+      'clientVersion': '1.20240101.01.00',
+      'hl': 'en',
+    },
+  };
+
+  static const _baseUrl = 'https://music.youtube.com/youtubei/v1';
+
+  final ValueNotifier<List<Map<String, dynamic>>> ytMusicPlaylists = ValueNotifier([]);
+  final ValueNotifier<DateTime?> lastSyncTime = ValueNotifier(null);
+  final ValueNotifier<bool> isSyncing = ValueNotifier(false);
+
+  Future<void> initialize() async {
+    try {
+      if (Hive.isBoxOpen('settings')) {
+        final box = Hive.box('settings');
+        final syncTime = box.get('lastYtSyncTime');
+        if (syncTime is int) {
+          lastSyncTime.value = DateTime.fromMillisecondsSinceEpoch(syncTime);
+        }
+      }
+    } catch (e) {
+      logger.log('Error initializing YouTubeMusicSyncService: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> _authenticatedPost(String endpoint, Map<String, dynamic> body) async {
+    final authService = YouTubeAuthService();
+    final headers = authService.getAuthHeaders();
+    if (headers.isEmpty) {
+      throw Exception('Not authenticated');
+    }
+
+    headers['Content-Type'] = 'application/json';
+
+    final fullBody = {
+      'context': _remixContext,
+      ...body,
+    };
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl$endpoint'),
+      headers: headers,
+      body: jsonEncode(fullBody),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('YouTube API error: ${response.statusCode}');
+    }
+
+    final data = jsonDecode(response.body);
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    return {};
+  }
+
+  String? _runsText(Map<String, dynamic>? node) {
+    final runs = node?['runs'];
+    if (runs is! List) return null;
+    return runs.map((run) => (run as Map)['text']?.toString() ?? '').join('');
+  }
+
+  Iterable<Map<String, dynamic>> _findRenderers(dynamic node, String key) sync* {
+    if (node is Map) {
+      final match = node[key];
+      if (match is Map) yield Map<String, dynamic>.from(match);
+      for (final value in node.values) {
+        yield* _findRenderers(value, key);
+      }
+    } else if (node is List) {
+      for (final value in node) {
+        yield* _findRenderers(value, key);
+      }
+    }
+  }
+
+  String? _extractVideoId(Map<String, dynamic> renderer) {
+    try {
+      final overlay = renderer['overlay'] as Map?;
+      final overlayRenderer = overlay?['musicItemThumbnailOverlayRenderer'] as Map?;
+      final content = overlayRenderer?['content'] as Map?;
+      final playBtn = content?['musicPlayButtonRenderer'] as Map?;
+      final nav = playBtn?['playNavigationEndpoint'] as Map?;
+      final watch = nav?['watchEndpoint'] as Map?;
+      return watch?['videoId']?.toString();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  List<Map<String, dynamic>> _parseTrackRenderers(Map<String, dynamic> response) {
+    final tracks = <Map<String, dynamic>>[];
+    for (final item in _findRenderers(response, 'musicResponsiveListItemRenderer')) {
+      final videoId = _extractVideoId(item);
+      if (videoId == null) continue;
+
+      final flexColumns = item['flexColumns'];
+      if (flexColumns is! List) continue;
+
+      String title = '';
+      String artist = '';
+
+      if (flexColumns.isNotEmpty) {
+        final col0 = flexColumns[0] as Map?;
+        final col0Renderer = col0?['musicResponsiveListItemFlexColumnRenderer'] as Map?;
+        title = _runsText(col0Renderer?['text'] as Map<String, dynamic>?) ?? '';
+      }
+
+      if (flexColumns.length > 1) {
+        final col1 = flexColumns[1] as Map?;
+        final col1Renderer = col1?['musicResponsiveListItemFlexColumnRenderer'] as Map?;
+        artist = _runsText(col1Renderer?['text'] as Map<String, dynamic>?) ?? '';
+      }
+
+      String? imageUrl;
+      final thumbnailMap = item['thumbnail'] as Map?;
+      final musicThumbnailRenderer = thumbnailMap?['musicThumbnailRenderer'] as Map?;
+      final thumbnailData = musicThumbnailRenderer?['thumbnail'] as Map?;
+      final thumbnails = thumbnailData?['thumbnails'];
+      if (thumbnails is List && thumbnails.isNotEmpty) {
+        final lastThumb = thumbnails.last as Map?;
+        imageUrl = lastThumb?['url']?.toString();
+      }
+
+      tracks.add({
+        'ytid': videoId,
+        'title': title,
+        'artist': artist,
+        'image': imageUrl ?? '',
+        'source': 'youtube',
+      });
+    }
+    return tracks;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchLikedSongs() async {
+    try {
+      final response = await _authenticatedPost('/browse', {
+        'browseId': 'FEmusic_liked_videos',
+      });
+      return _parseTrackRenderers(response);
+    } catch (e) {
+      logger.log('Error fetching liked songs: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchUserPlaylists() async {
+    try {
+      final response = await _authenticatedPost('/browse', {
+        'browseId': 'FEmusic_liked_playlists',
+      });
+
+      final playlists = <Map<String, dynamic>>[];
+      for (final item in _findRenderers(response, 'musicTwoRowItemRenderer')) {
+        final nav = item['navigationEndpoint'] as Map?;
+        final browse = nav?['browseEndpoint'] as Map?;
+        final playlistId = browse?['browseId']?.toString();
+
+        if (playlistId == null) continue;
+
+        final title = _runsText(item['title'] as Map<String, dynamic>?) ?? '';
+
+        String? imageUrl;
+        final thumbnailRenderer = item['thumbnailRenderer'] as Map?;
+        final musicThumbnailRenderer = thumbnailRenderer?['musicThumbnailRenderer'] as Map?;
+        final thumbnail = musicThumbnailRenderer?['thumbnail'] as Map?;
+        final thumbnails = thumbnail?['thumbnails'];
+        if (thumbnails is List && thumbnails.isNotEmpty) {
+          final lastThumb = thumbnails.last as Map?;
+          imageUrl = lastThumb?['url']?.toString();
+        }
+
+        final subtitle = _runsText(item['subtitle'] as Map<String, dynamic>?) ?? '';
+
+        playlists.add({
+          'playlistId': playlistId,
+          'title': title,
+          'image': imageUrl ?? '',
+          'trackCount': subtitle,
+        });
+      }
+      return playlists;
+    } catch (e) {
+      logger.log('Error fetching user playlists: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPlaylistTracks(String playlistId) async {
+    try {
+      final response = await _authenticatedPost('/browse', {
+        'browseId': 'VL$playlistId',
+      });
+      return _parseTrackRenderers(response);
+    } catch (e) {
+      logger.log('Error fetching playlist tracks: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPersonalizedMixes() async {
+    try {
+      final response = await _authenticatedPost('/browse', {
+        'browseId': 'FEmusic_home',
+      });
+
+      final mixes = <Map<String, dynamic>>[];
+      for (final item in _findRenderers(response, 'musicTwoRowItemRenderer')) {
+        final title = _runsText(item['title'] as Map<String, dynamic>?) ?? '';
+        if (title.toLowerCase().contains('mix')) {
+          final nav = item['navigationEndpoint'] as Map?;
+          final browse = nav?['browseEndpoint'] as Map?;
+          final playlistId = browse?['browseId']?.toString();
+
+          if (playlistId == null) continue;
+
+          String? imageUrl;
+          final thumbnailRenderer = item['thumbnailRenderer'] as Map?;
+          final musicThumbnailRenderer = thumbnailRenderer?['musicThumbnailRenderer'] as Map?;
+          final thumbnail = musicThumbnailRenderer?['thumbnail'] as Map?;
+          final thumbnails = thumbnail?['thumbnails'];
+          if (thumbnails is List && thumbnails.isNotEmpty) {
+            final lastThumb = thumbnails.last as Map?;
+            imageUrl = lastThumb?['url']?.toString();
+          }
+
+          mixes.add({
+            'playlistId': playlistId,
+            'title': title,
+            'image': imageUrl ?? '',
+          });
+        }
+      }
+      return mixes;
+    } catch (e) {
+      logger.log('Error fetching personalized mixes: $e');
+      return [];
+    }
+  }
+
+  Future<bool> likeSong(String videoId) async {
+    try {
+      await _authenticatedPost('/like/like', {
+        'target': {'videoId': videoId},
+      });
+      return true;
+    } catch (e) {
+      logger.log('Error liking song: $e');
+      return false;
+    }
+  }
+
+  Future<bool> unlikeSong(String videoId) async {
+    try {
+      await _authenticatedPost('/like/removelike', {
+        'target': {'videoId': videoId},
+      });
+      return true;
+    } catch (e) {
+      logger.log('Error unliking song: $e');
+      return false;
+    }
+  }
+
+  Future<bool> reportSongPlayed(String videoId) async {
+    try {
+      await _authenticatedPost('/playback/heartbeat', {
+        'videoId': videoId,
+        'playbackState': 1,
+      });
+      return true;
+    } catch (e) {
+      logger.log('Error reporting song played: $e');
+      return false;
+    }
+  }
+
+  Future<void> syncLikedSongs() async {
+    if (!ytAutoSyncLikes.value) return;
+    try {
+      final ytLikes = await fetchLikedSongs();
+      final localLikes = List<dynamic>.from(userLikedSongsList.value);
+
+      final ytIds = ytLikes.map((e) => e['ytid']?.toString()).whereType<String>().toSet();
+      final localIds = localLikes.map((e) => (e as Map)['ytid']?.toString()).whereType<String>().toSet();
+
+      // Liked locally but not on YT
+      for (final localId in localIds) {
+        if (!ytIds.contains(localId)) {
+          unawaited(likeSong(localId));
+        }
+      }
+
+      // Liked on YT but not locally
+      bool updatedLocal = false;
+      for (final ytSong in ytLikes) {
+        final ytid = ytSong['ytid']?.toString();
+        if (ytid != null && !localIds.contains(ytid)) {
+          localLikes.insert(0, ytSong);
+          updatedLocal = true;
+        }
+      }
+
+      if (updatedLocal) {
+        userLikedSongsList.value = localLikes;
+        unawaited(addOrUpdateData<List>('user', 'likedSongs', localLikes));
+      }
+
+      _updateSyncTime();
+    } catch (e) {
+      logger.log('Error syncing liked songs: $e');
+    }
+  }
+
+  Future<void> syncPlaylists() async {
+    if (!ytAutoSyncPlaylists.value) return;
+    try {
+      final playlists = await fetchUserPlaylists();
+      ytMusicPlaylists.value = playlists;
+      _updateSyncTime();
+    } catch (e) {
+      logger.log('Error syncing playlists: $e');
+    }
+  }
+
+  Future<void> fullSync() async {
+    if (isSyncing.value) return;
+
+    isSyncing.value = true;
+    try {
+      final authService = YouTubeAuthService();
+      if (!authService.isSignedIn.value) {
+        isSyncing.value = false;
+        return;
+      }
+
+      await Future.wait([
+        syncLikedSongs(),
+        syncPlaylists(),
+      ]);
+    } catch (e) {
+      logger.log('Error during full sync: $e');
+    } finally {
+      isSyncing.value = false;
+    }
+  }
+
+  void _updateSyncTime() {
+    final now = DateTime.now();
+    lastSyncTime.value = now;
+    if (Hive.isBoxOpen('settings')) {
+      unawaited(addOrUpdateData<int>('settings', 'lastYtSyncTime', now.millisecondsSinceEpoch));
+    }
+  }
+}

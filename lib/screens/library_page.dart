@@ -31,6 +31,9 @@ import 'package:musify/services/playlist_download_service.dart';
 import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/async_loader.dart';
 import 'package:musify/utilities/flutter_toast.dart';
@@ -137,6 +140,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 ..._buildPinnedSlivers(),
                 ..._buildUserPlaylistsSlivers(),
                 if (!offlineMode.value) ..._buildLikedPlaylistsSlivers(),
+                if (!offlineMode.value) ..._buildYouTubePlaylistsSlivers(),
                 ..._buildLikedArtistsSlivers(),
                 const SliverMiniPlayerBottomSpace(),
               ],
@@ -144,6 +148,109 @@ class _LibraryPageState extends State<LibraryPage> {
           );
         },
       ),
+    );
+  }
+
+  List<Widget> _buildYouTubePlaylistsSlivers() {
+    return [
+      SliverToBoxAdapter(
+        child: ValueListenableBuilder<bool>(
+          valueListenable: YouTubeAuthService().isSignedIn,
+          builder: (context, isSignedIn, _) {
+            if (!isSignedIn) return const SizedBox.shrink();
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SectionHeader(
+                  title: 'YouTube Music Playlists',
+                  icon: CupertinoIcons.play_rectangle,
+                  actionButton: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    child: const Icon(CupertinoIcons.refresh),
+                    onPressed: () {
+                      unawaited(YouTubeMusicSyncService().fullSync());
+                      showToast(context, 'Sync started');
+                    },
+                  ),
+                ),
+                ValueListenableBuilder<List<Map<String, dynamic>>>(
+                  valueListenable: YouTubeMusicSyncService().ytMusicPlaylists,
+                  builder: (context, playlists, _) {
+                    if (playlists.isEmpty) {
+                      return const Padding(
+                        padding: EdgeInsets.all(16.0),
+                        child: Text('No playlists found'),
+                      );
+                    }
+                    return SizedBox(
+                      height: 190,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: playlists.length,
+                        itemBuilder: (context, index) {
+                          final playlist = playlists[index];
+                          final title = playlist['title'] ?? 'Unknown';
+                          final image = playlist['image'] ?? '';
+                          final count = playlist['count'] ?? 0;
+                          
+                          return GestureDetector(
+                            onTap: () {
+                      showToast(context, 'Coming soon');
+                            },
+                            child: Container(
+                              width: 140,
+                              margin: const EdgeInsets.only(right: 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(12),
+                                    child: image.toString().isNotEmpty
+                                        ? Image.network(
+                                            image.toString(),
+                                            width: 140,
+                                            height: 140,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => _buildFallbackImage(),
+                                          )
+                                        : _buildFallbackImage(),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    title.toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.w500),
+                                  ),
+                                  Text(
+                                    '$count tracks',
+                                    style: Theme.of(context).textTheme.bodySmall,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    ];
+  }
+
+  Widget _buildFallbackImage() {
+    return Container(
+      width: 140,
+      height: 140,
+      color: Colors.grey[800],
+      child: const Icon(CupertinoIcons.music_note_list, size: 40),
     );
   }
 

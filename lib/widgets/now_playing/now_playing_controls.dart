@@ -31,7 +31,7 @@ import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/widgets/now_playing/marquee_text_widget.dart';
-import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
+
 import 'package:musify/widgets/playback_icon_button.dart';
 import 'package:musify/widgets/position_slider.dart';
 
@@ -111,8 +111,7 @@ class NowPlayingControls extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  const SizedBox(height: 8),
-                  AudioQualityBadge(metadata: metadata),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -195,11 +194,6 @@ class PlayerControlButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final responsiveIconSize = screenWidth < 360 ? iconSize * 0.85 : iconSize;
-    final responsiveMiniIconSize = screenWidth < 360
-        ? miniIconSize * 0.85
-        : miniIconSize;
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
@@ -211,13 +205,7 @@ class PlayerControlButtons extends StatelessWidget {
             : isTight
             ? 14.0
             : 20.0;
-        final buttonSpacing = isUltraTight
-            ? 6.0
-            : isTight
-            ? 10.0
-            : screenWidth < 360
-            ? 8.0
-            : 16.0;
+        const buttonSpacing = 24.0;
         final minButtonSize = isUltraTight
             ? 38.0
             : isTight
@@ -236,29 +224,11 @@ class PlayerControlButtons extends StatelessWidget {
           minHeight: minButtonSize,
         );
 
-        final controlIconSize =
-            responsiveIconSize *
-            (isUltraTight
-                ? 0.75
-                : isTight
-                ? 0.85
-                : 1.0);
-        final miniControlSize =
-            responsiveMiniIconSize *
-            (isUltraTight
-                ? 0.8
-                : isTight
-                ? 0.9
-                : 1.0);
-        final playPadding = EdgeInsets.all(
-          responsiveIconSize *
-              (isUltraTight
-                  ? 0.35
-                  : isTight
-                  ? 0.42
-                  : 0.50),
+        const controlIconSize = 28.0;
+        const miniControlSize = 20.0;
+        const playPadding = EdgeInsets.all(
+          (52.0 - 28.0) / 2, // to make total size 52
         );
-
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
           child: Row(
@@ -498,22 +468,16 @@ class _PlaybackControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(
+    return CupertinoButton(
+      padding: buttonPadding,
+      minimumSize: Size(minButtonSize, minButtonSize),
+      onPressed: isEnabled ? onPressed : null,
+      child: Icon(
         icon,
         color: isEnabled
             ? colorScheme.onSurface
             : colorScheme.onSurface.withValues(alpha: 0.3),
-        size: controlIconSize * 0.75,
-      ),
-      tooltip: tooltip,
-      constraints: buttonConstraints,
-      onPressed: isEnabled ? onPressed : null,
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.transparent,
-        disabledBackgroundColor: Colors.transparent,
-        padding: buttonPadding,
-        minimumSize: Size(minButtonSize, minButtonSize),
+        size: controlIconSize,
       ),
     );
   }

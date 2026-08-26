@@ -42,6 +42,7 @@ import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/services/source_resolver.dart';
+import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/theme/app_themes.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/language_utils.dart';
@@ -299,6 +300,7 @@ Future<void> initialisation() async {
       Hive.openBox('user'),
       Hive.openBox('userNoBackup'),
       Hive.openBox('cache'),
+      Hive.openBox('youtube_auth'),
     ]);
     // Restore persisted settings into ValueNotifiers + theme globals
     reloadSettingsFromStorage();
@@ -306,6 +308,8 @@ Future<void> initialisation() async {
     reloadSongLibraryStateFromStorage();
     reloadPlaylistsStateFromStorage();
     OfflinePlaylistService().reloadOfflinePlaylistsFromStorage();
+    // Restore YouTube Music session if previously signed in
+    YouTubeAuthService().restoreSession();
   } catch (e, stackTrace) {
     logger.log('Hive Initialization Error', error: e, stackTrace: stackTrace);
   }

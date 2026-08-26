@@ -41,8 +41,8 @@ Widget buildPlaybackIconButton(
       onPressed: null,
       color: backgroundColor,
       padding: padding ?? EdgeInsets.all(iconSize * 0.35),
-      minimumSize: Size(iconSize * 2, iconSize * 2),
-      borderRadius: BorderRadius.circular(iconSize),
+      minimumSize: const Size(40, 40),
+      borderRadius: BorderRadius.circular(100),
       child: CupertinoActivityIndicator(
         radius: iconSize * 0.5,
         color: iconColor,
@@ -102,8 +102,8 @@ Widget buildPlaybackIconButton(
         onPressed: onPressed,
         color: backgroundColor,
         padding: padding ?? EdgeInsets.all(iconSize * 0.35),
-        minimumSize: Size(iconSize * 2, iconSize * 2),
-        borderRadius: BorderRadius.circular(iconSize),
+        minimumSize: const Size(40, 40),
+        borderRadius: BorderRadius.circular(100),
         child: Semantics(label: semanticLabel, button: true, child: iconWidget),
       );
     },

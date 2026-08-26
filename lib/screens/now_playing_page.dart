@@ -58,100 +58,97 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          StreamBuilder<MediaItem?>(
-            stream: audioHandler.mediaItem,
-            builder: (context, snapshot) {
-              final metadata = snapshot.data;
-              if (metadata == null) return const SizedBox.shrink();
-              return Positioned.fill(
-                child: SongArtworkWidget(
-                  metadata: metadata,
-                  size: size.height,
-                  errorWidgetIconSize: size.width / 8,
-                  borderRadius: 0,
-                ),
-              );
-            },
-          ),
-          Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
-              child: Container(
-                color: theme.brightness == Brightness.dark
-                    ? Colors.black.withValues(alpha: 0.5)
-                    : Colors.white.withValues(alpha: 0.3),
-              ),
-            ),
-          ),
-          SafeArea(
-            child: StreamBuilder<MediaItem?>(
+      body: GestureDetector(
+        onVerticalDragEnd: (details) {
+          if ((details.primaryVelocity ?? 0) > 300) {
+            Navigator.pop(context);
+          }
+        },
+        child: Stack(
+          children: [
+            StreamBuilder<MediaItem?>(
               stream: audioHandler.mediaItem,
               builder: (context, snapshot) {
                 final metadata = snapshot.data;
-                if (metadata == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                return Column(
-                  children: [
-                    _buildAppBar(context, colorScheme),
-                    Expanded(
-                      child: isLargeScreen
-                          ? _DesktopLayout(
-                              metadata: metadata,
-                              size: size,
-                              adjustedIconSize: baseIconSize,
-                              adjustedMiniIconSize: miniIconSize,
-                              lyricsController: _lyricsController,
-                            )
-                          : _MobileLayout(
-                              metadata: metadata,
-                              size: size,
-                              adjustedIconSize: baseIconSize,
-                              adjustedMiniIconSize: miniIconSize,
-                              isLargeScreen: isLargeScreen,
-                              lyricsController: _lyricsController,
-                            ),
-                    ),
-                  ],
+                if (metadata == null) return const SizedBox.shrink();
+                return Positioned.fill(
+                  child: SongArtworkWidget(
+                    metadata: metadata,
+                    size: size.height,
+                    errorWidgetIconSize: size.width / 8,
+                    borderRadius: 0,
+                  ),
                 );
               },
             ),
-          ),
-        ],
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 80, sigmaY: 80),
+                child: Container(
+                  color: theme.brightness == Brightness.dark
+                      ? Colors.black.withValues(alpha: 0.5)
+                      : Colors.white.withValues(alpha: 0.3),
+                ),
+              ),
+            ),
+            SafeArea(
+              child: StreamBuilder<MediaItem?>(
+                stream: audioHandler.mediaItem,
+                builder: (context, snapshot) {
+                  final metadata = snapshot.data;
+                  if (metadata == null) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  return Column(
+                    children: [
+                      _buildAppBar(context, colorScheme),
+                      Expanded(
+                        child: isLargeScreen
+                            ? _DesktopLayout(
+                                metadata: metadata,
+                                size: size,
+                                adjustedIconSize: baseIconSize,
+                                adjustedMiniIconSize: miniIconSize,
+                                lyricsController: _lyricsController,
+                              )
+                            : _MobileLayout(
+                                metadata: metadata,
+                                size: size,
+                                adjustedIconSize: baseIconSize,
+                                adjustedMiniIconSize: miniIconSize,
+                                isLargeScreen: isLargeScreen,
+                                lyricsController: _lyricsController,
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
-      child: SizedBox(
-        height: 44,
-        child: Row(
-          children: [
-            IconButton(
-              iconSize: 22,
-              icon: const Icon(CupertinoIcons.chevron_down),
-              color: colorScheme.onSurface,
-              tooltip: 'Close player',
-              onPressed: () => Navigator.pop(context),
+      padding: const EdgeInsets.only(top: 12, bottom: 8),
+      child: Center(
+        child: GestureDetector(
+          onVerticalDragEnd: (details) {
+            if (details.primaryVelocity! > 300) {
+              Navigator.pop(context);
+            }
+          },
+          child: Container(
+            width: 36,
+            height: 5,
+            decoration: BoxDecoration(
+              color: Colors.white38,
+              borderRadius: BorderRadius.circular(2.5),
             ),
-            const Expanded(
-              child: Center(
-                child: Text(
-                  'Now Playing',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 48),
-          ],
+          ),
         ),
       ),
     );
@@ -253,7 +250,7 @@ class _MobileLayout extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         children: [
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
           Expanded(
             flex: 7,
             child: Center(

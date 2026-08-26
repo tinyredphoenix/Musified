@@ -19,10 +19,16 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:hive/hive.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
+import 'package:musify/screens/youtube_auth_webview.dart';
 import 'package:musify/constants/app_constants.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
@@ -61,6 +67,7 @@ class SettingsPage extends StatelessWidget {
         padding: commonSingleChildScrollViewPadding,
         child: Column(
           children: <Widget>[
+            _buildYouTubeMusicSection(context),
             _buildPreferencesSection(
               context,
               primaryColor,
@@ -75,6 +82,188 @@ class SettingsPage extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildYouTubeMusicSection(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: YouTubeAuthService().isSignedIn,
+      builder: (context, isSignedIn, _) {
+        if (!isSignedIn) {
+          return Column(
+            children: [
+              const SectionHeader(
+                title: 'YouTube Music Account',
+                icon: CupertinoIcons.music_note,
+              ),
+              Card(
+                margin: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      const Icon(CupertinoIcons.music_note_2, size: 48),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'YouTube Music',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Sign in to sync liked songs, playlists, and history',
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 16),
+                      CupertinoButton.filled(
+                        child: const Text('Sign In'),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const YouTubeAuthWebView(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            const SectionHeader(
+              title: 'YouTube Music Account',
+              icon: CupertinoIcons.person_crop_circle,
+            ),
+            ValueListenableBuilder<String?>(
+              valueListenable: YouTubeAuthService().userName,
+              builder: (context, name, _) {
+                return ValueListenableBuilder<String?>(
+                  valueListenable: YouTubeAuthService().userEmail,
+                  builder: (context, email, _) {
+                    return ValueListenableBuilder<String?>(
+                      valueListenable: YouTubeAuthService().userAvatarUrl,
+                      builder: (context, avatarUrl, _) {
+                        return ListTile(
+                          leading: avatarUrl != null
+                              ? CircleAvatar(backgroundImage: NetworkImage(avatarUrl))
+                              : const Icon(CupertinoIcons.person_crop_circle, size: 40),
+                          title: Text(name ?? 'YouTube User'),
+                          subtitle: Text(email ?? ''),
+                        );
+                      }
+                    );
+                  }
+                );
+              }
+            ),
+            ValueListenableBuilder<DateTime?>(
+              valueListenable: YouTubeMusicSyncService().lastSyncTime,
+              builder: (context, lastSync, _) {
+                String syncText = 'Never';
+                if (lastSync != null) {
+                  final diff = DateTime.now().difference(lastSync);
+                  if (diff.inDays > 0) {
+                    syncText = '${diff.inDays} days ago';
+                  } else if (diff.inHours > 0) {
+                    syncText = '${diff.inHours} hours ago';
+                  } else if (diff.inMinutes > 0) {
+                    syncText = '${diff.inMinutes} minutes ago';
+                  } else {
+                    syncText = 'Just now';
+                  }
+                }
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    children: [
+                      Text('Last synced: $syncText', style: Theme.of(context).textTheme.bodySmall),
+                    ],
+                  ),
+                );
+              },
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: ytAutoSyncLikes,
+              builder: (context, value, _) {
+                return CustomBar(
+                  'Auto-sync liked songs',
+                  CupertinoIcons.heart,
+                  trailing: CupertinoSwitch(
+                    value: value,
+                    onChanged: (val) {
+                      ytAutoSyncLikes.value = val;
+                      Hive.box('settings').put('ytAutoSyncLikes', val);
+                    },
+                  ),
+                );
+              },
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: ytAutoSyncPlaylists,
+              builder: (context, value, _) {
+                return CustomBar(
+                  'Auto-sync playlists',
+                  CupertinoIcons.music_note_list,
+                  trailing: CupertinoSwitch(
+                    value: value,
+                    onChanged: (val) {
+                      ytAutoSyncPlaylists.value = val;
+                      Hive.box('settings').put('ytAutoSyncPlaylists', val);
+                    },
+                  ),
+                );
+              },
+            ),
+            ValueListenableBuilder<bool>(
+              valueListenable: ytReportHistory,
+              builder: (context, value, _) {
+                return CustomBar(
+                  'Report play history',
+                  CupertinoIcons.clock,
+                  trailing: CupertinoSwitch(
+                    value: value,
+                    onChanged: (val) {
+                      ytReportHistory.value = val;
+                      Hive.box('settings').put('ytReportHistory', val);
+                    },
+                  ),
+                );
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  CupertinoButton.filled(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: const Text('Sync Now'),
+                    onPressed: () {
+                      unawaited(YouTubeMusicSyncService().fullSync());
+                      showToast(context, 'Sync started');
+                    },
+                  ),
+                  CupertinoButton(
+                    color: Theme.of(context).colorScheme.error,
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                    child: const Text('Sign Out'),
+                    onPressed: () {
+                      YouTubeAuthService().signOut();
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
     );
   }
 

@@ -19,6 +19,8 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -149,28 +151,33 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                           brightness: Theme.of(context).brightness,
                           primaryColor: Theme.of(context).colorScheme.primary,
                         ),
-                        child: CupertinoTabBar(
-                          currentIndex: _getCurrentIndex(items, isOfflineMode),
-                          onTap: (index) => _onTabTapped(index, items),
-                          activeColor: Theme.of(context).colorScheme.primary,
-                          inactiveColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
-                          backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.88),
-                          iconSize: 23,
-                          border: Border(
-                            top: BorderSide(
-                              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
-                              width: 0.5,
+                        child: ClipRect(
+                          child: BackdropFilter(
+                            filter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                            child: CupertinoTabBar(
+                              currentIndex: _getCurrentIndex(items, isOfflineMode),
+                              onTap: (index) => _onTabTapped(index, items),
+                              activeColor: Theme.of(context).colorScheme.primary,
+                              inactiveColor: Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                              backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
+                              iconSize: 23,
+                              border: Border(
+                                top: BorderSide(
+                                  color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+                                  width: 0.5,
+                                ),
+                              ),
+                              items: items
+                                  .map(
+                                    (item) => BottomNavigationBarItem(
+                                      icon: Icon(item.icon),
+                                      activeIcon: Icon(item.selectedIcon),
+                                      label: item.label,
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ),
-                          items: items
-                              .map(
-                                (item) => BottomNavigationBarItem(
-                                  icon: Icon(item.icon),
-                                  activeIcon: Icon(item.selectedIcon),
-                                  label: item.label,
-                                ),
-                              )
-                              .toList(),
                         ),
                       )
                     : null,

@@ -277,25 +277,17 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     final button = ValueListenableBuilder<bool>(
       valueListenable: statusNotifier,
       builder: (_, isActive, __) {
-        return IconButton(
-          icon: Icon(
+        return CupertinoButton(
+          padding: const EdgeInsets.all(8),
+          minimumSize: const Size(40, 40),
+          onPressed: onPressed,
+          child: Icon(
             isActive ? activeIcon : icon,
             color: isActive
                 ? (activeColor ?? colorScheme.primary)
                 : colorScheme.onSurfaceVariant,
+            size: 22,
           ),
-          iconSize: size,
-          tooltip: tooltip,
-          style: IconButton.styleFrom(
-            backgroundColor: isActive
-                ? (activeColor ?? colorScheme.primary).withValues(alpha: 0.15)
-                : Colors.transparent,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
-          onPressed: onPressed,
         );
       },
     );
@@ -321,15 +313,15 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     required VoidCallback onPressed,
     String? tooltip,
   }) {
-    return IconButton(
-      icon: Icon(icon, color: colorScheme.onSurfaceVariant),
-      iconSize: size,
-      tooltip: tooltip,
-      style: IconButton.styleFrom(
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+    return CupertinoButton(
+      padding: const EdgeInsets.all(8),
+      minimumSize: const Size(40, 40),
       onPressed: onPressed,
+      child: Icon(
+        icon,
+        color: colorScheme.onSurfaceVariant,
+        size: 22,
+      ),
     );
   }
 
@@ -342,26 +334,9 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
       valueListenable: sleepTimerNotifier,
       builder: (_, value, __) {
         final isActive = value != null;
-        return IconButton(
-          icon: Icon(
-            isActive
-                ? FluentIcons.timer_24_filled
-                : FluentIcons.timer_24_regular,
-            color: isActive
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-          ),
-          iconSize: size,
-          tooltip: context.l10n.sleepTimer,
-          style: IconButton.styleFrom(
-            backgroundColor: isActive
-                ? colorScheme.primary.withValues(alpha: 0.15)
-                : Colors.transparent,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        return CupertinoButton(
+          padding: const EdgeInsets.all(8),
+          minimumSize: const Size(40, 40),
           onPressed: () {
             if (isActive) {
               audioHandler.cancelSleepTimer();
@@ -375,6 +350,15 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
               _showSleepTimerDialog(context);
             }
           },
+          child: Icon(
+            isActive
+                ? FluentIcons.timer_24_filled
+                : FluentIcons.timer_24_regular,
+            color: isActive
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+            size: 22,
+          ),
         );
       },
     );

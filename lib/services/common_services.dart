@@ -38,6 +38,8 @@ import 'package:musify/services/source_resolver.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
+import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 
 List globalSongs = [];
 
@@ -389,6 +391,14 @@ Future<void> updateSongLikeStatus(
       return;
 
     userLikedSongsList.value = updatedLikedSongs;
+    // Sync like/unlike to YouTube Music if authenticated
+    if (YouTubeAuthService().isSignedIn.value && ytAutoSyncLikes.value) {
+      unawaited(
+        add
+            ? YouTubeMusicSyncService().likeSong(normalizedSongId)
+            : YouTubeMusicSyncService().unlikeSong(normalizedSongId),
+      );
+    }
     unawaited(
       addOrUpdateData<List>('user', 'likedSongs', userLikedSongsList.value),
     );
@@ -1288,6 +1298,10 @@ Future<void> updateRecentlyPlayed(dynamic songId, {Map? songFallback}) async {
           userRecentlyPlayed.value,
         ),
       );
+      // Report playback to YouTube Music history (even if streamed via JioSaavn)
+      if (YouTubeAuthService().isSignedIn.value && ytReportHistory.value) {
+        unawaited(YouTubeMusicSyncService().reportSongPlayed(songId.toString()));
+      }
       return;
     }
 
@@ -1331,6 +1345,10 @@ Future<void> updateRecentlyPlayed(dynamic songId, {Map? songFallback}) async {
         userRecentlyPlayed.value,
       ),
     );
+    // Report playback to YouTube Music history (even if streamed via JioSaavn)
+    if (YouTubeAuthService().isSignedIn.value && ytReportHistory.value) {
+      unawaited(YouTubeMusicSyncService().reportSongPlayed(songId.toString()));
+    }
   } catch (e, stackTrace) {
     logger.log(
       'Error updating recently played',

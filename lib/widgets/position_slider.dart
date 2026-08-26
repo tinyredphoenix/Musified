@@ -19,7 +19,10 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'dart:ui' as ui;
+
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/position_data.dart';
@@ -101,7 +104,7 @@ class _PositionSliderState extends State<PositionSlider> {
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Slider(
+                CupertinoSlider(
                   value: currentValue.clamp(0.0, maxDuration),
                   onChanged: (value) {
                     setState(() {
@@ -116,8 +119,7 @@ class _PositionSliderState extends State<PositionSlider> {
                     });
                   },
                   max: maxDuration,
-                  semanticFormatterCallback: (value) =>
-                      formatDuration((value / 1000).round()),
+                  activeColor: Theme.of(context).colorScheme.primary,
                 ),
                 _buildPositionRow(context, displayPositionData),
               ],
@@ -150,7 +152,8 @@ class _PositionSliderState extends State<PositionSlider> {
           Text(
             positionText,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
+              fontFeatures: const [ui.FontFeature.tabularFigures()],
               color: Theme.of(
                 context,
               ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
@@ -160,7 +163,8 @@ class _PositionSliderState extends State<PositionSlider> {
           Text(
             remainingText,
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 11,
+              fontFeatures: const [ui.FontFeature.tabularFigures()],
               color: Theme.of(
                 context,
               ).colorScheme.onSurfaceVariant.withValues(alpha: 0.8),

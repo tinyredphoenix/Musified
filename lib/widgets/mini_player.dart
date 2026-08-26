@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'dart:math' as math;
+
 import 'dart:ui' as ui;
 
 import 'package:audio_service/audio_service.dart';
@@ -49,7 +49,7 @@ Stream<FullPlayerState> get _fullPlayerStateStream {
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
 
-  static const double playerHeight = 72;
+  static const double playerHeight = 64;
   static const double _borderRadius = 16;
   static const double _artworkSize = 52;
   static const double _artworkRadius = 14;
@@ -248,10 +248,10 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                       ),
                       Positioned(
                         top: 0,
-                        left: 12,
-                        right: 12,
+                        left: 0,
+                        right: 0,
                         child: SizedBox(
-                          height: 1.5,
+                          height: 1.0,
                           child: LinearProgressIndicator(
                             value: progress,
                             backgroundColor: Colors.transparent,
@@ -407,20 +407,45 @@ class _ControlsWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPlaying = playbackState.playing;
+    final isCompleted = playbackState.processingState == AudioProcessingState.completed;
+    final isLoading = playbackState.processingState == AudioProcessingState.loading || 
+                      playbackState.processingState == AudioProcessingState.buffering;
+
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _CircularPlayButton(
-          colorScheme: colorScheme,
-          playbackState: playbackState,
-          progress: progress,
-        ),
+        if (isLoading)
+          CupertinoButton(
+            onPressed: audioHandler.stop,
+            padding: const EdgeInsets.all(8),
+            minimumSize: const Size(40, 40),
+            child: CupertinoActivityIndicator(
+              radius: 11,
+              color: colorScheme.onSurface,
+            ),
+          )
+        else
+          CupertinoButton(
+            onPressed: isCompleted
+                ? () => audioHandler.playAgain()
+                : (isPlaying ? audioHandler.pause : audioHandler.play),
+            padding: const EdgeInsets.all(8),
+            minimumSize: const Size(40, 40),
+            child: Icon(
+              isCompleted
+                  ? CupertinoIcons.arrow_counterclockwise
+                  : (isPlaying ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill),
+              color: colorScheme.onSurface,
+              size: 24,
+            ),
+          ),
         if (hasNext) ...[
           const SizedBox(width: 4),
           CupertinoButton(
             onPressed: audioHandler.skipToNext,
-            padding: const EdgeInsets.all(6),
-            minimumSize: const Size(36, 36),
+            padding: const EdgeInsets.all(8),
+            minimumSize: const Size(40, 40),
             child: Icon(
               CupertinoIcons.forward_fill,
               color: colorScheme.onSurfaceVariant,
@@ -431,149 +456,4 @@ class _ControlsWidget extends StatelessWidget {
       ],
     );
   }
-}
-
-class _CircularPlayButton extends StatelessWidget {
-  const _CircularPlayButton({
-    required this.colorScheme,
-    required this.playbackState,
-    required this.progress,
-  });
-
-  final ColorScheme colorScheme;
-  final PlaybackState playbackState;
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final processingState = playbackState.processingState;
-    final isPlaying = playbackState.playing;
-    final isLoading =
-        processingState == AudioProcessingState.loading ||
-        processingState == AudioProcessingState.buffering;
-    final isCompleted = processingState == AudioProcessingState.completed;
-
-    return SizedBox(
-      width: 48,
-      height: 48,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CustomPaint(
-            size: const Size(48, 48),
-            painter: _CircularProgressPainter(
-              progress: progress,
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              progressColor: colorScheme.primary,
-              strokeWidth: 3,
-            ),
-          ),
-          if (isLoading)
-            Tooltip(
-              message: 'Cancel loading',
-              child: CupertinoButton(
-                onPressed: audioHandler.stop,
-                padding: const EdgeInsets.all(8),
-                minimumSize: const Size(40, 40),
-                child: CupertinoActivityIndicator(
-                  radius: 12,
-                  color: colorScheme.primary,
-                ),
-              ),
-            )
-          else
-            CupertinoButton(
-              onPressed: isCompleted
-                  ? () => audioHandler.playAgain()
-                  : (isPlaying ? audioHandler.pause : audioHandler.play),
-              padding: const EdgeInsets.all(8),
-              minimumSize: const Size(40, 40),
-              child: Icon(
-                isCompleted
-                    ? CupertinoIcons.arrow_counterclockwise
-                    : (isPlaying
-                          ? CupertinoIcons.pause_fill
-                          : CupertinoIcons.play_fill),
-                color: colorScheme.primary,
-                size: 22,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CircularProgressPainter extends CustomPainter {
-  _CircularProgressPainter({
-    required this.progress,
-    required this.backgroundColor,
-    required this.progressColor,
-    required this.strokeWidth,
-  });
-
-  final double progress;
-  final Color backgroundColor;
-  final Color progressColor;
-  final double strokeWidth;
-
-  final waveAmplitude = 1.5;
-  final waveFrequency = 12.0;
-  final animationValue = 0.0;
-
-  Path _buildWavyArcPath(Size size, double startAngle, double sweepAngle) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final baseRadius = (size.width - strokeWidth) / 2;
-    final steps = (sweepAngle.abs() * 180 / math.pi).round().clamp(4, 720);
-    final path = Path();
-
-    for (var i = 0; i <= steps; i++) {
-      final t = i / steps;
-      final angle = startAngle + sweepAngle * t;
-      final wave =
-          waveAmplitude * math.sin(waveFrequency * angle + animationValue);
-      final r = baseRadius + wave;
-      final x = cx + r * math.cos(angle);
-      final y = cy + r * math.sin(angle);
-      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
-    }
-    return path;
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final trackPaint = Paint()
-      ..color = backgroundColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    canvas.drawPath(
-      _buildWavyArcPath(size, -math.pi / 2, 2 * math.pi),
-      trackPaint,
-    );
-
-    if (progress > 0) {
-      final progressPaint = Paint()
-        ..color = progressColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-
-      canvas.drawPath(
-        _buildWavyArcPath(size, -math.pi / 2, 2 * math.pi * progress),
-        progressPaint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CircularProgressPainter old) =>
-      old.progress != progress ||
-      old.backgroundColor != backgroundColor ||
-      old.progressColor != progressColor ||
-      old.animationValue != animationValue;
 }
