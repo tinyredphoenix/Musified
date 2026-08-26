@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:dart_des/dart_des.dart';
 import 'package:http/http.dart' as http;
-import 'package:pointycastle/export.dart' as pc;
 
 class JioSaavnService {
   factory JioSaavnService() => _instance;
@@ -13,7 +13,9 @@ class JioSaavnService {
     try {
       final url = Uri.parse(
           'https://www.jiosaavn.com/api.php?__call=search.getResults&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=$limit&q=${Uri.encodeComponent(query)}');
-      final response = await http.get(url);
+      final response = await http.get(url, headers: {
+        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
+      });
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
         if (json['results'] != null) {
@@ -43,10 +45,8 @@ class JioSaavnService {
     final key = utf8.encode('38346591');
     final input = base64Decode(encryptedUrl);
 
-    final cipher = pc.PaddedBlockCipher('DES/ECB/PKCS7')
-      ..init(false, pc.PaddedBlockCipherParameters(pc.KeyParameter(key), null));
-
-    final decrypted = cipher.process(input);
+    final des = DES(key: key, paddingType: DESPaddingType.PKCS7);
+    final decrypted = des.decrypt(input);
     return utf8.decode(decrypted);
   }
 

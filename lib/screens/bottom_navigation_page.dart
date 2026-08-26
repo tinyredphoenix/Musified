@@ -143,43 +143,35 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                   ),
                 ),
                 bottomNavigationBar: !isLargeScreen
-                    ? Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.25),
+                    ? DecoratedBox(
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(
+                              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.2),
+                              width: 0.5,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.18),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
-                            child: BackdropFilter(
-                              filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                              child: NavigationBar(
-                                height: 60,
-                                backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.65),
-                                elevation: 0,
-                                selectedIndex: _getCurrentIndex(items, isOfflineMode),
-                                onDestinationSelected: (index) =>
-                                    _onTabTapped(index, items),
-                                destinations: items
-                                    .map(
-                                      (item) => NavigationDestination(
-                                        icon: Icon(item.icon, size: 22),
-                                        selectedIcon: Icon(item.selectedIcon, size: 22),
-                                        label: item.label,
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
+                        ),
+                        child: ClipRect(
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                            child: NavigationBar(
+                              height: 54,
+                              backgroundColor: Theme.of(context).colorScheme.surface.withValues(alpha: 0.75),
+                              elevation: 0,
+                              indicatorColor: Colors.transparent,
+                              selectedIndex: _getCurrentIndex(items, isOfflineMode),
+                              onDestinationSelected: (index) =>
+                                  _onTabTapped(index, items),
+                              destinations: items
+                                  .map(
+                                    (item) => NavigationDestination(
+                                      icon: Icon(item.icon, size: 22),
+                                      selectedIcon: Icon(item.selectedIcon, size: 22, color: Theme.of(context).colorScheme.primary),
+                                      label: item.label,
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ),
                         ),
