@@ -1838,8 +1838,14 @@ class MusifyAudioHandler extends BaseAudioHandler {
         listeningStatsService.recordListeningSessionProgress(
           wasPlaying: audioPlayer.playing,
         );
-        await audioPlayer.pause();
       }
+      await audioPlayer.stop();
+
+      _emitOptimisticLoadingState(
+        song: songData,
+        includeMediaItem: true,
+        mediaId: mediaId,
+      );
 
       final playback = await _resolvePlaybackSource(songData);
 
@@ -1857,12 +1863,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
         _lastError = 'Failed to get song URL';
         return false;
       }
-
-      _emitOptimisticLoadingState(
-        song: songData,
-        includeMediaItem: true,
-        mediaId: mediaId,
-      );
 
       final audioSource = await buildAudioSource(
         songData,

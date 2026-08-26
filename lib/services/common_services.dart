@@ -78,7 +78,7 @@ void reloadSongLibraryStateFromStorage() {
 }
 
 // Timeouts and durations used across manifest fetching and cache validation.
-const Duration _manifestTimeout = Duration(seconds: 30);
+const Duration _manifestTimeout = Duration(seconds: 8);
 const Duration _cacheValidationDuration = Duration(hours: 1);
 
 /// Fetches a stream manifest for a song, honoring proxy settings.
@@ -92,7 +92,7 @@ Future<StreamManifest?> _fetchStreamManifest(String songId) async {
         .getManifest(songId, ytClients: customClients)
         .timeout(_manifestTimeout);
   } catch (e) {
-    return ytClient.videos.streams
+    return await ytClient.videos.streams
         .getManifest(songId)
         .timeout(_manifestTimeout);
   }
