@@ -23,7 +23,6 @@ import 'dart:async';
 
 import 'package:app_links/app_links.dart';
 import 'package:audio_service/audio_service.dart';
-import 'package:dynamic_color/dynamic_color.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -42,14 +41,11 @@ import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/services/source_resolver.dart';
-import 'package:musify/services/update_manager.dart';
 import 'package:musify/theme/app_themes.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/language_utils.dart';
 import 'package:musify/utilities/playlist_utils.dart';
-import 'package:musify/utilities/sharing_intent.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 
 MusifyAudioHandler? _audioHandlerInstance;
 MusifyAudioHandler get audioHandler {
@@ -60,13 +56,8 @@ MusifyAudioHandler get audioHandler {
 
 bool get isAudioHandlerInitialized => _audioHandlerInstance != null;
 
-late StreamSubscription<String?> sharingIntentSubscription;
-
 final logger = Logger();
 final appLinks = AppLinks();
-
-bool isFdroidBuild = false;
-bool isUpdateChecked = false;
 
 class Musify extends StatefulWidget {
   const Musify({super.key});
@@ -141,31 +132,6 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
     offlineMode.addListener(_onOfflineModeChanged);
 
-    if (isAudioHandlerInitialized) {
-      sharingIntentSubscription = ReceiveSharingIntent.getTextStream().listen(
-        (String? value) async {
-          await consumeYoutubeSharedTextIntent(
-            value,
-            audioHandler: audioHandler,
-            onError: (error, stackTrace) {
-              logger.log(
-                'Error while playing shared song:',
-                error: error,
-                stackTrace: stackTrace,
-              );
-            },
-          );
-        },
-        onError: (err) {
-          logger.log('getTextStream error:', error: err);
-        },
-      );
-    } else {
-      // Create dummy subscription so dispose doesn't crash
-      sharingIntentSubscription =
-          const Stream<String?>.empty().listen((_) {});
-    }
-
     try {
       LicenseRegistry.addLicense(() async* {
         final license = await rootBundle.loadString(
@@ -180,16 +146,11 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
         stackTrace: stackTrace,
       );
     }
-
-
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Persist listening stats when the app leaves the foreground. This is the
-    // reliable moment to snapshot and flush: unlike widget dispose, these
-    // callbacks are delivered before the OS suspends or terminates the process.
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden ||
@@ -209,7 +170,6 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
     offlineMode.removeListener(_onOfflineModeChanged);
 
     Hive.close();
-    sharingIntentSubscription.cancel();
     super.dispose();
   }
 
@@ -220,42 +180,35 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return DynamicColorBuilder(
-      builder: (lightColorScheme, darkColorScheme) {
-        final colorScheme = getAppColorScheme(
-          lightColorScheme,
-          darkColorScheme,
-        );
+    final colorScheme = getAppColorScheme(null, null);
 
-        return AnnotatedRegion<SystemUiOverlayStyle>(
-          value: SystemUiOverlayStyle(
-            statusBarColor: Colors.transparent,
-            systemNavigationBarColor: Colors.transparent,
-            systemNavigationBarContrastEnforced: true,
-            statusBarBrightness: brightness == Brightness.dark
-                ? Brightness.light
-                : Brightness.dark,
-            statusBarIconBrightness: brightness == Brightness.dark
-                ? Brightness.light
-                : Brightness.dark,
-            systemNavigationBarIconBrightness: brightness == Brightness.dark
-                ? Brightness.light
-                : Brightness.dark,
-          ),
-          child: MaterialApp.router(
-            themeMode: themeMode,
-            darkTheme: getAppTheme(colorScheme),
-            theme: getAppTheme(colorScheme),
-            localizationsDelegates: [
-              AppLocalizations.delegate,
-              ...GlobalMaterialLocalizations.delegates,
-            ],
-            supportedLocales: appSupportedLocales,
-            locale: languageSetting,
-            routerConfig: NavigationManager.router,
-          ),
-        );
-      },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: Colors.transparent,
+        systemNavigationBarContrastEnforced: true,
+        statusBarBrightness: brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
+        statusBarIconBrightness: brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
+        systemNavigationBarIconBrightness: brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
+      ),
+      child: MaterialApp.router(
+        themeMode: themeMode,
+        darkTheme: getAppTheme(colorScheme),
+        theme: getAppTheme(colorScheme),
+        localizationsDelegates: const [
+          AppLocalizations.delegate,
+          ...GlobalMaterialLocalizations.delegates,
+        ],
+        supportedLocales: appSupportedLocales,
+        locale: languageSetting,
+        routerConfig: NavigationManager.router,
+      ),
     );
   }
 }
@@ -403,17 +356,6 @@ Future<void> initialisation() async {
     logger.log('Failed to get initial uri');
   } catch (e, stackTrace) {
     logger.log('AppLinks listen error', error: e, stackTrace: stackTrace);
-  }
-
-  // Wrap F-Droid announce check so it never blocks
-  if (isFdroidBuild) {
-    try {
-      if (!offlineMode.value) {
-        await fetchAnnouncementOnly();
-      }
-    } catch (e, stackTrace) {
-      logger.log('Announcement fetch error', error: e, stackTrace: stackTrace);
-    }
   }
 }
 

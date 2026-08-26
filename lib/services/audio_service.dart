@@ -39,42 +39,13 @@ import 'package:rxdart/rxdart.dart';
 
 class MusifyAudioHandler extends BaseAudioHandler {
   MusifyAudioHandler() {
-    _androidEqualizer = AndroidEqualizer();
-    if (Platform.isAndroid) {
-      audioPlayer = AudioPlayer(
-        audioPipeline: AudioPipeline(androidAudioEffects: [_androidEqualizer]),
-        audioLoadConfiguration: const AudioLoadConfiguration(
-          androidLoadControl: AndroidLoadControl(
-            maxBufferDuration: Duration(seconds: 60),
-            bufferForPlaybackDuration: Duration(milliseconds: 500),
-            bufferForPlaybackAfterRebufferDuration: Duration(seconds: 3),
-          ),
-        ),
-      );
-    } else {
-      audioPlayer = AudioPlayer();
-    }
-
+    audioPlayer = AudioPlayer();
     _setupEventSubscriptions();
     _updatePlaybackState();
-
-    if (Platform.isAndroid) {
-      audioPlayer.setAndroidAudioAttributes(
-        const AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.music,
-          usage: AndroidAudioUsage.media,
-        ),
-      );
-    }
-
     _initialize();
   }
 
-  late final AndroidEqualizer _androidEqualizer;
   late final AudioPlayer audioPlayer;
-  bool _equalizerInitialized = false;
-  Future<bool>? _equalizerInitFuture;
-  DateTime _equalizerRetryNotBefore = DateTime.fromMillisecondsSinceEpoch(0);
 
   Timer? _sleepTimer;
   Timer? _debounceTimer;
@@ -370,155 +341,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
       // Apply stored shuffle mode to audio player
       await audioPlayer.setShuffleModeEnabled(shuffleNotifier.value);
-
-      // Initialize equalizer once at startup
-      unawaited(_ensureEqualizerConfigured());
     } catch (e, stackTrace) {
       logger.log(
         'Error initializing audio session',
-        error: e,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  Future<bool> _ensureEqualizerConfigured({bool force = false}) async {
-    if (!Platform.isAndroid) return false;
-    if (_equalizerInitialized) return true;
-
-    final now = DateTime.now();
-    if (!force && now.isBefore(_equalizerRetryNotBefore)) {
-      return false;
-    }
-
-    if (!force && audioPlayer.audioSource == null) {
-      return false;
-    }
-
-    final inFlight = _equalizerInitFuture;
-    if (inFlight != null) {
-      return inFlight;
-    }
-
-    _equalizerInitFuture = _configureEqualizer();
-    try {
-      return await _equalizerInitFuture!;
-    } finally {
-      _equalizerInitFuture = null;
-    }
-  }
-
-  Future<bool> _configureEqualizer() async {
-    try {
-      final params = await _androidEqualizer.parameters.timeout(
-        const Duration(seconds: 3),
-      );
-
-      final savedGains = equalizerBandGains.value;
-      if (savedGains.isNotEmpty) {
-        for (var i = 0; i < params.bands.length && i < savedGains.length; i++) {
-          final clamped = savedGains[i].clamp(
-            params.minDecibels,
-            params.maxDecibels,
-          );
-          await params.bands[i].setGain(clamped);
-        }
-      }
-
-      await _androidEqualizer.setEnabled(equalizerEnabled.value);
-      _equalizerInitialized = true;
-      _equalizerRetryNotBefore = DateTime.fromMillisecondsSinceEpoch(0);
-      return true;
-    } catch (e, stackTrace) {
-      _equalizerRetryNotBefore = DateTime.now().add(
-        const Duration(seconds: 10),
-      );
-      logger.log(
-        'Equalizer initialization deferred',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      return false;
-    }
-  }
-
-  Future<AndroidEqualizerParameters?> getEqualizerParameters() async {
-    final initialized = await _ensureEqualizerConfigured();
-    if (!initialized) return null;
-    try {
-      return await _androidEqualizer.parameters.timeout(
-        const Duration(seconds: 2),
-      );
-    } catch (e, stackTrace) {
-      logger.log(
-        'Failed to get equalizer parameters',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      return null;
-    }
-  }
-
-  Future<void> setEqualizerEnabled(bool enabled) async {
-    final initialized = await _ensureEqualizerConfigured(force: true);
-    if (!initialized) return;
-    try {
-      await _androidEqualizer.setEnabled(enabled);
-      equalizerEnabled.value = enabled;
-      unawaited(addOrUpdateData<bool>('settings', 'equalizerEnabled', enabled));
-    } catch (e, stackTrace) {
-      logger.log(
-        'Failed to set equalizer enabled state',
-        error: e,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  Future<void> setEqualizerBandGain(int index, double gain) async {
-    final initialized = await _ensureEqualizerConfigured(force: true);
-    if (!initialized) return;
-
-    try {
-      final params = await _androidEqualizer.parameters;
-      if (index < 0 || index >= params.bands.length) {
-        return;
-      }
-
-      final clamped = gain.clamp(params.minDecibels, params.maxDecibels);
-      await params.bands[index].setGain(clamped);
-
-      final gains = params.bands.map((band) => band.gain).toList();
-      equalizerBandGains.value = gains;
-      unawaited(
-        addOrUpdateData<List<double>>('settings', 'equalizerBandGains', gains),
-      );
-    } catch (e, stackTrace) {
-      logger.log(
-        'Failed to set equalizer band gain',
-        error: e,
-        stackTrace: stackTrace,
-      );
-    }
-  }
-
-  Future<void> resetEqualizerBands() async {
-    final initialized = await _ensureEqualizerConfigured(force: true);
-    if (!initialized) return;
-
-    try {
-      final params = await _androidEqualizer.parameters;
-      for (final band in params.bands) {
-        await band.setGain(0);
-      }
-      final gains = List<double>.filled(params.bands.length, 0);
-      equalizerBandGains.value = gains;
-      unawaited(
-        addOrUpdateData<List<double>>('settings', 'equalizerBandGains', gains),
-      );
-    } catch (e, stackTrace) {
-      logger.log(
-        'Failed to reset equalizer bands',
         error: e,
         stackTrace: stackTrace,
       );

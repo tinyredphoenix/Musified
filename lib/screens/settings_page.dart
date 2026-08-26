@@ -177,7 +177,7 @@ class SettingsPage extends StatelessWidget {
               context.l10n.offlineMode,
               FluentIcons.cloud_off_24_regular,
               description: context.l10n.offlineModeDescription,
-              borderRadius: isOffline && isFdroidBuild
+              borderRadius: isOffline
                   ? commonCustomBarRadiusLast
                   : BorderRadius.zero,
               trailing: Switch(
