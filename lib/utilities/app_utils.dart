@@ -121,70 +121,28 @@ String formatMonthPeriodLabel(Locale locale, String monthKey) {
 AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   List<AudioOnlyStreamInfo> availableSources,
 ) {
-  final sortedByCompatibility = _sortAudioOnlyByCompatibility(availableSources);
-  final compatibleSources = _filterCompatibleAudioOnlySources(
-    sortedByCompatibility,
-  );
-  final selectionPool = compatibleSources.isNotEmpty
-      ? compatibleSources
-      : sortedByCompatibility;
+  // CRITICAL FOR IOS: Apple AVPlayer does not support WebM container (AVError -11828 Cannot Open).
+  // Strictly prioritize M4A / MP4 / AAC container streams.
+  final aacSources = availableSources.where((stream) {
+    final codec = stream.codec.toString().toLowerCase();
+    final container = stream.container.name.toLowerCase();
+    if (_isDolbyCodec(codec)) return false;
+    return (container == 'm4a' || container == 'mp4' || container == 'aac') ||
+        (codec.contains('mp4a') || codec.contains('aac'));
+  }).toList();
+
+  final selectionPool = aacSources.isNotEmpty ? aacSources : availableSources;
+  final sortedPool = selectionPool.sortByBitrate();
 
   final qualitySetting = audioQualitySetting.value;
 
   if (qualitySetting == 'low') {
-    return selectionPool.last;
+    return sortedPool.first;
   } else if (qualitySetting == 'medium') {
-    return selectionPool[selectionPool.length ~/ 2];
+    return sortedPool[sortedPool.length ~/ 2];
   }
 
-  return selectionPool.withHighestBitrate();
-}
-
-List<AudioOnlyStreamInfo> _filterCompatibleAudioOnlySources(
-  List<AudioOnlyStreamInfo> sources,
-) {
-  return sources.where((stream) {
-    final codec = stream.codec.toString().toLowerCase();
-    final container = stream.container.name.toLowerCase();
-
-    if (_isDolbyCodec(codec)) {
-      return false;
-    }
-
-    return _isPreferredAudioOnlyCodec(codec, container);
-  }).toList();
-}
-
-List<AudioOnlyStreamInfo> _sortAudioOnlyByCompatibility(
-  List<AudioOnlyStreamInfo> sources,
-) {
-  final sorted = List<AudioOnlyStreamInfo>.from(sources)
-    ..sort((a, b) {
-      final aScore = _audioOnlyCompatibilityScore(a);
-      final bScore = _audioOnlyCompatibilityScore(b);
-      return bScore.compareTo(aScore);
-    });
-  return sorted;
-}
-
-int _audioOnlyCompatibilityScore(AudioOnlyStreamInfo stream) {
-  final codec = stream.codec.toString().toLowerCase();
-  final container = stream.container.name.toLowerCase();
-
-  if (_isDolbyCodec(codec)) {
-    return 0;
-  }
-
-  if ((codec.contains('mp4a') || codec.contains('aac')) &&
-      (container == 'mp4' || container == 'm4a')) {
-    return 3;
-  }
-
-  if (codec.contains('opus') || codec.contains('vorbis')) {
-    return 2;
-  }
-
-  return 1;
+  return sortedPool.withHighestBitrate();
 }
 
 bool _isDolbyCodec(String codec) {
@@ -192,13 +150,4 @@ bool _isDolbyCodec(String codec) {
       codec.contains('ac-3') ||
       codec.contains('eac3') ||
       codec.contains('dolby');
-}
-
-bool _isPreferredAudioOnlyCodec(String codec, String container) {
-  if ((codec.contains('mp4a') || codec.contains('aac')) &&
-      (container == 'mp4' || container == 'm4a')) {
-    return true;
-  }
-
-  return codec.contains('opus') || codec.contains('vorbis');
 }

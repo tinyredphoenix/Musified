@@ -50,20 +50,14 @@ class SourceResolver {
     final query = '${song['title']} ${song['artist']}'.trim();
     final results = await _saavnService.searchTracks(query);
 
-    final sDuration = song['duration'];
-    final durationA = sDuration is int ? sDuration : int.tryParse(sDuration?.toString() ?? '');
-
     for (final track in results) {
-      final tDuration = track['duration'];
-      final durationB = tDuration is int ? tDuration : int.tryParse(tDuration?.toString() ?? '');
-
       final isMatch = TrackMatcher.isExactMatch(
         titleA: song['title']?.toString() ?? '',
         artistA: song['artist']?.toString() ?? '',
-        durationA: durationA,
+        durationA: song['duration'],
         titleB: track['title']?.toString() ?? '',
         artistB: track['artist']?.toString() ?? '',
-        durationB: durationB,
+        durationB: track['duration'],
       );
 
       if (isMatch) {

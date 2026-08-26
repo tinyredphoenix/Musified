@@ -81,10 +81,34 @@ class TrackMatcher {
     return sortedList.toSet();
   }
 
+  /// Parse various duration formats (e.g. 204, '204', '3:24', '03:24', '1:02:15') to seconds.
+  static int? parseDurationInSeconds(dynamic duration) {
+    if (duration == null) return null;
+    if (duration is int) return duration;
+    final str = duration.toString().trim();
+    if (str.isEmpty) return null;
+    final asInt = int.tryParse(str);
+    if (asInt != null) return asInt;
+    if (str.contains(':')) {
+      final parts = str.split(':');
+      if (parts.length == 2) {
+        final m = int.tryParse(parts[0]) ?? 0;
+        final s = int.tryParse(parts[1]) ?? 0;
+        return m * 60 + s;
+      } else if (parts.length == 3) {
+        final h = int.tryParse(parts[0]) ?? 0;
+        final m = int.tryParse(parts[1]) ?? 0;
+        final s = int.tryParse(parts[2]) ?? 0;
+        return h * 3600 + m * 60 + s;
+      }
+    }
+    return null;
+  }
+
   /// Check if duration matches within tolerance.
-  /// |a - b| <= 3 seconds
-  static bool durationMatches(int? durationA, int? durationB, {int tolerance = 3}) {
-    if (durationA == null || durationB == null) return false;
+  /// |a - b| <= 5 seconds. If duration is missing on either track, returns true.
+  static bool durationMatches(int? durationA, int? durationB, {int tolerance = 5}) {
+    if (durationA == null || durationB == null) return true;
     return (durationA - durationB).abs() <= tolerance;
   }
 
@@ -92,10 +116,10 @@ class TrackMatcher {
   static bool isExactMatch({
     required String titleA,
     required String artistA,
-    int? durationA,
+    dynamic durationA,
     required String titleB,
     required String artistB,
-    int? durationB,
+    dynamic durationB,
   }) {
     final normTitleA = normalizeTitle(titleA);
     final normTitleB = normalizeTitle(titleB);
@@ -116,6 +140,9 @@ class TrackMatcher {
     
     if (!overlap) return false;
 
-    return durationMatches(durationA, durationB);
+    final durA = parseDurationInSeconds(durationA);
+    final durB = parseDurationInSeconds(durationB);
+
+    return durationMatches(durA, durB);
   }
 }
