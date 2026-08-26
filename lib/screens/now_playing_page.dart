@@ -67,32 +67,24 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
         child: Stack(
           children: [
             Positioned.fill(
-              child: RepaintBoundary(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    StreamBuilder<MediaItem?>(
-                      stream: audioHandler.mediaItem,
-                      builder: (context, snapshot) {
-                        final metadata = snapshot.data;
-                        if (metadata == null) return const SizedBox.shrink();
-                        return SongArtworkWidget(
-                          metadata: metadata,
-                          size: size.height,
-                          errorWidgetIconSize: size.width / 8,
-                          borderRadius: 0,
-                        );
-                      },
-                    ),
-                    BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 45, sigmaY: 45),
-                      child: Container(
-                        color: theme.brightness == Brightness.dark
-                            ? Colors.black.withValues(alpha: 0.5)
-                            : Colors.white.withValues(alpha: 0.3),
-                      ),
-                    ),
-                  ],
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      theme.brightness == Brightness.dark
+                          ? colorScheme.primary.withValues(alpha: 0.20)
+                          : colorScheme.primary.withValues(alpha: 0.08),
+                      theme.brightness == Brightness.dark
+                          ? const Color(0xFF141416)
+                          : const Color(0xFFF4F4F6),
+                      theme.brightness == Brightness.dark
+                          ? Colors.black
+                          : Colors.white,
+                    ],
+                    stops: const [0.0, 0.45, 1.0],
+                  ),
                 ),
               ),
             ),

@@ -26,39 +26,104 @@ import 'package:http/http.dart' as http;
 
 class LyricsManager {
   Future<String?> fetchLyrics(String artistName, String title) async {
-    // Remove Lyrics/Karaoke only from end of title
-    if (title.endsWith(' Lyrics')) {
-      title = title.substring(0, title.length - 7).trim();
-    } else if (title.endsWith(' Karaoke')) {
-      title = title.substring(0, title.length - 8).trim();
+    var cleanTitle = title
+        .replaceAll(RegExp(r'\s*\(.*?video.*?\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\[.*?video.*?\]', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(.*?audio.*?\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\[.*?audio.*?\]', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\(.*?lyrics.*?\)', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*\[.*?lyrics.*?\]', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*lyrics', caseSensitive: false), '')
+        .replaceAll(RegExp(r'\s*karaoke', caseSensitive: false), '')
+        .trim();
+
+    if (cleanTitle.isEmpty) cleanTitle = title;
+    final primaryArtist = artistName.split(RegExp(r'[,&]')).first.trim();
+
+    // 1. Primary open lyrics catalog: LrcLib
+    final lrcLibLyrics = await _fetchLyricsFromLrcLib(primaryArtist, cleanTitle);
+    if (lrcLibLyrics != null && lrcLibLyrics.isNotEmpty) {
+      return lrcLibLyrics;
     }
 
-    // Validate title is not empty after sanitization
-    if (title.isEmpty || artistName.isEmpty) {
-      return null;
+    // 2. LrcLib fuzzy search fallback
+    final lrcLibSearchLyrics =
+        await _searchLyricsFromLrcLib('$cleanTitle $primaryArtist');
+    if (lrcLibSearchLyrics != null && lrcLibSearchLyrics.isNotEmpty) {
+      return lrcLibSearchLyrics;
     }
 
+    // 3. Fallbacks
     final lyricsFromLyricsOvh = await _fetchLyricsFromLyricsOvh(
-      artistName,
-      title,
+      primaryArtist,
+      cleanTitle,
     );
     if (lyricsFromLyricsOvh != null) {
       return lyricsFromLyricsOvh;
     }
 
     final lyricsFromParolesNet = await _fetchLyricsFromParolesNet(
-      artistName.split(',')[0],
-      title,
+      primaryArtist,
+      cleanTitle,
     );
     if (lyricsFromParolesNet != null) {
       return lyricsFromParolesNet;
     }
 
-    final lyricsFromLyricsMania1 = await _fetchLyricsFromLyricsMania1(
-      artistName,
-      title,
-    );
-    return lyricsFromLyricsMania1;
+    return null;
+  }
+
+  Future<String?> _fetchLyricsFromLrcLib(String artist, String title) async {
+    try {
+      final uri = Uri.https('lrclib.net', '/api/get', {
+        'artist_name': artist,
+        'track_name': title,
+      });
+      final response =
+          await http.get(uri).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body) as Map<String, dynamic>;
+        final plainLyrics = json['plainLyrics'] as String?;
+        if (plainLyrics != null && plainLyrics.trim().isNotEmpty) {
+          return plainLyrics.trim();
+        }
+        final syncedLyrics = json['syncedLyrics'] as String?;
+        if (syncedLyrics != null && syncedLyrics.trim().isNotEmpty) {
+          return syncedLyrics
+              .replaceAll(RegExp(r'\[\d{2}:\d{2}\.\d{2,3}\]'), '')
+              .trim();
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<String?> _searchLyricsFromLrcLib(String query) async {
+    try {
+      final uri = Uri.https('lrclib.net', '/api/search', {'q': query});
+      final response =
+          await http.get(uri).timeout(const Duration(seconds: 4));
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body);
+        if (list is List && list.isNotEmpty) {
+          for (final item in list) {
+            if (item is Map) {
+              final plain = item['plainLyrics'] as String?;
+              if (plain != null && plain.trim().isNotEmpty) {
+                return plain.trim();
+              }
+              final synced = item['syncedLyrics'] as String?;
+              if (synced != null && synced.trim().isNotEmpty) {
+                return synced
+                    .replaceAll(RegExp(r'\[\d{2}:\d{2}\.\d{2,3}\]'), '')
+                    .trim();
+              }
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    return null;
   }
 
   Future<String?> _fetchLyricsFromLyricsOvh(

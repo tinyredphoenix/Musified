@@ -63,11 +63,11 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Musified',
+          'Listen Now',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             letterSpacing: -0.6,
-            fontSize: 24,
+            fontSize: 26,
           ),
         ),
       ),
@@ -102,7 +102,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: 'Liked Songs',
+              title: 'Favorites',
               icon: CupertinoIcons.heart_fill,
             ),
             const SizedBox(height: 8),
@@ -120,7 +120,7 @@ class _HomePageState extends State<HomePage> {
                     onTap: () {
                       HapticFeedback.selectionClick();
                       audioHandler.playPlaylistSong(
-                        playlist: {'title': 'Liked Songs', 'list': songs},
+                        playlist: {'title': 'Favorites', 'list': songs},
                         songIndex: index,
                       );
                     },
@@ -149,7 +149,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: 'Most Played',
+              title: 'Heavy Rotation',
               icon: CupertinoIcons.flame_fill,
             ),
             const SizedBox(height: 8),
@@ -167,7 +167,10 @@ class _HomePageState extends State<HomePage> {
                     onTap: () {
                       HapticFeedback.selectionClick();
                       audioHandler.playPlaylistSong(
-                        playlist: {'title': 'Most Played', 'list': displayList},
+                        playlist: {
+                          'title': 'Heavy Rotation',
+                          'list': displayList,
+                        },
                         songIndex: index,
                       );
                     },
@@ -204,7 +207,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
-              title: 'Playlists',
+              title: 'Playlists & Mixes',
               icon: CupertinoIcons.music_albums_fill,
             ),
             const SizedBox(height: 8),

@@ -294,11 +294,6 @@ class SettingsPage extends StatelessWidget {
           onTap: () => _showThemeModePicker(context),
         ),
         CustomBar(
-          context.l10n.language,
-          FluentIcons.translate_24_regular,
-          onTap: () => _showLanguagePicker(context),
-        ),
-        CustomBar(
           context.l10n.audioQuality,
           FluentIcons.music_note_1_24_regular,
           onTap: () => _showAudioQualityPicker(context),
@@ -595,11 +590,7 @@ class SettingsPage extends StatelessWidget {
             },
           ),
         ),
-        CustomBar(
-          context.l10n.importSpotifyPlaylist,
-          FluentIcons.arrow_upload_24_regular,
-          onTap: () => context.push('/settings/import-spotify-playlist'),
-        ),
+
         CustomBar(
           context.l10n.backupUserData,
           FluentIcons.cloud_sync_24_regular,
@@ -663,7 +654,7 @@ class SettingsPage extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  'Musified v$appVersion (Build 4)',
+                  'Musified v$appVersion (Build 5)',
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -821,42 +812,7 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  void _showLanguagePicker(BuildContext context) {
-    final availableLanguages = appLanguages.toList();
-    final activeLanguageCode = Localizations.localeOf(context).languageCode;
-    final activeScriptCode = Localizations.localeOf(context).scriptCode;
-    final activeLanguageFullCode = activeScriptCode != null
-        ? '$activeLanguageCode-$activeScriptCode'
-        : activeLanguageCode;
 
-    showCustomBottomSheet(
-      context,
-      ListView.builder(
-        shrinkWrap: true,
-        physics: const BouncingScrollPhysics(),
-        padding: commonListViewBottomPadding,
-        itemCount: availableLanguages.length,
-        itemBuilder: (context, index) {
-          final language = availableLanguages[index];
-          final newLocale = getLocaleFromLanguageCode(language);
-          final newLocaleFullCode = newLocale.scriptCode != null
-              ? '${newLocale.languageCode}-${newLocale.scriptCode}'
-              : newLocale.languageCode;
-
-          return BottomSheetBar(getLanguageDisplayName(context, language), () {
-            addOrUpdateData<String>(
-              'settings',
-              'languageCode',
-              newLocaleFullCode,
-            );
-            Musify.updateAppState(context, newLocale: newLocale);
-            showToast(context, context.l10n.languageMsg);
-            Navigator.pop(context);
-          }, activeLanguageFullCode == newLocaleFullCode);
-        },
-      ),
-    );
-  }
 
   void _showAudioQualityPicker(BuildContext context) {
     final availableQualities = ['low', 'medium', 'high'];

@@ -118,7 +118,7 @@ class NowPlayingArtwork extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  FluentIcons.text_quote_24_regular,
+                  CupertinoIcons.quote_bubble,
                   size: 48,
                   color: colorScheme.onSecondaryContainer.withValues(
                     alpha: 0.5,
@@ -142,7 +142,7 @@ class NowPlayingArtwork extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  FluentIcons.text_quote_24_regular,
+                  CupertinoIcons.quote_bubble,
                   size: 48,
                   color: colorScheme.onSecondaryContainer.withValues(
                     alpha: 0.5,

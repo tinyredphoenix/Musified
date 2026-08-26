@@ -40,9 +40,22 @@ class YouTubeMusicSyncService {
           lastSyncTime.value = DateTime.fromMillisecondsSinceEpoch(syncTime);
         }
       }
+
+      // Auto-sync on startup if signed in and last sync was > 6 hours ago (daily schedule)
+      if (YouTubeAuthService().isSignedIn.value) {
+        final last = lastSyncTime.value;
+        final now = DateTime.now();
+        if (last == null || now.difference(last).inHours >= 6) {
+          unawaited(fullSync());
+        }
+      }
     } catch (e) {
       logger.log('Error initializing YouTubeMusicSyncService: $e');
     }
+  }
+
+  bool _isValidYouTubeVideoId(String id) {
+    return id.length == 11 && RegExp(r'^[a-zA-Z0-9_-]{11}$').hasMatch(id);
   }
 
   Future<Map<String, dynamic>> _authenticatedPost(String endpoint, Map<String, dynamic> body) async {
@@ -262,6 +275,9 @@ class YouTubeMusicSyncService {
   }
 
   Future<bool> likeSong(String videoId) async {
+    if (!_isValidYouTubeVideoId(videoId)) {
+      return false; // JioSaavn or non-YouTube ID, ignore safely
+    }
     try {
       await _authenticatedPost('/like/like', {
         'target': {'videoId': videoId},
@@ -274,6 +290,9 @@ class YouTubeMusicSyncService {
   }
 
   Future<bool> unlikeSong(String videoId) async {
+    if (!_isValidYouTubeVideoId(videoId)) {
+      return false;
+    }
     try {
       await _authenticatedPost('/like/removelike', {
         'target': {'videoId': videoId},
@@ -286,6 +305,9 @@ class YouTubeMusicSyncService {
   }
 
   Future<bool> reportSongPlayed(String videoId) async {
+    if (!_isValidYouTubeVideoId(videoId)) {
+      return false;
+    }
     // Playback reporting on YouTube Music requires active player playback tracking
     // tokens from watchEndpoint; no-op gracefully to avoid redundant 404 requests.
     return true;

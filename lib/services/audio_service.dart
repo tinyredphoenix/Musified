@@ -1897,17 +1897,34 @@ class MusifyAudioHandler extends BaseAudioHandler {
     final song = currentSong;
     if (song == null || _songYtid(song) == null) return false;
 
+    final previousSource = song['resolvedSource']?.toString() ?? 'youtube';
+    if (previousSource == source) return true;
+
     final transitionId = ++_songTransitionCounter;
     _currentLoadingIndex = _currentQueueIndex;
     _currentLoadingTransitionId = transitionId;
     final request = cloneMap(song)..['forceSource'] = source;
     final mediaId = _getMediaItemForQueue(song).id;
     try {
-      return await playSong(
+      final success = await playSong(
         request,
         mediaId: mediaId,
         transitionId: transitionId,
       );
+      if (!success) {
+        logger.log('Source $source not available for ${song['title']}');
+        _currentLoadingIndex = -1;
+        _currentLoadingTransitionId = -1;
+        _updatePlaybackState();
+        return false;
+      }
+      return true;
+    } catch (e, st) {
+      logger.log('Error switching source to $source', error: e, stackTrace: st);
+      _currentLoadingIndex = -1;
+      _currentLoadingTransitionId = -1;
+      _updatePlaybackState();
+      return false;
     } finally {
       if (_currentLoadingTransitionId == transitionId) {
         _currentLoadingIndex = -1;

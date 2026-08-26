@@ -21,6 +21,7 @@
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 
@@ -65,8 +66,22 @@ Widget buildPlaybackIconButton(
       VoidCallback? onPressed;
       String? semanticLabel;
 
-      if (processingState == AudioProcessingState.loading ||
-          processingState == AudioProcessingState.buffering) {
+      final isBufferingOrLoading =
+          (processingState == AudioProcessingState.loading ||
+              processingState == AudioProcessingState.buffering);
+
+      if (isPlaying) {
+        iconWidget = Icon(
+          CupertinoIcons.pause_fill,
+          color: iconColor,
+          size: iconSize,
+        );
+        onPressed = () {
+          HapticFeedback.mediumImpact();
+          audioHandler.pause();
+        };
+        semanticLabel = context.l10n.pause;
+      } else if (isBufferingOrLoading) {
         iconWidget = SizedBox(
           width: iconSize,
           height: iconSize,
@@ -75,9 +90,6 @@ Widget buildPlaybackIconButton(
             color: iconColor,
           ),
         );
-        // Loading can be cancelled so a slow source never traps the user in
-        // a disabled play button. The next tap can then retry or choose the
-        // other service.
         onPressed = audioHandler.stop;
         semanticLabel = 'Cancel loading';
       } else if (processingState == AudioProcessingState.completed) {
@@ -86,16 +98,22 @@ Widget buildPlaybackIconButton(
           color: iconColor,
           size: iconSize,
         );
-        onPressed = () => audioHandler.playAgain();
+        onPressed = () {
+          HapticFeedback.mediumImpact();
+          audioHandler.playAgain();
+        };
         semanticLabel = context.l10n.replay;
       } else {
         iconWidget = Icon(
-          isPlaying ? CupertinoIcons.pause_fill : CupertinoIcons.play_fill,
+          CupertinoIcons.play_fill,
           color: iconColor,
           size: iconSize,
         );
-        onPressed = isPlaying ? audioHandler.pause : audioHandler.play;
-        semanticLabel = isPlaying ? context.l10n.pause : context.l10n.play;
+        onPressed = () {
+          HapticFeedback.mediumImpact();
+          audioHandler.play();
+        };
+        semanticLabel = context.l10n.play;
       }
 
       return CupertinoButton(

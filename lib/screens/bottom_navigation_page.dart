@@ -153,7 +153,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
                         ),
                         child: ClipRect(
                           child: BackdropFilter(
-                            filter: ui.ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                            filter: ui.ImageFilter.blur(sigmaX: 15, sigmaY: 15),
                             child: CupertinoTabBar(
                               currentIndex: _getCurrentIndex(items, isOfflineMode),
                               onTap: (index) => _onTabTapped(index, items),

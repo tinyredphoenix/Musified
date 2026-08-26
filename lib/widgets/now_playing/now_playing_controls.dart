@@ -32,6 +32,8 @@ import 'package:musify/services/common_services.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/app_utils.dart';
+import 'package:musify/utilities/flutter_toast.dart';
+import 'package:musify/utilities/mediaitem.dart';
 import 'package:musify/widgets/now_playing/marquee_text_widget.dart';
 
 import 'package:musify/widgets/playback_icon_button.dart';
@@ -87,34 +89,85 @@ class NowPlayingControls extends StatelessWidget {
             if (!isCompact) const Spacer(),
             Padding(
               padding: EdgeInsets.symmetric(
-                horizontal: isDesktop ? 16 : 24,
+                horizontal: isDesktop ? 16 : 4,
                 vertical: spacing,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  MarqueeTextWidget(
-                    text: metadata.title,
-                    fontColor: colorScheme.onSurface,
-                    fontSize: titleFontSize * fontScale,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  SizedBox(height: spacing),
-                  if (metadata.artist != null)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: canOpenArtist
-                          ? () => _openArtistPage(context, metadata)
-                          : null,
-                      child: MarqueeTextWidget(
-                        text: metadata.artist!,
-                        fontColor: colorScheme.primary,
-                        fontSize: artistFontSize * fontScale,
-                        fontWeight: FontWeight.w500,
-                      ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MarqueeTextWidget(
+                          text: metadata.title,
+                          fontColor: colorScheme.onSurface,
+                          fontSize: titleFontSize * fontScale,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            if (metadata.artist != null)
+                              Flexible(
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: canOpenArtist
+                                      ? () => _openArtistPage(context, metadata)
+                                      : null,
+                                  child: Text(
+                                    metadata.artist!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: colorScheme.onSurfaceVariant
+                                          .withValues(alpha: 0.8),
+                                      fontSize: artistFontSize * fontScale,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            const SizedBox(width: 8),
+                            _AudioSourceChip(metadata: metadata),
+                          ],
+                        ),
+                      ],
                     ),
-                  const SizedBox(height: 6),
-                  _AudioSourceChip(metadata: metadata),
+                  ),
+                  const SizedBox(width: 8),
+                  ValueListenableBuilder<List>(
+                    valueListenable: userLikedSongsList,
+                    builder: (context, likedSongs, _) {
+                      final ytid = metadata.extras?['ytid']?.toString();
+                      final isLiked = ytid != null && isSongAlreadyLiked(ytid);
+                      return CupertinoButton(
+                        padding: const EdgeInsets.all(8),
+                        minSize: 36,
+                        onPressed: () {
+                          HapticFeedback.mediumImpact();
+                          if (ytid != null) {
+                            updateSongLikeStatus(
+                              ytid,
+                              !isLiked,
+                              songData: mediaItemToMap(metadata),
+                            );
+                          }
+                        },
+                        child: Icon(
+                          isLiked
+                              ? CupertinoIcons.heart_fill
+                              : CupertinoIcons.heart,
+                          color: isLiked
+                              ? CupertinoColors.systemPink
+                              : colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.6),
+                          size: 24,
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
@@ -498,10 +551,18 @@ class _AudioSourceChip extends StatelessWidget {
               ? []
               : [
                   CupertinoActionSheetAction(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(ctx);
                       if (currentSource != 'jiosaavn') {
-                        audioHandler.switchSource('jiosaavn');
+                        HapticFeedback.selectionClick();
+                        final success =
+                            await audioHandler.switchSource('jiosaavn');
+                        if (!success && context.mounted) {
+                          showToast(
+                            context,
+                            'Track not available on JioSaavn (playing on YouTube)',
+                          );
+                        }
                       }
                     },
                     child: Row(
@@ -526,10 +587,18 @@ class _AudioSourceChip extends StatelessWidget {
                     ),
                   ),
                   CupertinoActionSheetAction(
-                    onPressed: () {
+                    onPressed: () async {
                       Navigator.pop(ctx);
                       if (currentSource != 'youtube') {
-                        audioHandler.switchSource('youtube');
+                        HapticFeedback.selectionClick();
+                        final success =
+                            await audioHandler.switchSource('youtube');
+                        if (!success && context.mounted) {
+                          showToast(
+                            context,
+                            'Track not available on YouTube',
+                          );
+                        }
                       }
                     },
                     child: Row(

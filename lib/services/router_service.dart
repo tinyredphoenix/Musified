@@ -286,13 +286,7 @@ class NavigationManager {
                 pageBuilder: (context, state) =>
                     _pushPage(child: const AboutPage(), state: state),
               ),
-              GoRoute(
-                path: 'import-spotify-playlist',
-                pageBuilder: (context, state) => _pushPage(
-                  child: const ImportSpotifyPlaylistPage(),
-                  state: state,
-                ),
-              ),
+
               GoRoute(
                 path: 'logs',
                 pageBuilder: (context, state) => _pushPage(

@@ -200,10 +200,8 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                  child: Stack(
-                    children: [
+                child: Stack(
+                  children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         child: Row(
@@ -266,8 +264,7 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                 ),
               ),
             ),
-          ),
-        );
+          );
       },
     );
   }
