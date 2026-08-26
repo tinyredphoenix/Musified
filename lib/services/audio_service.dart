@@ -2053,6 +2053,13 @@ class MusifyAudioHandler extends BaseAudioHandler {
       }
       songData['isOffline'] = playback.isOffline;
 
+      // Re-emit mediaItem with the resolved source info so the UI
+      // (source icon, download button) reflects the actual playback source.
+      final resolvedMediaItem = mapToMediaItem(songData).copyWith(
+        id: _queueEntryIds.ensureId(songData),
+      );
+      mediaItem.add(resolvedMediaItem);
+
       final audioSource = await buildAudioSource(
         songData,
         playback.songUrl,

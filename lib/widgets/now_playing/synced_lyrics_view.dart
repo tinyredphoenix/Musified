@@ -26,6 +26,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   StreamSubscription? _positionSub;
   final ScrollController _scrollController = ScrollController();
   int _currentIndex = -1;
+  Duration _lastPosition = Duration.zero;
 
   @override
   void initState() {
@@ -94,30 +95,38 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     _positionSub?.cancel();
     
     // Immediately sync to the current position before the stream ticks
-    if (audioHandler.playbackState.value.playing) {
-      _syncToPosition(audioHandler.playbackState.value.position);
-    }
+    final currentPos = audioHandler.playbackState.value.position;
+    _syncToPosition(currentPos);
     
-    _positionSub = AudioService.position.listen(_syncToPosition);
+    // Use the player's positionStream directly — it fires on seek too
+    _positionSub = audioHandler.audioPlayer.positionStream.listen(
+      _syncToPosition,
+    );
+  }
+
+  int _findIndexForPosition(Duration position) {
+    if (_parsedLyrics == null) return -1;
+    final lyrics = _parsedLyrics!;
+    var idx = -1;
+    for (var i = 0; i < lyrics.length; i++) {
+      if (position.inMilliseconds + 200 >= lyrics[i].time.inMilliseconds) {
+        idx = i;
+      } else {
+        break;
+      }
+    }
+    return idx;
   }
 
   void _syncToPosition(Duration position) {
     if (!mounted || _parsedLyrics == null) return;
 
-    var newIndex = -1;
-    final lyrics = _parsedLyrics;
-    if (lyrics != null) {
-      for (var i = 0; i < lyrics.length; i++) {
-        // Look ahead slightly for karaoke effect (lead by 200ms)
-        if (position.inMilliseconds + 200 >= lyrics[i].time.inMilliseconds) {
-          newIndex = i;
-        } else {
-          break;
-        }
-      }
-    }
+    _lastPosition = position;
+    final newIndex = _findIndexForPosition(position);
 
-    if (newIndex != _currentIndex && newIndex >= 0) {
+    // Always update — even if the same index (seek may have jumped back
+    // within the same line's time range).
+    if (newIndex != _currentIndex) {
       if (mounted) {
         setState(() {
           _currentIndex = newIndex;
@@ -134,8 +143,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   void _scrollToCurrentLine() {
     if (_scrollController.hasClients && _currentIndex >= 0) {
-      // Assuming roughly 64px per item for scrolling math
-      final targetOffset = (_currentIndex * 64.0).clamp(
+      final targetOffset = (_currentIndex * 72.0).clamp(
         0.0,
         _scrollController.position.maxScrollExtent,
       );
@@ -152,6 +160,20 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     _stopListening();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  /// Compute karaoke fill progress for the current line (0.0 → 1.0)
+  double _currentLineFill() {
+    if (_parsedLyrics == null || _currentIndex < 0) return 0;
+    final lyrics = _parsedLyrics!;
+    final lineStart = lyrics[_currentIndex].time;
+    final lineEnd = _currentIndex + 1 < lyrics.length
+        ? lyrics[_currentIndex + 1].time
+        : lineStart + const Duration(seconds: 4);
+    final lineDuration = lineEnd - lineStart;
+    if (lineDuration.inMilliseconds <= 0) return 1;
+    final elapsed = _lastPosition - lineStart;
+    return (elapsed.inMilliseconds / lineDuration.inMilliseconds).clamp(0.0, 1.0);
   }
 
   @override
@@ -193,8 +215,55 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
             final line = _parsedLyrics![index];
             final isCurrent = index == _currentIndex;
             final isPast = index < _currentIndex;
+            final fill = isCurrent ? _currentLineFill() : 0.0;
 
-                        return GestureDetector(
+            // Karaoke style: current line uses a gradient shader to
+            // show a "fill" effect from left to right as playback progresses.
+            final baseStyle = TextStyle(
+              fontFamily: '.SF Pro Display',
+              fontSize: isCurrent ? 34 : 22,
+              fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+              letterSpacing: isCurrent ? 0.0 : 0.5,
+              color: isCurrent
+                  ? Colors.white
+                  : (isPast
+                      ? Colors.white.withValues(alpha: 0.4)
+                      : Colors.white.withValues(alpha: 0.15)),
+              height: 1.25,
+              decoration: TextDecoration.none,
+            );
+
+            Widget lineWidget;
+            if (isCurrent) {
+              // Karaoke fill: bright white fills from left, dim white on right
+              lineWidget = ShaderMask(
+                blendMode: BlendMode.srcIn,
+                shaderCallback: (bounds) {
+                  return LinearGradient(
+                    colors: const [
+                      Colors.white,
+                      Colors.white,
+                      Color(0x66FFFFFF), // dimmer unfilled portion
+                      Color(0x66FFFFFF),
+                    ],
+                    stops: [0.0, fill, fill, 1.0],
+                  ).createShader(bounds);
+                },
+                child: Text(
+                  line.text,
+                  style: baseStyle.copyWith(color: Colors.white),
+                  textAlign: TextAlign.center,
+                ),
+              );
+            } else {
+              lineWidget = Text(
+                line.text,
+                style: baseStyle,
+                textAlign: TextAlign.center,
+              );
+            }
+
+            return GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () {
                 audioHandler.seek(line.time);
@@ -203,35 +272,18 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                 });
                 _scrollToCurrentLine();
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOutCubic,
+                padding: EdgeInsets.symmetric(
+                  vertical: isCurrent ? 16 : 12,
+                ),
                 alignment: Alignment.center,
-                child: AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 300),
+                child: AnimatedScale(
+                  scale: isCurrent ? 1.0 : 0.85,
+                  duration: const Duration(milliseconds: 350),
                   curve: Curves.easeOutBack,
-                  style: TextStyle(
-                    fontFamily: '.SF Pro Display',
-                    fontSize: isCurrent ? 34 : 22,
-                    fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                    letterSpacing: isCurrent ? 0.0 : 0.5,
-                    color: isCurrent
-                        ? Colors.white
-                        : (isPast
-                            ? Colors.white.withValues(alpha: 0.4)
-                            : Colors.white.withValues(alpha: 0.15)),
-                    height: 1.25,
-                    decoration: TextDecoration.none,
-                    shadows: isCurrent
-                        ? [
-                            Shadow(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              blurRadius: 16,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  textAlign: TextAlign.center,
-                  child: Text(line.text),
+                  child: lineWidget,
                 ),
               ),
             );
