@@ -194,7 +194,7 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: appSupportedLocales,
-        locale: const Locale('en'),
+        locale: languageSetting,
         routerConfig: NavigationManager.router,
       ),
     );

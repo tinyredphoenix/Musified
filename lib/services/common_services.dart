@@ -41,8 +41,6 @@ import 'package:musify/services/artist_service.dart' show ytMusicClient;
 import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/services/youtube_music_sync_service.dart';
 
-List globalSongs = [];
-
 T _safeUserGet<T>(String key, T defaultValue) {
   try {
     if (!Hive.isBoxOpen('user')) return defaultValue;
@@ -178,17 +176,23 @@ _fetchStreamManifest(String songId) async {
     return (manifest: manifest, client: null);
   }
 
-  // 1. Fetch with fast mobile clients in parallel
-  try {
-    final manifest = await ytClient.videos.streams
-        .getManifest(songId, ytClients: customClients)
-        .timeout(_manifestTimeout);
-    return (manifest: manifest, client: YoutubeApiClient.androidVr);
-  } catch (error) {
-    logger.log('Multi-client manifest failed for $songId, trying fallback: $error');
+  // Try one client at a time so the User-Agent we send later matches the
+  // client that actually minted the googlevideo URL (mixed manifests 403).
+  for (final client in customClients) {
+    try {
+      final manifest = await ytClient.videos.streams
+          .getManifest(songId, ytClients: [client])
+          .timeout(_manifestTimeout);
+      if (manifest.audioOnly.isNotEmpty) {
+        return (manifest: manifest, client: client);
+      }
+    } catch (error) {
+      logger.log(
+        'Manifest client ${client.payload['context']?['client']?['clientName']} failed for $songId: $error',
+      );
+    }
   }
 
-  // 2. Fallback to standard manifest fetch
   try {
     final manifest = await ytClient.videos.streams
         .getManifest(songId)
@@ -219,12 +223,28 @@ Future<String?> _getCachedSongUrl(
 }
 
 /// Checks if a cached URL still responds successfully.
-Future<bool> _validateCachedUrl(String cachedUrl) async {
+Future<bool> _validateCachedUrl(
+  String cachedUrl, {
+  String? userAgent,
+}) async {
   try {
-    final response = await http.head(Uri.parse(cachedUrl));
-    return response.statusCode >= 200 && response.statusCode < 300;
-  } catch (_) {
+    final response = await http
+        .head(
+          Uri.parse(cachedUrl),
+          headers: {
+            if (userAgent != null && userAgent.isNotEmpty)
+              'User-Agent': userAgent,
+          },
+        )
+        .timeout(const Duration(seconds: 5));
+    final code = response.statusCode;
+    if (code >= 200 && code < 400) return true;
+    // Some CDNs reject HEAD; don't treat that as expiry.
+    if (code == 405 || code == 501) return true;
     return false;
+  } catch (_) {
+    // Network blip — keep the URL; a later play will invalidate on 403.
+    return true;
   }
 }
 
@@ -701,6 +721,7 @@ Future<void> invalidateSongStreamCache(String songId) async {
     await deleteData('cache', key);
     await deleteData('cache', _songStreamCacheMetaKey(songId, source));
   }
+  await SourceResolver().deleteCachedMatch(songId);
   // Remove the pre-source cache key written by older builds. It is unsafe to
   // reuse because it does not say which service produced the URL.
   await deleteData('cache', 'song_${songId}_${audioQualitySetting.value}_url');
@@ -784,6 +805,14 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
         await deleteData('cache', sourceKey);
         continue;
       }
+      final stillValid = await _validateCachedUrl(
+        cachedUrl,
+        userAgent: metadata['userAgent']?.toString(),
+      );
+      if (!stillValid) {
+        await invalidateSongStreamCache(songId);
+        continue;
+      }
       song['resolvedSource'] = source;
       song['resolvedBitrate'] = metadata['bitrate'];
       song['resolvedFormat'] = metadata['format'];
@@ -831,12 +860,18 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
         if (selectedStream != null) {
           final url = selectedStream.url.toString();
           logger.log('YouTube stream result found: host=${Uri.tryParse(url)?.host}');
+          final selectedClient = _getSelectedAudioStream(songId)?.client;
+          final userAgent = selectedClient == null
+              ? null
+              : _youtubeClientUserAgent(selectedClient);
           song['resolvedSource'] = 'youtube';
           song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
           song['resolvedFormat'] = selectedStream.audioCodec;
+          song['resolvedUserAgent'] = userAgent;
           await _cacheResolvedStream(songId, 'youtube', url, {
             'bitrate': selectedStream.bitrate.kiloBitsPerSecond.round(),
             'format': selectedStream.audioCodec,
+            'userAgent': userAgent,
           });
           logger.log('Final URL resolved via youtube');
           return url;

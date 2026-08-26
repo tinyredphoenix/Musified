@@ -28,6 +28,10 @@ class TrackMatcher {
       'prod',
       'feat',
       'ft',
+      'remix',
+      'nightcore',
+      'slowed',
+      'reverb',
     ];
 
     for (final word in noiseWords) {
@@ -44,14 +48,21 @@ class TrackMatcher {
   static List<String> getTitleCandidates(String title) {
     final full = cleanText(title);
     final list = <String>[full];
-    if (title.contains(' - ')) {
-      final parts = title.split(' - ');
-      for (final p in parts) {
+    for (final sep in [' - ', ' – ', ' — ', ' | ', ': ']) {
+      if (!title.contains(sep)) continue;
+      for (final p in title.split(sep)) {
         final cp = cleanText(p);
         if (cp.isNotEmpty) list.add(cp);
       }
     }
     return list.where((e) => e.isNotEmpty).toList();
+  }
+
+  static Set<String> _tokens(String cleaned) {
+    return cleaned
+        .split(' ')
+        .where((t) => t.length > 1)
+        .toSet();
   }
 
   /// Check if two titles match based on candidates.
@@ -61,9 +72,20 @@ class TrackMatcher {
     for (final ca in candA) {
       for (final cb in candB) {
         if (ca == cb) return true;
-        if (ca.length >= 3 && cb.length >= 3) {
-          if (ca.contains(cb) || cb.contains(ca)) return true;
+        final ta = _tokens(ca);
+        final tb = _tokens(cb);
+        if (ta.isEmpty || tb.isEmpty) continue;
+        if (ta.containsAll(tb) || tb.containsAll(ta)) {
+          final shorter = ta.length <= tb.length ? ta : tb;
+          // Single short tokens ("love") matching inside longer titles
+          // ("beloved") is too loose; require 2+ tokens or one long token.
+          if (shorter.length >= 2) return true;
+          if (shorter.length == 1 && shorter.first.length >= 6) return true;
+          continue;
         }
+        final inter = ta.intersection(tb).length;
+        final union = ta.union(tb).length;
+        if (union > 0 && inter / union >= 0.75 && inter >= 2) return true;
       }
     }
     return false;
@@ -72,6 +94,7 @@ class TrackMatcher {
   /// Parse various duration formats to seconds.
   static int? parseDurationInSeconds(dynamic duration) {
     if (duration == null) return null;
+    if (duration is Duration) return duration.inSeconds;
     if (duration is int) return duration;
     final str = duration.toString().trim();
     if (str.isEmpty) return null;
@@ -104,28 +127,36 @@ class TrackMatcher {
   }) {
     if (!titlesMatch(titleA, titleB)) return false;
 
-    // Artist check: flexible substring or combined matching
-    final cleanArtA = cleanText(artistA);
-    final cleanArtB = cleanText(artistB);
-    final combinedA = cleanText('$titleA $artistA');
-    final combinedB = cleanText('$titleB $artistB');
-
-    final artistMatches = cleanArtA.isEmpty ||
-        cleanArtB.isEmpty ||
-        cleanArtA.contains(cleanArtB) ||
-        cleanArtB.contains(cleanArtA) ||
-        combinedA.contains(cleanArtB) ||
-        combinedB.contains(cleanArtA);
+    final cleanArtA = _normalizeArtist(artistA);
+    final cleanArtB = _normalizeArtist(artistB);
+    final artistMatches = (cleanArtA.isEmpty && cleanArtB.isEmpty) ||
+        (cleanArtA.isNotEmpty &&
+            cleanArtB.isNotEmpty &&
+            (cleanArtA == cleanArtB ||
+                cleanArtA.contains(cleanArtB) ||
+                cleanArtB.contains(cleanArtA) ||
+                _artistTokensOverlap(cleanArtA, cleanArtB)));
 
     if (!artistMatches) return false;
 
-    // Duration check
     final durA = parseDurationInSeconds(durationA);
     final durB = parseDurationInSeconds(durationB);
     if (durA != null && durB != null && durA > 0 && durB > 0) {
-      if ((durA - durB).abs() > 8) return false;
+      if ((durA - durB).abs() > 12) return false;
     }
 
     return true;
+  }
+
+  static String _normalizeArtist(String artist) {
+    var t = cleanText(artist);
+    t = t.replaceAll(RegExp(r'vevo$'), '').trim();
+    return t;
+  }
+
+  static bool _artistTokensOverlap(String a, String b) {
+    final ta = a.split(' ').where((t) => t.length > 2).toSet();
+    final tb = b.split(' ').where((t) => t.length > 2).toSet();
+    return ta.isNotEmpty && tb.isNotEmpty && ta.intersection(tb).isNotEmpty;
   }
 }

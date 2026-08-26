@@ -21,7 +21,6 @@
 
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:hive/hive.dart';

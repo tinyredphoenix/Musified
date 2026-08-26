@@ -61,6 +61,7 @@ class SourceResolver {
               'saavnId': cached['saavnId'],
             };
           }
+          await deleteCachedMatch(ytid);
         }
       }
     } catch (e) {
@@ -76,9 +77,7 @@ class SourceResolver {
       if (query.isEmpty) continue;
       var results = <Map<String, dynamic>>[];
       try {
-        results = await _saavnService
-            .searchTracks(query)
-            .timeout(const Duration(seconds: 4), onTimeout: () => []);
+        results = await _saavnService.searchTracks(query);
       } catch (e) {
         logger.log('JioSaavn search error for "$query": $e');
         continue;
@@ -146,6 +145,13 @@ class SourceResolver {
           await box.delete(key);
         }
       }
+    } catch (_) {}
+  }
+
+  Future<void> deleteCachedMatch(String ytid) async {
+    try {
+      final box = await _getBox();
+      await box?.delete(ytid);
     } catch (_) {}
   }
 

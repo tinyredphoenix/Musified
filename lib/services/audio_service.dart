@@ -71,6 +71,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   bool _isSeeking = false;
   Duration? _pendingSeekPosition;
+  bool _wasPlayingBeforeInterruption = false;
 
   bool _completionEventPending = false;
   bool _completionHandlerLoadStarted = false;
@@ -396,6 +397,33 @@ class MusifyAudioHandler extends BaseAudioHandler {
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
+
+      _subscriptions.add(
+        session.interruptionEventStream.listen((event) {
+          if (event.begin) {
+            if (event.type == AudioInterruptionType.duck) {
+              unawaited(audioPlayer.setVolume(0.5));
+            } else {
+              _wasPlayingBeforeInterruption = audioPlayer.playing;
+              if (_wasPlayingBeforeInterruption) {
+                unawaited(pause());
+              }
+            }
+          } else {
+            if (event.type == AudioInterruptionType.duck) {
+              unawaited(audioPlayer.setVolume(1));
+            } else if (_wasPlayingBeforeInterruption) {
+              unawaited(play());
+            }
+          }
+        }),
+      );
+
+      _subscriptions.add(
+        session.becomingNoisyEventStream.listen((_) {
+          unawaited(pause());
+        }),
+      );
 
       // Always set loop mode to off - we handle all repeating through _handleSongCompletion
       // This ensures ProcessingState.completed is always fired for song transitions
@@ -960,6 +988,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
       final song = _queueList.removeAt(oldIndex);
       var newIndex = targetIndex;
+      if (oldIndex < newIndex) newIndex--;
+      if (newIndex < 0) newIndex = 0;
       if (newIndex > _queueList.length) newIndex = _queueList.length;
       _queueList.insert(newIndex, song);
 
@@ -1004,9 +1034,12 @@ class MusifyAudioHandler extends BaseAudioHandler {
       _originalQueueList.clear();
 
       if (currentSong != null) {
-        _queueList.add(currentSong);
-        _originalQueueList.add(cloneMap(currentSong));
+        final kept = _queueEntryIds.createSong(currentSong);
+        _queueList.add(kept);
+        _originalQueueList.add(cloneMap(kept));
       }
+
+      _historyList.clear();
 
       _currentQueueIndex = 0;
       _currentLoadingIndex = -1;
@@ -1280,7 +1313,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
       ? _queueList[_currentQueueIndex]
       : null;
 
-  bool get hasNext => _currentQueueIndex < _queueList.length - 1;
+  bool get hasNext =>
+      _currentQueueIndex < _queueList.length - 1 ||
+      repeatNotifier.value == AudioServiceRepeatMode.all;
 
   bool get hasPrevious => _currentQueueIndex > 0 || _historyList.isNotEmpty;
 
@@ -1565,6 +1600,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> play() async {
     try {
+      try {
+        final session = await AudioSession.instance;
+        await session.setActive(true);
+      } catch (_) {}
       if (audioPlayer.audioSource == null) {
         final recentSong = _latestResumableSong();
         if (recentSong != null) {
@@ -1603,6 +1642,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
   @override
   Future<void> stop() async {
     _debounceTimer?.cancel();
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    sleepTimerExpired = false;
+    sleepTimerEndOfSong = false;
     _completionEventPending = false;
     _currentLoadingIndex = -1;
     _currentLoadingTransitionId = -1;
@@ -2390,7 +2433,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   Future<void> playAgain() async {
     try {
-      await audioPlayer.seek(Duration.zero);
+      await seek(Duration.zero);
       unawaited(
         audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
           logger.log(

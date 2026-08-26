@@ -86,14 +86,16 @@ void configureImageMemoryBudget() {
 
 Future<void> addOrUpdateData<T>(String category, String key, T value) async {
   final _box = await _openBox(category);
-  await _box.put(key, value);
 
   if (category == 'cache') {
-    await _box.put('${key}_date', DateTime.now());
-
-    // Update memory cache too
+    await _box.putAll({
+      key: value,
+      '${key}_date': DateTime.now(),
+    });
     final cacheKey = '${category}_$key';
     _setMemoryCacheEntry(cacheKey, _CacheEntry(value, DateTime.now()));
+  } else {
+    await _box.put(key, value);
   }
 }
 

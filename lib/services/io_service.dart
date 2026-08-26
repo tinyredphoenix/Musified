@@ -21,7 +21,7 @@
 
 import 'dart:io';
 
-late String applicationDirPath;
+String applicationDirPath = '';
 
 class FilePaths {
   // File extensions

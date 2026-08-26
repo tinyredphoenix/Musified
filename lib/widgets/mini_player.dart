@@ -58,10 +58,7 @@ class MiniPlayer extends StatelessWidget {
               final state = stateSnapshot.data;
               if (state == null) return const SizedBox.shrink();
 
-              final hasNext =
-                  state.queue.length > 1 &&
-                  (state.playbackState.queueIndex ?? 0) <
-                      state.queue.length - 1;
+              final hasNext = audioHandler.hasNext;
 
               return _MiniPlayerBody(
                 colorScheme: colorScheme,

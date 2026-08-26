@@ -41,6 +41,7 @@ class JioSaavnService {
           return (json['data']['results'] as List)
               .whereType<Map<String, dynamic>>()
               .map(_formatTrack)
+              .where((t) => (t['encrypted_media_url'] as String).isNotEmpty)
               .toList();
         }
       }
@@ -58,21 +59,11 @@ class JioSaavnService {
       final q = quality == '128' ? '96' : quality;
       final decrypted = _decryptUrl(encryptedMediaUrl);
       if (decrypted.isEmpty) return null;
-      // Saavn URLs are like ..._96.mp4? with optional query; replace bitrate segment
-      var url = decrypted;
-      // Handle both _96.mp4 and _96_ pattern
-      if (url.contains('_96.mp4')) {
-        url = url.replaceAll('_96.mp4', '_$q.mp4');
-      } else if (url.contains('_96.')) {
-        url = url.replaceAll('_96.', '_$q.');
-      } else {
-        // Fallback: if already contains quality, normalize
-        url = url.replaceAll(RegExp(r'_(\d+)\.mp4'), '_$q.mp4');
-      }
-      // Validate URL
-      final uri = Uri.tryParse(url);
+      final uri = Uri.tryParse(decrypted);
       if (uri == null || !uri.hasScheme) return null;
-      return url;
+      // Replace bitrate only in the path so signed query tokens stay intact.
+      final newPath = uri.path.replaceFirst(RegExp(r'_(\d+)\.mp4$'), '_$q.mp4');
+      return uri.replace(path: newPath).toString();
     } catch (e) {
       return null;
     }
@@ -80,12 +71,16 @@ class JioSaavnService {
 
   /// Decrypt the encrypted media URL using DES-ECB
   String _decryptUrl(String encryptedUrl) {
-    final key = utf8.encode('38346591');
-    final input = base64Decode(encryptedUrl);
+    try {
+      final key = utf8.encode('38346591');
+      final input = base64Decode(encryptedUrl);
 
-    final des = DES(key: key, paddingType: DESPaddingType.PKCS7);
-    final decrypted = des.decrypt(input);
-    return utf8.decode(decrypted);
+      final des = DES(key: key, paddingType: DESPaddingType.PKCS7);
+      final decrypted = des.decrypt(input);
+      return utf8.decode(decrypted);
+    } catch (_) {
+      return '';
+    }
   }
 
   /// Convert a JioSaavn API response track to a standardized map
@@ -106,6 +101,18 @@ class JioSaavnService {
       artist = primary;
     } else if (primary is List && primary.isNotEmpty) {
       artist = primary.map((e) => e is Map ? e['name']?.toString() ?? '' : e.toString()).join(', ');
+    }
+    if (artist.isEmpty) {
+      final artistMap = moreInfo?['artistMap'];
+      if (artistMap is Map) {
+        final mapped = artistMap['primary_artists'];
+        if (mapped is List && mapped.isNotEmpty) {
+          artist = mapped
+              .map((e) => e is Map ? e['name']?.toString() ?? '' : e.toString())
+              .where((n) => n.isNotEmpty)
+              .join(', ');
+        }
+      }
     }
     if (artist.isEmpty) artist = subtitle;
     artist = artist.replaceAll('&amp;', '&').replaceAll('&quot;', '"').replaceAll('&#039;', "'").trim();

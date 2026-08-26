@@ -24,11 +24,12 @@ import 'package:musify/services/common_services.dart';
 
 Map mediaItemToMap(MediaItem mediaItem) {
   final extras = mediaItem.extras;
+  final album = mediaItem.album;
   return {
     'id': mediaItem.id,
     'ytid': extras?['ytid'],
-    'album': mediaItem.album.toString(),
-    'artist': mediaItem.artist.toString(),
+    'album': (album == null || album == 'null') ? null : album,
+    'artist': mediaItem.artist?.toString(),
     'title': mediaItem.title,
     'artistId': extras?['artistId'],
     'videoAuthor': extras?['videoAuthor'],
@@ -51,8 +52,8 @@ String upgradeArtworkUrl(String url, {int targetSize = 800}) {
   if (upgraded.contains('googleusercontent.com') ||
       upgraded.contains('ggpht.com')) {
     upgraded = upgraded
-        .replaceAll(RegExp(r'=w\d+-h\d+[^?]*'), '=w$targetSize-h$targetSize-l90-rj')
-        .replaceAll(RegExp(r'=s\d+[^?]*'), '=s$targetSize');
+        .replaceAll(RegExp(r'=w\d+-h\d+(?:-[a-zA-Z0-9]+)*'), '=w$targetSize-h$targetSize-l90-rj')
+        .replaceAll(RegExp(r'=s\d+(?:-[a-zA-Z0-9]+)*'), '=s$targetSize');
   }
 
   // 2. JioSaavn CDN artwork (e.g. 50x50.jpg, 150x150.jpg -> 500x500.jpg)
@@ -105,21 +106,30 @@ MediaItem mapToMediaItem(Map song) {
               highQualityImageUrl.isNotEmpty &&
               highQualityImageUrl != 'null'
           ? Uri.parse(highQualityImageUrl)
-          : Uri.parse('https://i.ytimg.com/vi/${song['id'] ?? ytid}/maxresdefault.jpg'));
+          : Uri.parse('https://i.ytimg.com/vi/${ytid ?? ''}/maxresdefault.jpg'));
   // ytid is the canonical track identity shared by YouTube and JioSaavn.
   // Provider URLs, source labels, and queue-entry ids must never change it.
   final stableId = (ytid == null || ytid.isEmpty)
       ? song['id'].toString()
       : ytid;
 
+  final albumRaw = song['album']?.toString();
+  final album = (albumRaw == null || albumRaw.isEmpty || albumRaw == 'null')
+      ? null
+      : albumRaw;
+  final artworkFilePath =
+      (isOffline ? offlineSong['artworkPath'] : song['artworkPath'])
+          ?.toString() ??
+      song['artWorkPath']?.toString() ??
+      '';
+
   return MediaItem(
     id: stableId,
-    artist: song['artist'].toString().trim(),
+    artist: song['artist']?.toString().trim(),
+    album: album,
     title: song['title'].toString(),
     artUri: artUri,
-    duration: song['duration'] != null
-        ? Duration(seconds: song['duration'])
-        : null,
+    duration: _songDuration(song['duration']),
     extras: {
       'lowResImage': song['lowResImage'],
       'ytid': song['ytid'],
@@ -129,15 +139,22 @@ MediaItem mapToMediaItem(Map song) {
       'isOffline': isOffline,
       'downloadSource': downloadSource,
       'highResImage': song['highResImage'],
-      'artWorkPath':
-          (isOffline ? offlineSong['artworkPath'] : song['highResImage'])
-              ?.toString() ??
-          '',
+      'artWorkPath': artworkFilePath,
+      'artworkPath': artworkFilePath,
       'resolvedSource': song['resolvedSource'],
       'resolvedBitrate': song['resolvedBitrate'],
       'resolvedFormat': song['resolvedFormat'],
     },
   );
+}
+
+Duration? _songDuration(dynamic value) {
+  if (value == null) return null;
+  if (value is Duration) return value;
+  if (value is int) return Duration(seconds: value);
+  final parsed = int.tryParse(value.toString());
+  if (parsed == null) return null;
+  return Duration(seconds: parsed);
 }
 
 /// Compares two Duration objects with tolerance for minor differences.

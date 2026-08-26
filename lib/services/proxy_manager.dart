@@ -428,11 +428,9 @@ class ProxyManager {
     final httpClient = HttpClient()
       ..connectionTimeout = Duration(seconds: timeoutSeconds)
       ..findProxy = (_) {
-        return 'PROXY ${proxy.address}; DIRECT';
+        return 'PROXY ${proxy.address}';
       }
-      ..badCertificateCallback = (context, _context, ___) {
-        return true;
-      };
+      ..badCertificateCallback = (cert, host, port) => false;
 
     final ioClient = IOClient(httpClient);
     res = _ProxyResources(httpClient, ioClient);

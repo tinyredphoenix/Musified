@@ -128,6 +128,8 @@ AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
     final codec = stream.codec.toString().toLowerCase();
     final container = stream.container.name.toLowerCase();
     if (_isDolbyCodec(codec)) return false;
+    if (container.contains('webm') || container.contains('opus')) return false;
+    if (codec.contains('opus') && !codec.contains('mp4a')) return false;
     return (container == 'm4a' || container == 'mp4' || container == 'aac') ||
         (codec.contains('mp4a') || codec.contains('aac'));
   }
@@ -149,8 +151,10 @@ AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
 
   final qualitySetting = audioQualitySetting.value;
 
+  // sortByBitrate() is descending (highest first). Low quality must use the
+  // cheapest playable AAC stream, not the top of that list.
   if (qualitySetting == 'low') {
-    return sortedPool.first;
+    return sortedPool.last;
   } else if (qualitySetting == 'medium') {
     return sortedPool[sortedPool.length ~/ 2];
   }

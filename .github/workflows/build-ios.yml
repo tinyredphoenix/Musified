@@ -59,6 +59,11 @@ jobs:
           pod install
           cd ..
 
+      - name: Analyze and test
+        run: |
+          dart analyze lib
+          flutter test
+
       - name: Build iOS App (No Codesign)
         run: flutter build ios --release --no-codesign
 
@@ -90,15 +95,15 @@ jobs:
           git push origin main || true
 
       - name: Delete existing release
-        run: gh release delete v4.0 --yes || true
+        run: gh release delete v6.0.0 --yes || true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v4.0
-          name: "Musified iOS v4.0"
+          tag_name: v6.0.0
+          name: "Musified iOS v6.0.0"
           body: "Ready-to-install unsigned iOS IPA for Musified (YouTube Music + JioSaavn 320k client)."
           draft: false
           prerelease: false

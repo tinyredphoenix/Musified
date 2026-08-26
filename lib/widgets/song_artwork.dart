@@ -71,7 +71,12 @@ class SongArtworkWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(borderRadius),
               child: Image.file(
                 key: ValueKey('${metadata.id}:${metadata.artUri}'),
-                File(metadata.extras?['artWorkPath']),
+                File(
+                  metadata.artUri?.toFilePath() ??
+                      metadata.extras?['artworkPath']?.toString() ??
+                      metadata.extras?['artWorkPath']?.toString() ??
+                      '',
+                ),
                 fit: BoxFit.cover,
                 cacheWidth: cacheDimension,
                 cacheHeight: cacheDimension,

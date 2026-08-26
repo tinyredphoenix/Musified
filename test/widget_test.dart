@@ -17,6 +17,18 @@ void main() {
 
     expect(
       TrackMatcher.isExactMatch(
+        titleA: 'Love',
+        artistA: 'Artist A',
+        durationA: 180,
+        titleB: 'Beloved',
+        artistB: 'Artist A',
+        durationB: 180,
+      ),
+      isFalse,
+    );
+
+    expect(
+      TrackMatcher.isExactMatch(
         titleA: 'the cure',
         artistA: 'Lady Gaga',
         durationA: 211,

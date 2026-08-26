@@ -288,10 +288,7 @@ class _QueueWidgetState extends State<QueueWidget> {
       padding: const EdgeInsets.only(top: 4, bottom: 24, left: 8, right: 8),
       itemCount: _queue.length,
       onReorderItem: (oldIndex, newIndex) {
-        final movingId =
-            _queue[oldIndex]['queueEntryId']?.toString() ??
-            'legacy_${_queue[oldIndex]['ytid']}_$oldIndex';
-
+        if (oldIndex < newIndex) newIndex -= 1;
         setState(() {
           final item = _queue.removeAt(oldIndex);
           var insertIndex = newIndex;
@@ -300,10 +297,7 @@ class _QueueWidgetState extends State<QueueWidget> {
           _queue.insert(insertIndex, item);
         });
 
-        final actualIndex = _queue.indexWhere(
-          (item) => item['queueEntryId']?.toString() == movingId,
-        );
-        audioHandler.reorderQueueById(movingId, actualIndex);
+        audioHandler.reorderQueue(oldIndex, newIndex);
       },
       proxyDecorator: (child, index, animation) => Material(
         elevation: 8,
@@ -487,7 +481,8 @@ class _ArtworkThumbnail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final artworkPath = song['artworkPath'] as String?;
+    final artworkPath = song['artworkPath']?.toString() ??
+        song['artWorkPath']?.toString();
     if (artworkPath != null && artworkPath.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(radius),
