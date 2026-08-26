@@ -61,7 +61,7 @@ jobs:
 
       - name: Analyze and test
         run: |
-          dart analyze lib
+          flutter analyze --no-fatal-infos
           flutter test
 
       - name: Build iOS App (No Codesign)
