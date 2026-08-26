@@ -460,6 +460,7 @@ class _ArtistPageState extends State<ArtistPage> {
           List<Map>.from(songs.whereType<Map>())..shuffle(),
           replace: true,
           startIndex: 0,
+          resetShuffle: false,
         );
       } else {
         await audioHandler.playPlaylistSong(playlist: catalog, songIndex: 0);

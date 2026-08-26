@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 
@@ -103,7 +103,7 @@ class PlaylistHeader extends StatelessWidget {
             children: [
               if (isArtist)
                 _Chip(
-                  icon: FluentIcons.person_16_regular,
+                  icon: CupertinoIcons.person,
                   label: context.l10n.artist,
                   color: colorScheme.primaryContainer,
                   onColor: colorScheme.onPrimaryContainer,
@@ -112,8 +112,8 @@ class PlaylistHeader extends StatelessWidget {
               else if (isAlbum != null)
                 _Chip(
                   icon: isAlbum!
-                      ? FluentIcons.cd_16_regular
-                      : FluentIcons.apps_list_24_regular,
+                      ? CupertinoIcons.music_note_2
+                      : CupertinoIcons.list_bullet,
                   label: isAlbum!
                       ? context.l10n.album
                       : context.l10n.playlist,
@@ -123,7 +123,7 @@ class PlaylistHeader extends StatelessWidget {
                 ),
               if (songsLength != null)
                 _Chip(
-                  icon: FluentIcons.text_bullet_list_24_filled,
+                  icon: CupertinoIcons.list_bullet,
                   label: '$songsLength ${context.l10n.songs}',
                   color: colorScheme.secondaryContainer,
                   onColor: colorScheme.onSecondaryContainer,
@@ -131,7 +131,7 @@ class PlaylistHeader extends StatelessWidget {
                 ),
               if (monthlyListeners != null)
                 _Chip(
-                  icon: FluentIcons.headphones_20_filled,
+                  icon: CupertinoIcons.headphones,
                   label: '$monthlyListeners ${context.l10n.monthlyListeners}',
                   color: colorScheme.secondaryContainer,
                   onColor: colorScheme.onSecondaryContainer,

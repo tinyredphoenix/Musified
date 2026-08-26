@@ -536,7 +536,9 @@ class _AudioSourceChip extends StatelessWidget {
     final extras = metadata.extras ?? {};
     final currentSource = extras['resolvedSource'] as String? ?? 'youtube';
     final ytid = extras['ytid']?.toString() ?? '';
-    final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
+    // Fully downloaded → offline only; no mid-session online provider switch.
+    final isOffline =
+        extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
 
     showCupertinoModalPopup<void>(
       context: context,
@@ -637,7 +639,8 @@ class _AudioSourceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final extras = metadata.extras ?? {};
     final ytid = extras['ytid']?.toString() ?? '';
-    final isOffline = getOfflineSongByYtid(ytid).isNotEmpty;
+    final isOffline =
+        extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
 
     final source = extras['resolvedSource'] as String? ?? 'youtube';
     final bitrate = extras['resolvedBitrate'] as int?;
@@ -668,7 +671,9 @@ class _AudioSourceChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              isJioSaavn
+              isOffline
+                  ? CupertinoIcons.arrow_down_circle_fill
+                  : isJioSaavn
                   ? CupertinoIcons.music_note
                   : CupertinoIcons.play_rectangle_fill,
               size: 11,
@@ -684,12 +689,14 @@ class _AudioSourceChip extends StatelessWidget {
                 letterSpacing: 0.1,
               ),
             ),
-            const SizedBox(width: 3),
-            Icon(
-              CupertinoIcons.chevron_down,
-              size: 10,
-              color: color.withValues(alpha: 0.7),
-            ),
+            if (!isOffline) ...[
+              const SizedBox(width: 3),
+              Icon(
+                CupertinoIcons.chevron_down,
+                size: 10,
+                color: color.withValues(alpha: 0.7),
+              ),
+            ],
           ],
         ),
       ),

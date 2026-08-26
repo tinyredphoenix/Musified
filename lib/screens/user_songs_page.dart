@@ -221,6 +221,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                         shuffled,
                         replace: true,
                         startIndex: 0,
+                        resetShuffle: false,
                       );
                     },
                   ),

@@ -1,59 +1,103 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
+ * Transient HUD toast — Cupertino-feeling, theme-aware, no Material SnackBar.
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'dart:async';
+
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
+import 'package:musify/theme/musified_style.dart';
 import 'package:musify/widgets/mini_player.dart';
+
+OverlayEntry? _activeToast;
+Timer? _toastTimer;
 
 void showToast(
   BuildContext context,
   String text, {
-  Duration duration = const Duration(seconds: 3),
+  Duration duration = const Duration(seconds: 2),
   IconData? icon,
 }) {
-  final colorScheme = Theme.of(context).colorScheme;
+  _dismissToast();
+
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return;
+
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final isDark = theme.brightness == Brightness.dark;
   final isMiniPlayerVisible =
       isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
-  final bottomMargin =
-      12.0 + (isMiniPlayerVisible ? MiniPlayer.playerHeight : 0.0);
+  final bottom =
+      16.0 +
+      MediaQuery.paddingOf(context).bottom +
+      (isMiniPlayerVisible ? MiniPlayer.playerHeight + 8 : 0);
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      margin: EdgeInsets.fromLTRB(16, 12, 16, bottomMargin),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      content: Row(
-        children: [
-          Icon(
-            icon ?? FluentIcons.checkmark_circle_20_regular,
-            color: colorScheme.onSecondaryContainer,
-            size: 20,
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (ctx) {
+      return IgnorePointer(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(24, 0, 24, bottom),
+            child: AnimatedOpacity(
+              opacity: 1,
+              duration: const Duration(milliseconds: 180),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? MusifiedStyle.surfaceHigh
+                      : MusifiedStyle.lightOnSurface,
+                  borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+                  border: Border.all(
+                    color: isDark
+                        ? MusifiedStyle.hairline
+                        : Colors.white.withValues(alpha: 0.08),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        icon ?? CupertinoIcons.checkmark_alt_circle_fill,
+                        size: 18,
+                        color: isDark
+                            ? scheme.primary
+                            : Colors.white.withValues(alpha: 0.92),
+                      ),
+                      const SizedBox(width: 10),
+                      Flexible(
+                        child: Text(
+                          text,
+                          style: TextStyle(
+                            color: isDark ? scheme.onSurface : Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.15,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text)),
-        ],
-      ),
-      duration: duration,
-    ),
+        ),
+      );
+    },
   );
+
+  _activeToast = entry;
+  overlay.insert(entry);
+  _toastTimer = Timer(duration, _dismissToast);
 }
 
 void showToastWithButton(
@@ -64,33 +108,89 @@ void showToastWithButton(
   Duration duration = const Duration(seconds: 3),
   IconData? icon,
 }) {
-  final colorScheme = Theme.of(context).colorScheme;
+  _dismissToast();
+
+  final overlay = Overlay.maybeOf(context, rootOverlay: true);
+  if (overlay == null) return;
+
+  final theme = Theme.of(context);
+  final scheme = theme.colorScheme;
+  final isDark = theme.brightness == Brightness.dark;
   final isMiniPlayerVisible =
       isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
-  final bottomMargin =
-      12.0 + (isMiniPlayerVisible ? MiniPlayer.playerHeight : 0.0);
+  final bottom =
+      16.0 +
+      MediaQuery.paddingOf(context).bottom +
+      (isMiniPlayerVisible ? MiniPlayer.playerHeight + 8 : 0);
 
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      margin: EdgeInsets.fromLTRB(16, 12, 16, bottomMargin),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      content: Row(
-        children: [
-          Icon(
-            icon ?? FluentIcons.info_20_regular,
-            color: colorScheme.onSecondaryContainer,
-            size: 20,
+  late final OverlayEntry entry;
+  entry = OverlayEntry(
+    builder: (ctx) {
+      return Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(24, 0, 24, bottom),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: isDark
+                  ? MusifiedStyle.surfaceHigh
+                  : MusifiedStyle.lightOnSurface,
+              borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    icon ?? CupertinoIcons.info_circle_fill,
+                    size: 18,
+                    color: scheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      text,
+                      style: TextStyle(
+                        color: isDark ? scheme.onSurface : Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                  CupertinoButton(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    minimumSize: Size.zero,
+                    onPressed: () {
+                      _dismissToast();
+                      onPressedToast();
+                    },
+                    child: Text(
+                      buttonName,
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-          const SizedBox(width: 12),
-          Expanded(child: Text(text)),
-        ],
-      ),
-      action: SnackBarAction(
-        label: buttonName,
-        onPressed: () => onPressedToast(),
-      ),
-      persist: false,
-      duration: duration,
-    ),
+        ),
+      );
+    },
   );
+
+  _activeToast = entry;
+  overlay.insert(entry);
+  _toastTimer = Timer(duration, _dismissToast);
+}
+
+void _dismissToast() {
+  _toastTimer?.cancel();
+  _toastTimer = null;
+  _activeToast?.remove();
+  _activeToast = null;
 }

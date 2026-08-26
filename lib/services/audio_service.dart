@@ -27,6 +27,7 @@ import 'package:audio_session/audio_session.dart';
 import 'package:hive/hive.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:musify/main.dart';
+import 'package:musify/models/full_player_state.dart';
 import 'package:musify/models/position_data.dart';
 import 'package:musify/services/common_services.dart';
 
@@ -73,6 +74,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   bool _completionEventPending = false;
   bool _completionHandlerLoadStarted = false;
+  bool _sourceSwitchInFlight = false;
 
   String? _lastError;
   int _consecutiveErrors = 0;
@@ -129,6 +131,20 @@ class MusifyAudioHandler extends BaseAudioHandler {
       .asBroadcastStream();
 
   Stream<PlaybackState> get playbackStateStream => _playbackStateStream;
+
+  /// Single cached combine so mini-player rebuilds do not recreate subscriptions.
+  late final Stream<FullPlayerState> fullPlayerStateStream =
+      Rx.combineLatest3(
+        playbackStateStream,
+        queue.distinct(),
+        positionDataStream,
+        (PlaybackState state, List<MediaItem> queueItems, PositionData pos) =>
+            FullPlayerState(
+              playbackState: state,
+              queue: queueItems,
+              position: pos,
+            ),
+      ).throttleTime(const Duration(milliseconds: 120), trailing: true).asBroadcastStream();
 
   static const List<MediaControl> _controlsMultiplePlaying = [
     MediaControl.skipToPrevious,
@@ -786,6 +802,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     List<Map> songs, {
     bool replace = false,
     int? startIndex,
+    bool resetShuffle = true,
   }) async {
     try {
       final manuallyAddedSongs = replace ? _getUnplayedManualSongs() : <Map>[];
@@ -796,9 +813,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
         _currentLoadingIndex = -1;
         _currentLoadingTransitionId = -1;
         _resetPreloadingState();
-        shuffleNotifier.value = false;
-        unawaited(Hive.box('settings').put('shuffleEnabled', false));
-        await audioPlayer.setShuffleModeEnabled(false);
+        if (resetShuffle) {
+          shuffleNotifier.value = false;
+          unawaited(Hive.box('settings').put('shuffleEnabled', false));
+          await audioPlayer.setShuffleModeEnabled(false);
+        }
       }
 
       int? targetQueueIndex;
@@ -1039,6 +1058,8 @@ class MusifyAudioHandler extends BaseAudioHandler {
         });
       }
 
+      // Keep playing=true and current position so a mid-stream source switch
+      // does not flash a paused/zeroed mini-player while the new URL loads.
       playbackState.add(
         PlaybackState(
           controls: [
@@ -1053,6 +1074,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
             MediaAction.seekBackward,
           },
           processingState: AudioProcessingState.loading,
+          playing: true,
+          updatePosition: audioPlayer.position,
+          bufferedPosition: audioPlayer.bufferedPosition,
+          speed: audioPlayer.speed,
           queueIndex:
               queueIndex ??
               (_currentQueueIndex < _queueList.length
@@ -1723,7 +1748,12 @@ class MusifyAudioHandler extends BaseAudioHandler {
     return transitionId != null && transitionId != _currentLoadingTransitionId;
   }
 
-  Future<bool> playSong(Map song, {String? mediaId, int? transitionId}) async {
+  Future<bool> playSong(
+    Map song, {
+    String? mediaId,
+    int? transitionId,
+    Duration? resumeAt,
+  }) async {
     final ownsTransition = transitionId == null;
     final effectiveTransitionId = transitionId ?? ++_songTransitionCounter;
     if (ownsTransition) {
@@ -1823,13 +1853,14 @@ class MusifyAudioHandler extends BaseAudioHandler {
         playback.isOffline,
         mediaId: mediaId,
         transitionId: effectiveTransitionId,
+        resumeAt: resumeAt,
       );
     } catch (e, stackTrace) {
       logger.log('Error playing song', error: e, stackTrace: stackTrace);
       _lastError = e.toString();
       return false;
     } finally {
-      _isUpdatingState = false;
+      // Do not clear _isUpdatingState here — only _updatePlaybackState owns it.
       if (ownsTransition &&
           _currentLoadingTransitionId == effectiveTransitionId) {
         _currentLoadingIndex = -1;
@@ -1839,7 +1870,29 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<_PlaybackSource?> _resolvePlaybackSource(Map songData) async {
+    // Fully downloaded tracks always use the local file — overrides forceSource
+    // and preferred online provider.
     final isOffline = await _resolveOfflineAndSetPaths(songData);
+    if (isOffline) {
+      songData['isOffline'] = true;
+      songData['resolvedSource'] = 'offline';
+      final songUrl = await _getOfflineSongUrl(songData);
+      if (songUrl != null && songUrl.isNotEmpty) {
+        return _PlaybackSource(songUrl: songUrl, isOffline: true);
+      }
+      // Listed as offline but file missing — fall through only if not in
+      // explicit offline-only mode.
+      if (offlineMode.value) {
+        logger.log(
+          'Offline file missing for ${songData['ytid']} while offline mode on',
+        );
+        return null;
+      }
+      logger.log(
+        'Offline file missing for ${songData['ytid']}, falling back to online',
+      );
+    }
+
     if (!isOffline && offlineMode.value) {
       logger.log(
         'Offline mode enabled and no local file found for ${songData['ytid']}',
@@ -1849,86 +1902,113 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
     final songUrl = await _getPlaybackUrl(
       songData,
-      isOffline,
+      false,
     ).timeout(const Duration(seconds: 14));
 
     if (songUrl == null || songUrl.isEmpty) {
-      if (!isOffline) {
-        logger.log('Failed to get song URL for ${songData['ytid']}');
-        return null;
-      }
-
-      // If offline mode is enabled, do NOT fall back to online streams.
-      // This prevents network requests while the user explicitly requested
-      // offline-only operation.
-      try {
-        if (offlineMode.value) {
-          logger.log(
-            'Offline mode enabled and offline file missing for ${songData['ytid']}. Not falling back to online.',
-          );
-          return null;
-        }
-      } catch (_) {
-        // If offlineMode isn't available for some reason, continue with fallback.
-      }
-
-      logger.log(
-        'Offline file missing for ${songData['ytid']}, switching to online',
-      );
-
-      final onlineUrl = await fetchSongStreamUrl(
-        songData,
-        songData['isLive'] ?? false,
-      );
-
-      if (onlineUrl == null || onlineUrl.isEmpty) {
-        logger.log('Failed to get song URL for ${songData['ytid']}');
-        return null;
-      }
-
-      return _PlaybackSource(songUrl: onlineUrl, isOffline: false);
+      logger.log('Failed to get song URL for ${songData['ytid']}');
+      return null;
     }
 
-    return _PlaybackSource(songUrl: songUrl, isOffline: isOffline);
+    return _PlaybackSource(songUrl: songUrl, isOffline: false);
   }
 
   /// Re-resolves the current canonical track using one source. The ytid and
   /// queue entry stay unchanged, so switching between YouTube and JioSaavn
   /// cannot create a duplicate track or attach the wrong artwork/history.
+  ///
+  /// Fully downloaded tracks refuse online switches (offline always wins).
   Future<bool> switchSource(String source) async {
     if (source != 'youtube' && source != 'jiosaavn') return false;
     final song = currentSong;
     if (song == null || _songYtid(song) == null) return false;
 
+    final ytid = _songYtid(song)!;
+    if (hasPlayableOfflineFile(ytid) || song['isOffline'] == true) {
+      final stillOffline = await _resolveOfflineAndSetPaths(cloneMap(song));
+      if (stillOffline) {
+        logger.log(
+          'Source switch ignored — fully downloaded track stays offline: $ytid',
+        );
+        return false;
+      }
+    }
+
     final previousSource = song['resolvedSource']?.toString() ?? 'youtube';
     if (previousSource == source) return true;
+
+    if (_sourceSwitchInFlight) {
+      logger.log('Source switch already in progress, ignoring');
+      return true;
+    }
+    _sourceSwitchInFlight = true;
+
+    final resumePosition = audioPlayer.position;
+    final shouldResume = audioPlayer.playing ||
+        audioPlayer.processingState == ProcessingState.ready ||
+        audioPlayer.processingState == ProcessingState.buffering ||
+        audioPlayer.processingState == ProcessingState.loading;
 
     final transitionId = ++_songTransitionCounter;
     _currentLoadingIndex = _currentQueueIndex;
     _currentLoadingTransitionId = transitionId;
-    final request = cloneMap(song)..['forceSource'] = source;
+    final request = cloneMap(song)
+      ..['forceSource'] = source
+      ..remove('isOffline')
+      ..remove('audioPath');
     final mediaId = _getMediaItemForQueue(song).id;
+
     try {
+      // Pause before swapping URLs — mid-decode setAudioSource hangs AVPlayer
+      // on iOS and leaves the UI stuck in a broken loading state.
+      try {
+        if (audioPlayer.playing) {
+          await audioPlayer.pause();
+        }
+      } catch (e, st) {
+        logger.log('Pause before source switch failed', error: e, stackTrace: st);
+      }
+
       final success = await playSong(
         request,
         mediaId: mediaId,
         transitionId: transitionId,
+        resumeAt: resumePosition > Duration.zero ? resumePosition : null,
       );
+
+      // Superseded by skip/another load — not a real source failure.
+      if (_isStaleTransition(transitionId)) {
+        return true;
+      }
+
       if (!success) {
         logger.log('Source $source not available for ${song['title']}');
-        _currentLoadingIndex = -1;
-        _currentLoadingTransitionId = -1;
+        if (shouldResume && audioPlayer.audioSource != null) {
+          unawaited(
+            audioPlayer.play().catchError((Object e, StackTrace st) {
+              logger.log(
+                'Resume after failed source switch failed',
+                error: e,
+                stackTrace: st,
+              );
+            }),
+          );
+        }
         _updatePlaybackState();
         return false;
       }
+
+      _updatePlaybackState();
       return true;
     } catch (e, st) {
       logger.log('Error switching source to $source', error: e, stackTrace: st);
-      _currentLoadingIndex = -1;
-      _currentLoadingTransitionId = -1;
+      if (shouldResume && audioPlayer.audioSource != null) {
+        unawaited(audioPlayer.play().catchError((_) {}));
+      }
       _updatePlaybackState();
       return false;
     } finally {
+      _sourceSwitchInFlight = false;
       if (_currentLoadingTransitionId == transitionId) {
         _currentLoadingIndex = -1;
         _currentLoadingTransitionId = -1;
@@ -1984,6 +2064,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     String? mediaId,
     bool allowOnlineRetry = true,
     int? transitionId,
+    Duration? resumeAt,
   }) async {
     try {
       final urlHost = Uri.tryParse(songUrl)?.host ?? 'invalid-url';
@@ -1997,7 +2078,15 @@ class MusifyAudioHandler extends BaseAudioHandler {
         return false;
       }
 
-
+      // Soft-stop before installing a new URI. Swapping sources while AVPlayer
+      // is still decoding the previous stream is a common iOS hang.
+      try {
+        if (audioPlayer.playing ||
+            audioPlayer.processingState == ProcessingState.buffering ||
+            audioPlayer.processingState == ProcessingState.loading) {
+          await audioPlayer.pause();
+        }
+      } catch (_) {}
 
       await audioPlayer
           .setAudioSource(audioSource, preload: false)
@@ -2022,6 +2111,20 @@ class MusifyAudioHandler extends BaseAudioHandler {
         _updateCurrentMediaItemWithDuration(audioPlayer.duration!);
       }
 
+      if (resumeAt != null && resumeAt > Duration.zero) {
+        final duration = audioPlayer.duration;
+        final target =
+            duration != null && resumeAt > duration ? duration : resumeAt;
+        try {
+          await audioPlayer.seek(target);
+        } catch (e, st) {
+          logger.log(
+            'Seek to resume position failed',
+            error: e,
+            stackTrace: st,
+          );
+        }
+      }
 
       // just_audio's play() future completes when playback stops, not when it
       // starts. Awaiting it kept transitions in a loading state for the whole
@@ -2065,6 +2168,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
           song,
           mediaId: mediaId,
           transitionId: transitionId,
+          resumeAt: resumeAt,
         );
       }
 
@@ -2098,6 +2202,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
                 mediaId: mediaId,
                 allowOnlineRetry: false,
                 transitionId: transitionId,
+                resumeAt: resumeAt,
               );
             }
           }
@@ -2106,8 +2211,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
       _lastError = e.toString();
       return false;
-    } finally {
-      _isUpdatingState = false;
     }
   }
 
@@ -2115,6 +2218,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     Map song, {
     String? mediaId,
     int? transitionId,
+    Duration? resumeAt,
   }) async {
     // Do not attempt any network calls when offline mode is enabled.
     if (offlineMode.value) return false;
@@ -2130,6 +2234,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
           false,
           mediaId: mediaId,
           transitionId: transitionId,
+          resumeAt: resumeAt,
         );
       }
     }
@@ -2286,6 +2391,15 @@ class MusifyAudioHandler extends BaseAudioHandler {
   Future<void> playAgain() async {
     try {
       await audioPlayer.seek(Duration.zero);
+      unawaited(
+        audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
+          logger.log(
+            'Error restarting playback',
+            error: e,
+            stackTrace: stackTrace,
+          );
+        }),
+      );
       final song = currentSong;
       if (song != null) {
         unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));

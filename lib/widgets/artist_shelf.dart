@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/widgets/playlist_cube.dart';
 import 'package:musify/widgets/section_header.dart';
@@ -34,7 +34,7 @@ class ArtistShelf extends StatelessWidget {
     required this.items,
     required this.onTap,
     this.subtitleOf,
-    this.cubeIcon = FluentIcons.cd_16_regular,
+    this.cubeIcon = CupertinoIcons.music_note_2,
     this.circular = false,
   });
 

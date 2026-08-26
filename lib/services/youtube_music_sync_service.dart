@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -40,8 +41,39 @@ class YouTubeMusicSyncService {
           lastSyncTime.value = DateTime.fromMillisecondsSinceEpoch(syncTime);
         }
       }
+      await _hydratePlaylistsFromCache();
     } catch (e) {
       logger.log('Error initializing YouTubeMusicSyncService: $e');
+    }
+  }
+
+  Future<void> _hydratePlaylistsFromCache() async {
+    try {
+      final cached = await getData('user', 'ytMusicPlaylists');
+      if (cached is! List || cached.isEmpty) return;
+      final playlists = <Map<String, dynamic>>[];
+      for (final item in cached) {
+        if (item is Map) {
+          playlists.add(Map<String, dynamic>.from(item));
+        }
+      }
+      if (playlists.isNotEmpty && ytMusicPlaylists.value.isEmpty) {
+        ytMusicPlaylists.value = playlists;
+      }
+    } catch (e) {
+      logger.log('Error hydrating YT playlists cache: $e');
+    }
+  }
+
+  Future<void> _persistPlaylists(List<Map<String, dynamic>> playlists) async {
+    try {
+      await addOrUpdateData<List>(
+        'user',
+        'ytMusicPlaylists',
+        playlists,
+      );
+    } catch (e) {
+      logger.log('Error persisting YT playlists: $e');
     }
   }
 
@@ -161,10 +193,7 @@ class YouTubeMusicSyncService {
 
   Future<List<Map<String, dynamic>>> fetchLikedSongs() async {
     try {
-      final response = await _authenticatedPost('/browse', {
-        'browseId': 'FEmusic_liked_videos',
-      });
-      return _parseTrackRenderers(response);
+      return _browseAllTracks('FEmusic_liked_videos');
     } catch (e) {
       logger.log('Error fetching liked songs: $e');
       return [];
@@ -198,11 +227,14 @@ class YouTubeMusicSyncService {
         }
 
         final subtitle = _runsText(item['subtitle'] as Map<String, dynamic>?) ?? '';
+        final count = _parseTrackCount(subtitle);
 
         playlists.add({
           'playlistId': playlistId,
           'title': title,
           'image': imageUrl ?? '',
+          // Library UI reads `count`; keep subtitle as `trackCount` for display fallback.
+          'count': count ?? 0,
           'trackCount': subtitle,
         });
       }
@@ -213,19 +245,87 @@ class YouTubeMusicSyncService {
     }
   }
 
+  /// Extracts a song count from YT Music subtitle runs (e.g. "Playlist • 42 songs").
+  int? _parseTrackCount(String subtitle) {
+    if (subtitle.isEmpty) return null;
+    final withUnit = RegExp(
+      r'(\d[\d,]*)\s*(songs?|tracks?)',
+      caseSensitive: false,
+    ).firstMatch(subtitle);
+    final raw = withUnit?.group(1) ??
+        RegExp(r'(\d[\d,]*)').firstMatch(subtitle)?.group(1);
+    if (raw == null) return null;
+    return int.tryParse(raw.replaceAll(',', ''));
+  }
+
   Future<List<Map<String, dynamic>>> fetchPlaylistTracks(String playlistId) async {
     try {
       final browseId = playlistId.startsWith('VL') || playlistId.startsWith('FE')
           ? playlistId
           : 'VL$playlistId';
-      final response = await _authenticatedPost('/browse', {
-        'browseId': browseId,
-      });
-      return _parseTrackRenderers(response);
+      return _browseAllTracks(browseId);
     } catch (e) {
       logger.log('Error fetching playlist tracks: $e');
       return [];
     }
+  }
+
+  /// Walks browse + continuation pages until exhausted (capped for safety).
+  Future<List<Map<String, dynamic>>> _browseAllTracks(String browseId) async {
+    final tracks = <Map<String, dynamic>>[];
+    final seen = <String>{};
+
+    var response = await _authenticatedPost('/browse', {
+      'browseId': browseId,
+    });
+    _appendUniqueTracks(tracks, seen, _parseTrackRenderers(response));
+
+    var continuation = _extractContinuation(response);
+    var pages = 0;
+    const maxPages = 25;
+
+    while (continuation != null &&
+        continuation.isNotEmpty &&
+        pages < maxPages) {
+      pages++;
+      response = await _authenticatedPost('/browse', {
+        'continuation': continuation,
+      });
+      final pageTracks = _parseTrackRenderers(response);
+      if (pageTracks.isEmpty) break;
+      final before = tracks.length;
+      _appendUniqueTracks(tracks, seen, pageTracks);
+      if (tracks.length == before) break;
+      continuation = _extractContinuation(response);
+    }
+
+    return tracks;
+  }
+
+  void _appendUniqueTracks(
+    List<Map<String, dynamic>> dest,
+    Set<String> seen,
+    List<Map<String, dynamic>> page,
+  ) {
+    for (final track in page) {
+      final id = track['ytid']?.toString();
+      if (id == null || id.isEmpty || seen.contains(id)) continue;
+      seen.add(id);
+      dest.add(track);
+    }
+  }
+
+  String? _extractContinuation(Map<String, dynamic> response) {
+    for (final node in _findRenderers(response, 'nextContinuationData')) {
+      final token = node['continuation']?.toString();
+      if (token != null && token.isNotEmpty) return token;
+    }
+    for (final node in _findRenderers(response, 'continuationEndpoint')) {
+      final cont = node['continuationCommand'] as Map?;
+      final token = cont?['token']?.toString();
+      if (token != null && token.isNotEmpty) return token;
+    }
+    return null;
   }
 
   Future<List<Map<String, dynamic>>> fetchPersonalizedMixes() async {
@@ -298,13 +398,85 @@ class YouTubeMusicSyncService {
     }
   }
 
+  /// Content Playback Nonce used by YouTube stats endpoints.
+  String _generateCpn() {
+    const chars =
+        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+    final rng = Random.secure();
+    return List.generate(16, (_) => chars[rng.nextInt(chars.length)]).join();
+  }
+
+  String? _extractPlaybackTrackingUrl(Map<String, dynamic> player) {
+    final tracking = player['playbackTracking'];
+    if (tracking is! Map) return null;
+    final urlNode = tracking['videostatsPlaybackUrl'];
+    if (urlNode is Map) return urlNode['baseUrl']?.toString();
+    if (urlNode is String) return urlNode;
+    return null;
+  }
+
+  Future<void> _pingNextForHistory(String videoId) async {
+    await _authenticatedPost('/next', {
+      'videoId': videoId,
+      'isAudioOnly': true,
+    });
+  }
+
+  /// Reports a play to YouTube Music watch history when the user is signed in.
+  /// Uses player playback-tracking URLs (same path as official clients); falls
+  /// back to an authenticated `/next` nudge if tracking URLs are missing.
   Future<bool> reportSongPlayed(String videoId) async {
     if (!_isValidYouTubeVideoId(videoId)) {
       return false;
     }
-    // Playback reporting on YouTube Music requires active player playback tracking
-    // tokens from watchEndpoint; no-op gracefully to avoid redundant 404 requests.
-    return true;
+    try {
+      final player = await _authenticatedPost('/player', {
+        'videoId': videoId,
+        'contentCheckOk': true,
+        'racyCheckOk': true,
+      });
+
+      final playbackUrl = _extractPlaybackTrackingUrl(player);
+      if (playbackUrl == null || playbackUrl.isEmpty) {
+        await _pingNextForHistory(videoId);
+        return true;
+      }
+
+      final cpn = _generateCpn();
+      final normalized = playbackUrl.replaceFirst('https://s.', 'https://www.');
+      final uri = Uri.parse(normalized);
+      final params = Map<String, String>.from(uri.queryParameters)
+        ..['cpn'] = cpn
+        ..['fmt'] = '251'
+        ..['rtn'] = '0'
+        ..['rt'] = '0';
+
+      final headers = YouTubeAuthService().getAuthHeaders();
+      if (headers.isEmpty) return false;
+      headers['User-Agent'] =
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+          'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148';
+
+      final response = await http.get(
+        uri.replace(queryParameters: params),
+        headers: headers,
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 400) {
+        return true;
+      }
+
+      await _pingNextForHistory(videoId);
+      return true;
+    } catch (e) {
+      logger.log('Error reporting song played: $e');
+      try {
+        await _pingNextForHistory(videoId);
+        return true;
+      } catch (_) {
+        return false;
+      }
+    }
   }
 
   Future<void> syncLikedSongs() async {
@@ -326,6 +498,7 @@ class YouTubeMusicSyncService {
     try {
       final playlists = await fetchUserPlaylists();
       ytMusicPlaylists.value = playlists;
+      unawaited(_persistPlaylists(playlists));
       _updateSyncTime();
     } catch (e) {
       logger.log('Error syncing playlists: $e');

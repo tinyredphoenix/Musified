@@ -129,6 +129,10 @@ class _SearchPageState extends State<SearchPage> {
 
     if (!searchHistory.contains(query)) {
       final updatedHistory = List.from(searchHistory)..insert(0, query);
+      const searchHistoryLimit = 50;
+      if (updatedHistory.length > searchHistoryLimit) {
+        updatedHistory.removeRange(searchHistoryLimit, updatedHistory.length);
+      }
       searchHistoryNotifier.value = updatedHistory;
       unawaited(addOrUpdateData<List>('user', 'searchHistory', updatedHistory));
     }

@@ -136,7 +136,23 @@ class SourceResolver {
   Future<void> cacheMatch(String ytid, Map<String, dynamic> saavnData) async {
     try {
       final box = await _getBox();
-      await box?.put(ytid, saavnData);
+      if (box == null) return;
+      await box.put(ytid, saavnData);
+      const maxKeys = 1500;
+      final excess = box.length - maxKeys;
+      if (excess > 0) {
+        final keys = box.keys.take(excess).toList();
+        for (final key in keys) {
+          await box.delete(key);
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> clearMatchCache() async {
+    try {
+      final box = await _getBox();
+      await box?.clear();
     } catch (_) {}
   }
 }

@@ -29,13 +29,17 @@ import 'package:flutter/widgets.dart';
 class ArtworkProvider {
   ArtworkProvider._();
 
+  static const int _maxEntries = 80;
   static final Map<String, ImageProvider> _cache = {};
 
   static ImageProvider get(String artwork) {
     if (artwork.isEmpty) throw ArgumentError('artwork must not be empty');
 
-    final cached = _cache[artwork];
-    if (cached != null) return cached;
+    final cached = _cache.remove(artwork);
+    if (cached != null) {
+      _cache[artwork] = cached;
+      return cached;
+    }
 
     late ImageProvider provider;
     try {
@@ -58,7 +62,14 @@ class ArtworkProvider {
     }
 
     _cache[artwork] = provider;
+    _trimIfNeeded();
     return provider;
+  }
+
+  static void _trimIfNeeded() {
+    while (_cache.length > _maxEntries) {
+      _cache.remove(_cache.keys.first);
+    }
   }
 
   static void clearCache() => _cache.clear();

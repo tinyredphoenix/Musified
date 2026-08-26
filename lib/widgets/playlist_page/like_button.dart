@@ -21,7 +21,7 @@
 
 import 'dart:async';
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/services/common_services.dart';
@@ -94,7 +94,7 @@ class _PlaylistLikeButtonState extends State<PlaylistLikeButton> {
       valueListenable: _isLiked,
       builder: (context, isLiked, __) {
         final icon = Icon(
-          isLiked ? FluentIcons.heart_24_filled : FluentIcons.heart_24_regular,
+          isLiked ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
         );
 
         return isLiked

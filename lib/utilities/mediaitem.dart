@@ -79,9 +79,10 @@ MediaItem mapToMediaItem(Map song) {
   final offlineSong = ytid != null
       ? getOfflineSongByYtid(ytid)
       : <String, dynamic>{};
-  final isOffline = song['isOffline'] is bool
-      ? song['isOffline'] as bool
-      : offlineSong.isNotEmpty;
+  // Fully downloaded tracks always present as offline — overrides any
+  // in-flight online source preference on the song map.
+  final isOffline =
+      hasPlayableOfflineFile(ytid) || song['isOffline'] == true;
   final downloadSource =
       song['downloadSource'] ?? offlineSong['downloadSource'];
 

@@ -573,6 +573,20 @@ Map<String, dynamic> getOfflineSongByYtid(String ytid) {
   }
 }
 
+/// True when a fully downloaded copy exists on disk.
+/// Fully downloaded tracks always play from disk — online source switches
+/// must not override this.
+bool hasPlayableOfflineFile(String? ytid) {
+  if (ytid == null || ytid.isEmpty) return false;
+  final path = getOfflineSongByYtid(ytid)['audioPath']?.toString();
+  if (path == null || path.isEmpty) return false;
+  try {
+    return File(path).existsSync();
+  } catch (_) {
+    return false;
+  }
+}
+
 Future<List<String>> getSearchSuggestions(String query) async {
   // Custom implementation:
 

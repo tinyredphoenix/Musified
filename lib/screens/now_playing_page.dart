@@ -1,36 +1,17 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
+ * Full-screen player — solid canvas, light/dark aware, low GPU.
  */
-
-import 'dart:ui';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
+import 'package:musify/theme/musified_style.dart';
 import 'package:musify/widgets/flip_card.dart';
 import 'package:musify/widgets/now_playing/bottom_actions_row.dart';
 import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
 import 'package:musify/widgets/now_playing/now_playing_controls.dart';
 import 'package:musify/widgets/queue_list_view.dart';
-import 'package:musify/widgets/song_artwork.dart';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -43,11 +24,18 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   final _lyricsController = FlipCardController();
 
   @override
+  void dispose() {
+    _lyricsController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final isLargeScreen = size.width > 800 && size.height > 600;
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
     final screenWidth = size.width;
     final baseIconSize = screenWidth < 360
         ? 36.0
@@ -57,72 +45,46 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final miniIconSize = screenWidth < 360 ? 18.0 : 22.0;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: isDark ? MusifiedStyle.oledBlack : MusifiedStyle.lightCanvas,
       body: GestureDetector(
         onVerticalDragEnd: (details) {
           if ((details.primaryVelocity ?? 0) > 300) {
             Navigator.pop(context);
           }
         },
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      theme.brightness == Brightness.dark
-                          ? colorScheme.primary.withValues(alpha: 0.20)
-                          : colorScheme.primary.withValues(alpha: 0.08),
-                      theme.brightness == Brightness.dark
-                          ? const Color(0xFF141416)
-                          : const Color(0xFFF4F4F6),
-                      theme.brightness == Brightness.dark
-                          ? Colors.black
-                          : Colors.white,
-                    ],
-                    stops: const [0.0, 0.45, 1.0],
+        child: SafeArea(
+          child: StreamBuilder<MediaItem?>(
+            stream: audioHandler.mediaItem,
+            builder: (context, snapshot) {
+              final metadata = snapshot.data;
+              if (metadata == null) {
+                return const Center(child: CupertinoActivityIndicator());
+              }
+              return Column(
+                children: [
+                  _buildAppBar(context, colorScheme),
+                  Expanded(
+                    child: isLargeScreen
+                        ? _DesktopLayout(
+                            metadata: metadata,
+                            size: size,
+                            adjustedIconSize: baseIconSize,
+                            adjustedMiniIconSize: miniIconSize,
+                            lyricsController: _lyricsController,
+                          )
+                        : _MobileLayout(
+                            metadata: metadata,
+                            size: size,
+                            adjustedIconSize: baseIconSize,
+                            adjustedMiniIconSize: miniIconSize,
+                            isLargeScreen: isLargeScreen,
+                            lyricsController: _lyricsController,
+                          ),
                   ),
-                ),
-              ),
-            ),
-            SafeArea(
-              child: StreamBuilder<MediaItem?>(
-                stream: audioHandler.mediaItem,
-                builder: (context, snapshot) {
-                  final metadata = snapshot.data;
-                  if (metadata == null) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  return Column(
-                    children: [
-                      _buildAppBar(context, colorScheme),
-                      Expanded(
-                        child: isLargeScreen
-                            ? _DesktopLayout(
-                                metadata: metadata,
-                                size: size,
-                                adjustedIconSize: baseIconSize,
-                                adjustedMiniIconSize: miniIconSize,
-                                lyricsController: _lyricsController,
-                              )
-                            : _MobileLayout(
-                                metadata: metadata,
-                                size: size,
-                                adjustedIconSize: baseIconSize,
-                                adjustedMiniIconSize: miniIconSize,
-                                isLargeScreen: isLargeScreen,
-                                lyricsController: _lyricsController,
-                              ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-          ],
+                ],
+              );
+            },
+          ),
         ),
       ),
     );
@@ -130,11 +92,11 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
 
   Widget _buildAppBar(BuildContext context, ColorScheme colorScheme) {
     return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 8),
+      padding: const EdgeInsets.only(top: 8, bottom: 4),
       child: Center(
         child: GestureDetector(
           onVerticalDragEnd: (details) {
-            if (details.primaryVelocity! > 300) {
+            if ((details.primaryVelocity ?? 0) > 300) {
               Navigator.pop(context);
             }
           },
@@ -142,7 +104,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
             width: 36,
             height: 5,
             decoration: BoxDecoration(
-              color: Colors.white38,
+              color: colorScheme.onSurface.withValues(alpha: 0.28),
               borderRadius: BorderRadius.circular(2.5),
             ),
           ),
@@ -298,11 +260,9 @@ class _MobileLayout extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(width: 24),
           Expanded(
             flex: 5,
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (!isLive)
                   Expanded(
@@ -320,7 +280,6 @@ class _MobileLayout extends StatelessWidget {
                   isLargeScreen: isLargeScreen,
                   lyricsController: lyricsController,
                 ),
-                const SizedBox(height: 8),
               ],
             ),
           ),

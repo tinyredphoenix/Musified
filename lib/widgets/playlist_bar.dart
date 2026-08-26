@@ -32,10 +32,10 @@ import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/router_service.dart';
 import 'package:musify/utilities/artwork_provider.dart';
 import 'package:musify/utilities/flutter_toast.dart';
+import 'package:musify/utilities/musified_picker_sheet.dart';
 import 'package:musify/utilities/offline_playlist_dialogs.dart';
 import 'package:musify/utilities/playlist_dialogs.dart';
 import 'package:musify/utilities/playlist_utils.dart';
-import 'package:musify/widgets/dialog_item.dart';
 import 'package:musify/widgets/edit_playlist_dialog.dart';
 import 'package:musify/widgets/overflow_menu_button.dart';
 import 'package:musify/widgets/popup_menu_item.dart';
@@ -354,136 +354,54 @@ class PlaylistBar extends StatelessWidget {
   }
 
   void _showMoveToFolderDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-          icon: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              CupertinoIcons.folder_badge_plus,
-              color: colorScheme.secondary,
-              size: 28,
-            ),
-          ),
-          title: Text(
-            context.l10n.moveToFolder,
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
-            textAlign: TextAlign.center,
-          ),
-          contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ValueListenableBuilder<List>(
-              valueListenable: userPlaylistFolders,
-              builder: (context, folders, _) {
-                // Find the current folder containing this playlist
-                String? currentFolderId;
-                if (playlistData != null) {
-                  for (final folder in folders) {
-                    final folderPlaylists = folder['playlists'] as List? ?? [];
-                    if (folderPlaylists.any(
-                      (p) => p['ytid'] == playlistData!['ytid'],
-                    )) {
-                      currentFolderId = folder['id'];
-                      break;
-                    }
-                  }
-                }
+    final folders = userPlaylistFolders.value;
 
-                // Filter folders to exclude current one
-                final availableFolders = folders
-                    .where((folder) => folder['id'] != currentFolderId)
-                    .toList();
+    String? currentFolderId;
+    if (playlistData != null) {
+      for (final folder in folders) {
+        final folderPlaylists = folder['playlists'] as List? ?? [];
+        if (folderPlaylists.any((p) => p['ytid'] == playlistData!['ytid'])) {
+          currentFolderId = folder['id']?.toString();
+          break;
+        }
+      }
+    }
 
-                final hasLibrary = currentFolderId != null;
-                final hasItems = hasLibrary || availableFolders.isNotEmpty;
+    final availableFolders = folders
+        .where((folder) => folder['id'] != currentFolderId)
+        .toList();
 
-                if (!hasItems) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Text(
-                      context.l10n.noFolders,
-                      style: TextStyle(color: colorScheme.onSurfaceVariant),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                }
+    final actions = <PickerSheetAction>[
+      if (currentFolderId != null)
+        PickerSheetAction(
+          label: context.l10n.library,
+          icon: CupertinoIcons.music_albums,
+          onTap: () {
+            if (playlistData != null) {
+              movePlaylistToFolder(playlistData!, null, context);
+            }
+          },
+        ),
+      ...availableFolders.map(
+        (folder) => PickerSheetAction(
+          label: folder['name']?.toString() ?? '',
+          icon: CupertinoIcons.folder,
+          onTap: () {
+            if (playlistData != null) {
+              movePlaylistToFolder(playlistData!, folder['id'], context);
+            }
+          },
+        ),
+      ),
+    ];
 
-                return ListView(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  children: [
-                    if (hasLibrary)
-                      DialogItem(
-                        icon: CupertinoIcons.music_albums,
-                        iconColor: colorScheme.primary,
-                        iconBgColor: colorScheme.primaryContainer,
-                        label: context.l10n.library,
-                        onTap: () {
-                          Navigator.pop(context);
-                          if (playlistData != null) {
-                            movePlaylistToFolder(playlistData!, null, context);
-                          }
-                        },
-                      ),
-                    ...availableFolders.map(
-                      (folder) => DialogItem(
-                        icon: CupertinoIcons.folder,
-                        iconColor: colorScheme.secondary,
-                        iconBgColor: colorScheme.secondaryContainer,
-                        label: folder['name'] as String,
-                        onTap: () {
-                          Navigator.pop(context);
-                          if (playlistData != null) {
-                            movePlaylistToFolder(
-                              playlistData!,
-                              folder['id'],
-                              context,
-                            );
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: () => Navigator.pop(context),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  side: BorderSide(color: colorScheme.outline),
-                ),
-                child: Text(
-                  context.l10n.cancel,
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        );
-      },
+    unawaited(
+      showMusifiedPickerSheet(
+        context,
+        title: context.l10n.moveToFolder,
+        emptyMessage: context.l10n.noFolders,
+        actions: actions,
+      ),
     );
   }
 
@@ -634,47 +552,35 @@ class PlaylistBar extends StatelessWidget {
     if (playlistData == null) return;
     final folderId = playlistData!['id'];
     var folderName = playlistTitle;
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: Icon(
-          CupertinoIcons.folder,
-          color: colorScheme.primary,
-          size: 32,
-        ),
-        title: Text(
-          context.l10n.editFolder,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: TextFormField(
-          decoration: InputDecoration(
-            labelText: context.l10n.folderName,
-            prefixIcon: Icon(
-              CupertinoIcons.pencil,
-              color: colorScheme.onSurfaceVariant,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(context.l10n.editFolder),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            placeholder: context.l10n.folderName,
+            controller: TextEditingController(text: folderName),
+            autofocus: true,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? CupertinoColors.tertiarySystemFill
+                  : CupertinoColors.systemGrey6,
+              borderRadius: BorderRadius.circular(8),
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: colorScheme.surfaceContainerLow,
+            onChanged: (value) => folderName = value,
           ),
-          initialValue: folderName,
-          autofocus: true,
-          onChanged: (value) => folderName = value,
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              context.l10n.cancel,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
+            child: Text(context.l10n.cancel),
           ),
-          FilledButton.icon(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () {
               Navigator.pop(context);
               final result = renamePlaylistFolder(
@@ -684,8 +590,7 @@ class PlaylistBar extends StatelessWidget {
               );
               showToast(context, result);
             },
-            icon: const Icon(CupertinoIcons.check_mark),
-            label: Text(context.l10n.update),
+            child: Text(context.l10n.update),
           ),
         ],
       ),

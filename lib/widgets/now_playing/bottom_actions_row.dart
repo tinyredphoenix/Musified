@@ -21,7 +21,6 @@
 
 import 'dart:async';
 import 'package:audio_service/audio_service.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -415,227 +414,45 @@ Future<void> _toggleOffline(
 }
 
 void _showSleepTimerDialog(BuildContext context) {
-  final colorScheme = Theme.of(context).colorScheme;
-
-  showDialog(
+  showCupertinoModalPopup<void>(
     context: context,
-    builder: (context) {
-      final duration = sleepTimerNotifier.value ?? Duration.zero;
-      var hours = duration.inMinutes ~/ 60;
-      var minutes = duration.inMinutes % 60;
-
-      return StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(FluentIcons.timer_24_regular, color: colorScheme.primary),
-                const SizedBox(width: 12),
-                Text(
-                  context.l10n.sleepTimer,
-                  style: TextStyle(
-                    color: colorScheme.onSurface,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+    builder: (ctx) {
+      return CupertinoActionSheet(
+        title: Text(context.l10n.sleepTimer),
+        message: Text(context.l10n.selectDuration),
+        actions: [
+          for (final mins in [15, 30, 45, 60])
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(ctx);
+                audioHandler.setSleepTimer(Duration(minutes: mins));
+                showToast(
+                  context,
+                  context.l10n.sleepTimerSet,
+                  duration: const Duration(seconds: 1, milliseconds: 500),
+                );
+              },
+              child: Text('$mins min'),
             ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  context.l10n.selectDuration,
-                  style: TextStyle(
-                    color: colorScheme.onSurfaceVariant,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                _buildTimeSelector(
-                  context: context,
-                  label: context.l10n.hours,
-                  value: hours,
-                  colorScheme: colorScheme,
-                  onDecrement: () {
-                    if (hours > 0) setState(() => hours--);
-                  },
-                  onIncrement: () => setState(() => hours++),
-                ),
-                const SizedBox(height: 16),
-                _buildTimeSelector(
-                  context: context,
-                  label: context.l10n.minutes,
-                  value: minutes,
-                  colorScheme: colorScheme,
-                  onDecrement: () {
-                    if (minutes > 0) setState(() => minutes--);
-                  },
-                  onIncrement: () {
-                    if (minutes < 59) setState(() => minutes++);
-                  },
-                ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    ...[15, 30, 45, 60].map((mins) {
-                      return ActionChip(
-                        label: Text('$mins min'),
-                        backgroundColor: colorScheme.surfaceContainerHighest,
-                        labelStyle: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            hours = mins ~/ 60;
-                            minutes = mins % 60;
-                          });
-                        },
-                      );
-                    }),
-                    ActionChip(
-                      label: Text(context.l10n.endOfSong),
-                      backgroundColor: colorScheme.surfaceContainerHighest,
-                      labelStyle: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
-                        fontSize: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      onPressed: () {
-                        audioHandler.setSleepTimerEndOfSong();
-                        showToast(
-                          context,
-                          context.l10n.sleepTimerSet,
-                          duration: const Duration(
-                            seconds: 1,
-                            milliseconds: 500,
-                          ),
-                        );
-                        Navigator.pop(context);
-                      },
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                style: TextButton.styleFrom(
-                  foregroundColor: colorScheme.onSurfaceVariant,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(context.l10n.cancel),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final duration = Duration(hours: hours, minutes: minutes);
-                  if (duration.inSeconds > 0) {
-                    audioHandler.setSleepTimer(duration);
-                    showToast(
-                      context,
-                      context.l10n.sleepTimerSet,
-                      duration: const Duration(seconds: 1, milliseconds: 500),
-                    );
-                  }
-                  Navigator.pop(context);
-                },
-                style: FilledButton.styleFrom(
-                  backgroundColor: colorScheme.primary,
-                  foregroundColor: colorScheme.onPrimary,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(context.l10n.setTimer),
-              ),
-            ],
-          );
-        },
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              audioHandler.setSleepTimerEndOfSong();
+              showToast(
+                context,
+                context.l10n.sleepTimerSet,
+                duration: const Duration(seconds: 1, milliseconds: 500),
+              );
+            },
+            child: Text(context.l10n.endOfSong),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(context.l10n.cancel),
+        ),
       );
     },
-  );
-}
-
-Widget _buildTimeSelector({
-  required BuildContext context,
-  required String label,
-  required int value,
-  required ColorScheme colorScheme,
-  required VoidCallback onDecrement,
-  required VoidCallback onIncrement,
-}) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-    decoration: BoxDecoration(
-      color: colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(16),
-    ),
-    child: Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w500,
-            fontSize: 16,
-          ),
-        ),
-        Row(
-          children: [
-            IconButton(
-              icon: Icon(
-                FluentIcons.line_horizontal_1_24_regular,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: onDecrement,
-            ),
-            Container(
-              width: 48,
-              alignment: Alignment.center,
-              child: Text(
-                '$value',
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(
-                FluentIcons.add_24_regular,
-                color: colorScheme.onSurfaceVariant,
-              ),
-              style: IconButton.styleFrom(
-                backgroundColor: colorScheme.surface,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              onPressed: onIncrement,
-            ),
-          ],
-        ),
-      ],
-    ),
   );
 }

@@ -498,16 +498,15 @@ class _SongBarState extends State<SongBar> {
         : widget.playCount;
 
     return Material(
-      color: widget.backgroundColor ?? colorScheme.surfaceContainerLow,
-      borderRadius: widget.borderRadius,
-      clipBehavior: Clip.antiAlias,
+      color: Colors.transparent,
       child: InkWell(
         onTap: _handleSongTap,
+        borderRadius: widget.borderRadius,
         child: Container(
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
-                color: colorScheme.outlineVariant.withValues(alpha: 0.3),
+                color: colorScheme.outlineVariant,
                 width: 0.5,
               ),
             ),
@@ -515,7 +514,7 @@ class _SongBarState extends State<SongBar> {
           padding:
               widget.barPadding ??
               const EdgeInsetsDirectional.symmetric(
-                vertical: 12,
+                vertical: 10,
                 horizontal: 16,
               ),
           child: Row(
@@ -529,7 +528,7 @@ class _SongBarState extends State<SongBar> {
                     style: TextStyle(
                       color: colorScheme.primary,
                       fontSize: 14,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -844,6 +843,12 @@ class _OfflineArtwork extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
+              cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+                  .round()
+                  .clamp(64, 256),
+              cacheHeight: (size * MediaQuery.devicePixelRatioOf(context))
+                  .round()
+                  .clamp(64, 256),
               errorBuilder: (_, __, ___) =>
                   NullArtworkWidget(iconSize: 30, size: size),
             ),

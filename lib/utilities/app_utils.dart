@@ -124,16 +124,27 @@ AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   // CRITICAL FOR IOS: Apple AVPlayer does not support WebM container (AVError -11828 Cannot Open).
   // Strictly prioritize standard AAC-LC / M4A (itag 140) streams.
   // Exclude HE-AAC (mp4a.40.5 / SBR streams) which cause iOS CoreAudio to double the reported duration.
-  final aacSources = availableSources.where((stream) {
+  bool isMp4Family(AudioOnlyStreamInfo stream) {
     final codec = stream.codec.toString().toLowerCase();
     final container = stream.container.name.toLowerCase();
     if (_isDolbyCodec(codec)) return false;
-    if (codec.contains('mp4a.40.5')) return false;
     return (container == 'm4a' || container == 'mp4' || container == 'aac') ||
         (codec.contains('mp4a') || codec.contains('aac'));
+  }
+
+  // Prefer AAC-LC (excludes HE-AAC / mp4a.40.5 which doubles duration on iOS).
+  final aacLcSources = availableSources.where((stream) {
+    final codec = stream.codec.toString().toLowerCase();
+    if (codec.contains('mp4a.40.5')) return false;
+    return isMp4Family(stream);
   }).toList();
 
-  final selectionPool = aacSources.isNotEmpty ? aacSources : availableSources;
+  // Fallback: HE-AAC in MP4 is still playable on iOS; WebM is not (AVError -11828).
+  final mp4Fallback = availableSources.where(isMp4Family).toList();
+
+  final selectionPool = aacLcSources.isNotEmpty
+      ? aacLcSources
+      : (mp4Fallback.isNotEmpty ? mp4Fallback : availableSources);
   final sortedPool = selectionPool.sortByBitrate();
 
   final qualitySetting = audioQualitySetting.value;

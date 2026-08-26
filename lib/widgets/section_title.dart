@@ -1,26 +1,5 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:material_ui/material_ui.dart';
-import 'package:musify/widgets/marquee.dart';
+import 'package:musify/theme/musified_style.dart';
 
 class SectionTitle extends StatelessWidget {
   const SectionTitle(this.title, this.primaryColor, {super.key, this.icon});
@@ -33,24 +12,19 @@ class SectionTitle extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
+      padding: const EdgeInsets.fromLTRB(4, 20, 4, 10),
       child: Row(
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 20, color: colorScheme.primary),
-            const SizedBox(width: 10),
+            Icon(icon, size: 18, color: colorScheme.primary),
+            const SizedBox(width: 8),
           ],
           Expanded(
-            child: MarqueeWidget(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: colorScheme.onSurface,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.5,
-                ),
-              ),
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: MusifiedStyle.sectionTitle(colorScheme.onSurface),
             ),
           ),
         ],

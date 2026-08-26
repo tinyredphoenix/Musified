@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/services/common_services.dart';
@@ -100,7 +100,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
           if (_isOffline) {
             return IconButton.filled(
               icon: Icon(
-                FluentIcons.arrow_download_off_24_filled,
+                CupertinoIcons.arrow_down_circle_fill,
                 color: Theme.of(context).colorScheme.onPrimary,
               ),
               iconSize: 24,
@@ -129,14 +129,14 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
                     child: SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(strokeWidth: 3),
+                      child: CupertinoActivityIndicator(radius: 10),
                     ),
                   ),
                 );
               }
 
               return IconButton.filledTonal(
-                icon: const Icon(FluentIcons.arrow_download_24_filled),
+                icon: const Icon(CupertinoIcons.arrow_down_to_line),
                 iconSize: 24,
                 onPressed: () => _download(context),
                 tooltip: context.l10n.downloadPlaylist,
@@ -166,7 +166,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
           ),
           if (!progress.isCancelled)
             IconButton(
-              icon: const Icon(FluentIcons.dismiss_24_filled, size: 16),
+              icon: const Icon(CupertinoIcons.xmark, size: 16),
               onPressed: () =>
                   offlinePlaylistService.cancelDownload(context, playlistId),
               tooltip: context.l10n.cancel,

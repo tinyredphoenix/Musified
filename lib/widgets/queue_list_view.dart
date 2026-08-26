@@ -496,6 +496,12 @@ class _ArtworkThumbnail extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
+              .round()
+              .clamp(64, 256),
+          cacheHeight: (size * MediaQuery.devicePixelRatioOf(context))
+              .round()
+              .clamp(64, 256),
           errorBuilder: (_, __, ___) => _fallback(),
         ),
       );
@@ -511,6 +517,8 @@ class _ArtworkThumbnail extends StatelessWidget {
       width: size,
       height: size,
       imageUrl: imageUrl,
+      memCacheWidth: (size * 2).round().clamp(64, 256),
+      memCacheHeight: (size * 2).round().clamp(64, 256),
       imageBuilder: (_, imageProvider) => ClipRRect(
         borderRadius: BorderRadius.circular(radius),
         child: Image(

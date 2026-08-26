@@ -23,6 +23,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/services/settings_manager.dart';
+import 'package:musify/theme/musified_style.dart';
 
 ThemeMode _themeModeCached = getThemeMode(_safeInitialThemeIndex());
 Brightness _brightnessCached = getBrightnessFromThemeMode(_themeModeCached);
@@ -35,8 +36,6 @@ int _safeInitialThemeIndex() {
   }
 }
 
-// Mutable globals kept for backward compat, but now safely initialized
-// and kept in sync via syncThemeFromSettings().
 ThemeMode get themeMode => _themeModeCached;
 set themeMode(ThemeMode v) {
   _themeModeCached = v;
@@ -71,154 +70,195 @@ ThemeMode getThemeMode(int themeModeIndex) {
   return ThemeMode.system;
 }
 
-ColorScheme getAppColorScheme(
+ColorScheme getAppColorScheme({
+  required Brightness forBrightness,
   ColorScheme? lightColorScheme,
   ColorScheme? darkColorScheme,
-) {
-  final selectedScheme = (brightness == Brightness.light)
+}) {
+  final selectedScheme = forBrightness == Brightness.light
       ? lightColorScheme
       : darkColorScheme;
 
   if (useSystemColor.value && selectedScheme != null) {
     return selectedScheme;
-  } else {
-    return ColorScheme.fromSeed(
-      seedColor: primaryColorSetting,
-      brightness: brightness,
-    );
   }
+
+  return ColorScheme.fromSeed(
+    seedColor: primaryColorSetting,
+    brightness: forBrightness,
+  );
 }
 
+/// Builds a full ThemeData for exactly one brightness.
+/// MaterialApp must receive distinct light + dark themes so ThemeMode.system works.
 ThemeData getAppTheme(ColorScheme colorScheme) {
   final base = colorScheme.brightness == Brightness.light
       ? ThemeData.light()
       : ThemeData.dark();
 
   final isLight = colorScheme.brightness == Brightness.light;
-  final isPureBlack =
-      colorScheme.brightness == Brightness.dark && usePureBlackColor.value;
-
-  // Apple OLED black theme colors
-  const pureBlack = Color(0xFF000000);
-  const pureBlackElevated = Color(0xFF141416);
-  const pureBlackContainer = Color(0xFF1C1C1E);
-  const pureBlackContainerHigh = Color(0xFF2C2C2E);
+  final useOled =
+      !isLight && usePureBlackColor.value;
 
   final bgColor = isLight
-      ? colorScheme.surface
-      : pureBlack;
+      ? MusifiedStyle.lightCanvas
+      : (useOled ? MusifiedStyle.oledBlack : MusifiedStyle.elevated);
+  final cardBgColor =
+      isLight ? MusifiedStyle.lightElevated : MusifiedStyle.surface;
 
-  final cardBgColor = isLight
-      ? colorScheme.surfaceContainerLow
-      : pureBlackElevated;
-
-  // modified color scheme for uniform iOS dark theme
   final effectiveColorScheme = isLight
-      ? colorScheme
+      ? colorScheme.copyWith(
+          surface: MusifiedStyle.lightCanvas,
+          surfaceContainerLowest: MusifiedStyle.lightCanvas,
+          surfaceContainerLow: MusifiedStyle.lightElevated,
+          surfaceContainer: MusifiedStyle.lightSurface,
+          surfaceContainerHigh: MusifiedStyle.lightSurfaceHigh,
+          surfaceContainerHighest: MusifiedStyle.lightSurfaceHigh,
+          onSurface: MusifiedStyle.lightOnSurface,
+          onSurfaceVariant: MusifiedStyle.lightSecondaryLabel,
+          outlineVariant: MusifiedStyle.lightHairline,
+        )
       : colorScheme.copyWith(
-          surface: pureBlack,
-          surfaceContainerLowest: pureBlack,
-          surfaceContainerLow: pureBlackElevated,
-          surfaceContainer: pureBlackContainer,
-          surfaceContainerHigh: pureBlackContainerHigh,
-          surfaceContainerHighest: pureBlackContainerHigh,
+          surface: useOled ? MusifiedStyle.oledBlack : MusifiedStyle.elevated,
+          surfaceContainerLowest:
+              useOled ? MusifiedStyle.oledBlack : MusifiedStyle.elevated,
+          surfaceContainerLow: MusifiedStyle.elevated,
+          surfaceContainer: MusifiedStyle.surface,
+          surfaceContainerHigh: MusifiedStyle.surfaceHigh,
+          surfaceContainerHighest: MusifiedStyle.surfaceHigh,
+          onSurface: const Color(0xFFF5F5F7),
+          onSurfaceVariant: MusifiedStyle.secondaryLabel,
+          outlineVariant: MusifiedStyle.hairline,
         );
+
+  final onSurface = effectiveColorScheme.onSurface;
+  final onVariant = effectiveColorScheme.onSurfaceVariant;
+
+  final textTheme = base.textTheme.copyWith(
+    displayLarge: MusifiedStyle.largeTitle(onSurface),
+    displayMedium: MusifiedStyle.brandTitle(onSurface),
+    headlineLarge: MusifiedStyle.sectionTitle(onSurface),
+    headlineMedium: MusifiedStyle.playerTitle(onSurface),
+    titleLarge: MusifiedStyle.songTitle(onSurface),
+    titleMedium: MusifiedStyle.songTitle(onSurface).copyWith(fontSize: 15),
+    bodyLarge: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      color: onSurface,
+      letterSpacing: -0.2,
+    ),
+    bodyMedium: MusifiedStyle.songSubtitle(onVariant),
+    bodySmall: MusifiedStyle.caption(onVariant),
+    labelLarge: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w600,
+      color: onSurface,
+      letterSpacing: -0.1,
+    ),
+    labelMedium: MusifiedStyle.caption(onVariant),
+  );
 
   return ThemeData(
     scaffoldBackgroundColor: bgColor,
     colorScheme: effectiveColorScheme,
+    textTheme: textTheme,
+    primaryTextTheme: textTheme,
     cardColor: cardBgColor,
     cardTheme: base.cardTheme.copyWith(
       elevation: 0,
       color: cardBgColor,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
+      ),
     ),
     appBarTheme: base.appBarTheme.copyWith(
       backgroundColor: bgColor,
-      foregroundColor: effectiveColorScheme.onSurface,
+      foregroundColor: onSurface,
       elevation: 0,
       scrolledUnderElevation: 0,
-      centerTitle: true,
+      centerTitle: false,
       titleTextStyle: TextStyle(
-        fontSize: 34,
-        fontWeight: FontWeight.w700,
-        color: effectiveColorScheme.onSurface,
-        letterSpacing: -1.1,
+        fontSize: 17,
+        fontWeight: FontWeight.w600,
+        color: onSurface,
+        letterSpacing: -0.3,
       ),
-      toolbarHeight: 62,
-      iconTheme: IconThemeData(
-        color: effectiveColorScheme.onSurfaceVariant,
-        size: 24,
-      ),
-      actionsIconTheme: IconThemeData(
-        color: effectiveColorScheme.onSurfaceVariant,
-        size: 24,
-      ),
+      toolbarHeight: 48,
+      iconTheme: IconThemeData(color: onVariant, size: 22),
+      actionsIconTheme: IconThemeData(color: onVariant, size: 22),
     ),
     listTileTheme: base.listTileTheme.copyWith(
-      textColor: effectiveColorScheme.primary,
-      iconColor: effectiveColorScheme.primary,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      textColor: onSurface,
+      iconColor: onVariant,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusSm),
+      ),
     ),
     sliderTheme: base.sliderTheme.copyWith(
       year2023: false,
-      trackHeight: 4,
-      thumbSize: WidgetStateProperty.all(const Size(8, 8)),
+      trackHeight: 3,
+      thumbSize: WidgetStateProperty.all(const Size(10, 10)),
+      overlayShape: SliderComponentShape.noOverlay,
+      activeTrackColor: onSurface,
+      inactiveTrackColor: onSurface.withValues(alpha: 0.18),
+      thumbColor: onSurface,
     ),
     bottomSheetTheme: base.bottomSheetTheme.copyWith(
       backgroundColor: isLight
-          ? colorScheme.surfaceContainerLow
-          : (isPureBlack ? pureBlackElevated : null),
+          ? MusifiedStyle.lightElevated
+          : MusifiedStyle.elevated,
+      dragHandleColor: onSurface.withValues(alpha: 0.28),
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(MusifiedStyle.radiusXl),
+        ),
       ),
     ),
     inputDecorationTheme: base.inputDecorationTheme.copyWith(
       filled: true,
       isDense: true,
       fillColor: isLight
-          ? colorScheme.surfaceContainerHighest
-          : (isPureBlack
-                ? pureBlackContainerHigh
-                : colorScheme.surfaceContainerHigh),
+          ? MusifiedStyle.lightSurfaceHigh
+          : MusifiedStyle.surfaceHigh,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
         borderSide: BorderSide.none,
       ),
       contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      hintStyle: MusifiedStyle.songSubtitle(onVariant),
     ),
     dialogTheme: base.dialogTheme.copyWith(
-      backgroundColor: isLight
-          ? colorScheme.surfaceContainerLow
-          : (isPureBlack ? pureBlackContainer : null),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      backgroundColor:
+          isLight ? MusifiedStyle.lightElevated : MusifiedStyle.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusXl),
+      ),
     ),
     navigationBarTheme: base.navigationBarTheme.copyWith(
-      backgroundColor: bgColor?.withValues(alpha: 0.85),
+      backgroundColor: bgColor,
       elevation: 0,
-      height: 66,
+      height: 56,
       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
       indicatorColor: Colors.transparent,
       iconTheme: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return IconThemeData(color: effectiveColorScheme.primary, size: 24);
         }
-        return IconThemeData(
-          color: effectiveColorScheme.onSurfaceVariant,
-          size: 24,
-        );
+        return IconThemeData(color: onVariant.withValues(alpha: 0.55), size: 24);
       }),
       labelTextStyle: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.selected)) {
           return TextStyle(
             color: effectiveColorScheme.primary,
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: FontWeight.w600,
           );
         }
         return TextStyle(
-          color: effectiveColorScheme.onSurfaceVariant,
-          fontSize: 11,
+          color: onVariant.withValues(alpha: 0.55),
+          fontSize: 10,
           fontWeight: FontWeight.w500,
         );
       }),
@@ -232,7 +272,7 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         size: 24,
       ),
       unselectedIconTheme: IconThemeData(
-        color: effectiveColorScheme.onSurfaceVariant,
+        color: onVariant.withValues(alpha: 0.55),
         size: 24,
       ),
       selectedLabelTextStyle: TextStyle(
@@ -241,39 +281,71 @@ ThemeData getAppTheme(ColorScheme colorScheme) {
         fontWeight: FontWeight.w600,
       ),
       unselectedLabelTextStyle: TextStyle(
-        color: effectiveColorScheme.onSurfaceVariant,
+        color: onVariant.withValues(alpha: 0.55),
         fontSize: 10,
         fontWeight: FontWeight.w500,
       ),
     ),
     popupMenuTheme: base.popupMenuTheme.copyWith(
-      color: isLight
-          ? colorScheme.surfaceContainerLow
-          : (isPureBlack ? pureBlackContainer : null),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      color: isLight ? MusifiedStyle.lightElevated : MusifiedStyle.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
+      ),
     ),
     dividerTheme: base.dividerTheme.copyWith(
-      color: effectiveColorScheme.outlineVariant.withValues(alpha: 0.5),
+      color: effectiveColorScheme.outlineVariant,
       thickness: 0.5,
+      space: 0.5,
     ),
     snackBarTheme: SnackBarThemeData(
-      backgroundColor: effectiveColorScheme.secondaryContainer,
+      backgroundColor: isLight
+          ? MusifiedStyle.lightOnSurface
+          : MusifiedStyle.surfaceHigh,
       contentTextStyle: TextStyle(
-        color: effectiveColorScheme.onSecondaryContainer,
+        color: isLight ? Colors.white : onSurface,
         fontWeight: FontWeight.w500,
+        fontSize: 14,
       ),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      elevation: 2,
-      actionTextColor: effectiveColorScheme.secondary,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
+      ),
+      elevation: 0,
+      actionTextColor: effectiveColorScheme.primary,
+    ),
+    progressIndicatorTheme: ProgressIndicatorThemeData(
+      color: effectiveColorScheme.primary,
+      linearTrackColor: onSurface.withValues(alpha: 0.12),
+      circularTrackColor: onSurface.withValues(alpha: 0.12),
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
       },
     ),
-    visualDensity: VisualDensity.adaptivePlatformDensity,
+    visualDensity: VisualDensity.standard,
     useMaterial3: true,
+    // Sideloaded iOS / LiveContainer — always present native iOS chrome.
+    platform: TargetPlatform.iOS,
   );
+}
+
+/// Convenience: light + dark ThemeData pair for MaterialApp.
+({ThemeData light, ThemeData dark}) buildAppThemes({
+  ColorScheme? lightSystemScheme,
+  ColorScheme? darkSystemScheme,
+}) {
+  final lightScheme = getAppColorScheme(
+    forBrightness: Brightness.light,
+    lightColorScheme: lightSystemScheme,
+    darkColorScheme: darkSystemScheme,
+  );
+  final darkScheme = getAppColorScheme(
+    forBrightness: Brightness.dark,
+    lightColorScheme: lightSystemScheme,
+    darkColorScheme: darkSystemScheme,
+  );
+  return (light: getAppTheme(lightScheme), dark: getAppTheme(darkScheme));
 }

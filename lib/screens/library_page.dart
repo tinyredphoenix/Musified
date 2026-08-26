@@ -21,6 +21,7 @@
 
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
@@ -35,7 +36,6 @@ import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/services/youtube_auth_service.dart';
 import 'package:musify/services/youtube_music_sync_service.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/async_loader.dart';
 import 'package:musify/utilities/flutter_toast.dart';
@@ -194,7 +194,9 @@ class _LibraryPageState extends State<LibraryPage> {
                           final playlist = playlists[index];
                           final title = playlist['title'] ?? 'Unknown';
                           final image = playlist['image'] ?? '';
-                          final count = playlist['count'] ?? 0;
+                          final count = playlist['count'] ??
+                              _playlistCountFromTrackCount(playlist['trackCount']) ??
+                              0;
                           
                           return GestureDetector(
                             onTap: () {
@@ -221,12 +223,15 @@ class _LibraryPageState extends State<LibraryPage> {
                                   ClipRRect(
                                     borderRadius: BorderRadius.circular(12),
                                     child: image.toString().isNotEmpty
-                                        ? Image.network(
-                                            image.toString(),
+                                        ? CachedNetworkImage(
+                                            imageUrl: image.toString(),
                                             width: 140,
                                             height: 140,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => _buildFallbackImage(),
+                                            memCacheWidth: 280,
+                                            memCacheHeight: 280,
+                                            errorWidget: (_, __, ___) =>
+                                                _buildFallbackImage(),
                                           )
                                         : _buildFallbackImage(),
                                   ),
@@ -643,69 +648,42 @@ class _LibraryPageState extends State<LibraryPage> {
     context: context,
     builder: (BuildContext context) {
       var folderName = '';
-      final colorScheme = Theme.of(context).colorScheme;
+      final isDark = Theme.of(context).brightness == Brightness.dark;
 
-      return AlertDialog(
-        icon: Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(
-            CupertinoIcons.folder_badge_plus,
-            color: colorScheme.primary,
-            size: 32,
-          ),
-        ),
-        title: Text(
-          context.l10n.createFolder,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: TextField(
-          decoration: InputDecoration(
-            labelText: context.l10n.folderName,
-            hintText: context.l10n.newFolder,
-            prefixIcon: Icon(
-              CupertinoIcons.folder,
-              color: colorScheme.onSurfaceVariant,
+      return CupertinoAlertDialog(
+        title: Text(context.l10n.createFolder),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            placeholder: context.l10n.folderName,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? CupertinoColors.tertiarySystemFill
+                  : CupertinoColors.systemGrey6,
+              borderRadius: BorderRadius.circular(8),
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: colorScheme.surfaceContainerLow,
+            onChanged: (value) => folderName = value,
           ),
-          onChanged: (value) {
-            folderName = value;
-          },
         ),
-        actionsAlignment: MainAxisAlignment.center,
-        actions: <Widget>[
-          OutlinedButton(
+        actions: [
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            style: OutlinedButton.styleFrom(
-              side: BorderSide(color: colorScheme.outline),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
             child: Text(context.l10n.cancel),
           ),
-          FilledButton.icon(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () {
               if (folderName.trim().isNotEmpty) {
-                final result = createPlaylistFolder(folderName.trim(), context);
+                final result =
+                    createPlaylistFolder(folderName.trim(), context);
                 showToast(context, result);
               } else {
                 showToast(context, context.l10n.enterFolderName);
               }
               Navigator.pop(context);
             },
-            icon: const Icon(CupertinoIcons.plus),
-            label: Text(context.l10n.create),
+            child: Text(context.l10n.create),
           ),
         ],
       );
@@ -729,4 +707,17 @@ class _LibraryPageState extends State<LibraryPage> {
       );
     },
   );
+}
+
+int? _playlistCountFromTrackCount(dynamic trackCount) {
+  if (trackCount is int) return trackCount;
+  if (trackCount is! String || trackCount.isEmpty) return null;
+  final withUnit = RegExp(
+    r'(\d[\d,]*)\s*(songs?|tracks?)',
+    caseSensitive: false,
+  ).firstMatch(trackCount);
+  final raw = withUnit?.group(1) ??
+      RegExp(r'(\d[\d,]*)').firstMatch(trackCount)?.group(1);
+  if (raw == null) return null;
+  return int.tryParse(raw.replaceAll(',', ''));
 }

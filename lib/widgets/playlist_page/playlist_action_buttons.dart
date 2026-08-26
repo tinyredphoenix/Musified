@@ -1,32 +1,10 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
+import 'package:musify/theme/musified_style.dart';
 
-/// Play and shuffle whatever the page is about, shared by the playlist and the
-/// artist pages. While [isLoading] the songs are still being read, so both
-/// buttons wait instead of playing an incomplete list.
+/// Play and shuffle — shared by playlist and artist pages.
 class PlaylistActionButtons extends StatelessWidget {
   const PlaylistActionButtons({
     super.key,
@@ -36,58 +14,86 @@ class PlaylistActionButtons extends StatelessWidget {
   });
 
   final VoidCallback onPlay;
-
   final AsyncCallback onShuffle;
-
   final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: [
           Expanded(
-            child: FilledButton.icon(
-              icon: isLoading
-                  ? const _Spinner()
-                  : const Icon(FluentIcons.play_24_filled),
-              label: Text(context.l10n.play),
+            child: CupertinoButton(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+              color: scheme.primary,
               onPressed: isLoading ? null : onPlay,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isLoading)
+                    const CupertinoActivityIndicator(radius: 9)
+                  else
+                    Icon(
+                      CupertinoIcons.play_fill,
+                      size: 18,
+                      color: scheme.onPrimary,
+                    ),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.l10n.play,
+                    style: TextStyle(
+                      color: scheme.onPrimary,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: colorScheme.secondaryContainer,
-                foregroundColor: colorScheme.onSecondaryContainer,
-              ),
-              icon: isLoading
-                  ? const _Spinner()
-                  : const Icon(FluentIcons.arrow_shuffle_24_filled),
-              label: Text(context.l10n.shuffle),
+            child: CupertinoButton(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+              color: isDark
+                  ? MusifiedStyle.surfaceHigh
+                  : MusifiedStyle.lightSurfaceHigh,
               onPressed: isLoading ? null : onShuffle,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (isLoading)
+                    CupertinoActivityIndicator(
+                      radius: 9,
+                      color: scheme.onSurface,
+                    )
+                  else
+                    Icon(
+                      CupertinoIcons.shuffle,
+                      size: 18,
+                      color: scheme.onSurface,
+                    ),
+                  const SizedBox(width: 8),
+                  Text(
+                    context.l10n.shuffle,
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Replaces the icon of a button while its songs are being read.
-class _Spinner extends StatelessWidget {
-  const _Spinner();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SizedBox(
-      width: 18,
-      height: 18,
-      child: CircularProgressIndicator(strokeWidth: 2),
     );
   }
 }

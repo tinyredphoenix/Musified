@@ -348,6 +348,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                 List<Map>.from(songs.whereType<Map>())..shuffle(),
                 replace: true,
                 startIndex: 0,
+                resetShuffle: false,
               );
             },
           ),

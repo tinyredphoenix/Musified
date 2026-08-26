@@ -1,4 +1,4 @@
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/utilities/playlist_image_picker.dart';
@@ -50,100 +50,88 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
     }
   }
 
+  Map<String, dynamic> _buildResult() {
+    return {
+      'ytid': widget.playlistData['ytid'],
+      'title': _titleController.text,
+      'source': widget.playlistData['source'] ?? 'user-created',
+      if (_imageBase64 != null)
+        'image': _imageBase64
+      else if (_imageUrlController.text.isNotEmpty)
+        'image': _imageUrlController.text,
+      'list': widget.playlistData['list'],
+      if (widget.playlistData['createdAt'] != null)
+        'createdAt': widget.playlistData['createdAt'],
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    Widget _imagePreview() {
-      return buildImagePreview(
-        imageBase64: _imageBase64,
-        imageUrl: _imageUrlController.text.isEmpty
-            ? null
-            : _imageUrlController.text,
-      );
-    }
-
-    return AlertDialog(
-      title: Text(
-        context.l10n.editPlaylist,
-        style: TextStyle(
-          color: colorScheme.onSurface,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+    return CupertinoAlertDialog(
+      title: Text(context.l10n.editPlaylist),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            TextField(
+            const SizedBox(height: 12),
+            CupertinoTextField(
               controller: _titleController,
-              decoration: InputDecoration(
-                labelText: context.l10n.customPlaylistName,
-                prefixIcon: Icon(
-                  FluentIcons.text_field_20_regular,
-                  color: colorScheme.onSurfaceVariant,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                filled: true,
-                fillColor: colorScheme.surfaceContainerLow,
+              placeholder: context.l10n.customPlaylistName,
+              prefix: const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(CupertinoIcons.textformat, size: 18),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             ),
             if (_imageBase64 == null) ...[
               const SizedBox(height: 12),
-              TextField(
+              CupertinoTextField(
                 controller: _imageUrlController,
-                decoration: InputDecoration(
-                  labelText: context.l10n.customPlaylistImgUrl,
-                  prefixIcon: Icon(
-                    FluentIcons.image_20_regular,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: true,
-                  fillColor: colorScheme.surfaceContainerLow,
+                placeholder: context.l10n.customPlaylistImgUrl,
+                prefix: const Padding(
+                  padding: EdgeInsets.only(left: 8),
+                  child: Icon(CupertinoIcons.photo, size: 18),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
                 ),
                 onChanged: (_) => setState(() => _imageBase64 = null),
               ),
             ],
             const SizedBox(height: 12),
             if (_imageUrlController.text.isEmpty || _imageBase64 != null) ...[
-              buildImagePickerRow(context, _pickImage, _imageBase64 != null),
-              _imagePreview(),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: _pickImage,
+                child: Text(
+                  _imageBase64 != null
+                      ? context.l10n.imagePicked
+                      : context.l10n.pickImageFromDevice,
+                  style: TextStyle(color: colorScheme.primary, fontSize: 15),
+                ),
+              ),
+              buildImagePreview(
+                imageBase64: _imageBase64,
+                imageUrl: _imageUrlController.text.isEmpty
+                    ? null
+                    : _imageUrlController.text,
+              ),
             ],
           ],
         ),
       ),
       actions: <Widget>[
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.pop(context),
-          child: Text(
-            context.l10n.cancel,
-            style: TextStyle(color: colorScheme.onSurfaceVariant),
-          ),
+          child: Text(context.l10n.cancel),
         ),
-        FilledButton.icon(
-          onPressed: () {
-            final newPlaylist = {
-              'ytid': widget.playlistData['ytid'],
-              'title': _titleController.text,
-              'source': widget.playlistData['source'] ?? 'user-created',
-              if (_imageBase64 != null)
-                'image': _imageBase64
-              else if (_imageUrlController.text.isNotEmpty)
-                'image': _imageUrlController.text,
-              'list': widget.playlistData['list'],
-              if (widget.playlistData['createdAt'] != null)
-                'createdAt': widget.playlistData['createdAt'],
-            };
-
-            Navigator.pop(context, newPlaylist);
-          },
-          icon: const Icon(FluentIcons.save_20_regular),
-          label: Text(context.l10n.update),
+        CupertinoDialogAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(context, _buildResult()),
+          child: Text(context.l10n.update),
         ),
       ],
     );

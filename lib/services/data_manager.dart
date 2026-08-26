@@ -19,8 +19,11 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
+import 'package:flutter/painting.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:hive/hive.dart';
 import 'package:musify/main.dart' show logger;
+import 'package:musify/utilities/artwork_provider.dart';
 
 // Cache durations for different types of data
 const Duration songCacheDuration = Duration(hours: 1, minutes: 30);
@@ -47,9 +50,9 @@ DateTime? _parseCacheDate(dynamic value) {
   return null;
 }
 
-// Maximum number of entries allowed in the memory cache
-const int _maxMemoryCacheSize = 500;
-const int _memoryCacheTrimSize = 100;
+// Cap kept intentionally modest for LiveContainer / personal devices.
+const int _maxMemoryCacheSize = 200;
+const int _memoryCacheTrimSize = 50;
 
 void _setMemoryCacheEntry(String key, _CacheEntry entry) {
   _memoryCache
@@ -72,6 +75,13 @@ void _trimMemoryCacheIfNeeded() {
       _memoryCache.remove(key);
     }
   }
+}
+
+/// Bounds Flutter's in-memory decoded-image cache (not Hive / not downloads).
+void configureImageMemoryBudget() {
+  final imageCache = PaintingBinding.instance.imageCache;
+  imageCache.maximumSize = 120;
+  imageCache.maximumSizeBytes = 48 << 20; // ~48 MB
 }
 
 Future<void> addOrUpdateData<T>(String category, String key, T value) async {
@@ -138,11 +148,31 @@ Future<void> deleteData(String category, String key) async {
 
 Future<bool> clearCache() async {
   try {
-    // Clear memory cache
     _memoryCache.clear();
+    ArtworkProvider.clearCache();
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
 
     final cacheBox = await _openBox('cache');
     await cacheBox.clear();
+
+    try {
+      if (Hive.isBoxOpen('saavn_match_cache')) {
+        await Hive.box('saavn_match_cache').clear();
+      } else {
+        final box = await Hive.openBox('saavn_match_cache');
+        await box.clear();
+      }
+    } catch (e) {
+      logger.log('Failed to clear saavn match cache', error: e);
+    }
+
+    try {
+      await DefaultCacheManager().emptyCache();
+    } catch (e) {
+      logger.log('Failed to clear image disk cache', error: e);
+    }
+
     return true;
   } catch (e, stackTrace) {
     logger.log('Failed to clear cache', error: e, stackTrace: stackTrace);
@@ -181,12 +211,32 @@ Future<void> cleanupOldCacheEntries() async {
         _memoryCache.remove(cacheKey);
       }
     }
+
+    await _trimSaavnMatchCache();
   } catch (e, stackTrace) {
     logger.log(
       'Error cleaning up old cache entries',
       error: e,
       stackTrace: stackTrace,
     );
+  }
+}
+
+const int _saavnMatchCacheMaxKeys = 1500;
+
+Future<void> _trimSaavnMatchCache() async {
+  try {
+    final box = Hive.isBoxOpen('saavn_match_cache')
+        ? Hive.box('saavn_match_cache')
+        : await Hive.openBox('saavn_match_cache');
+    final excess = box.length - _saavnMatchCacheMaxKeys;
+    if (excess <= 0) return;
+    final keys = box.keys.take(excess).toList();
+    for (final key in keys) {
+      await box.delete(key);
+    }
+  } catch (e) {
+    logger.log('Error trimming saavn match cache', error: e);
   }
 }
 
@@ -218,6 +268,3 @@ Future<Box> _openBox(String category) async {
     return Hive.openBox(category);
   }
 }
-
-
-

@@ -24,6 +24,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 
 class Logger {
+  static const int _maxLogChars = 80000;
   String _logs = '';
   int _logCount = 0;
 
@@ -42,6 +43,9 @@ class Logger {
     debugPrint(logMessage);
     _logs += '$logMessage\n';
     _logCount++;
+    if (_logs.length > _maxLogChars) {
+      _logs = _logs.substring(_logs.length - (_maxLogChars ~/ 2));
+    }
   }
 
   Future<String> copyLogs(BuildContext context) async {

@@ -42,6 +42,7 @@ import 'package:musify/services/router_service.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/services/source_resolver.dart';
 import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musify/services/youtube_music_sync_service.dart';
 import 'package:musify/theme/app_themes.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/utilities/language_utils.dart';
@@ -92,6 +93,7 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
     setState(() {
       if (newThemeMode != null) {
         themeMode = newThemeMode;
+        themeModeSetting = newThemeMode.index;
         brightness = getBrightnessFromThemeMode(newThemeMode);
       }
       if (newLocale != null) {
@@ -120,17 +122,6 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
-    final platformDispatcher = PlatformDispatcher.instance;
-
-    // This callback is called every time the brightness changes.
-    platformDispatcher.onPlatformBrightnessChanged = () {
-      if (themeMode == ThemeMode.system) {
-        setState(() {
-          brightness = platformDispatcher.platformBrightness;
-        });
-      }
-    };
-
     offlineMode.addListener(_onOfflineModeChanged);
 
     try {
@@ -150,8 +141,13 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    super.didChangeAppLifecycleState(state);
+  void didChangePlatformBrightness() {
+    if (themeMode != ThemeMode.system) return;
+    final next = WidgetsBinding.instance.platformDispatcher.platformBrightness;
+    if (brightness == next) return;
+    setState(() {
+      brightness = next;
+    });
   }
 
   @override
@@ -168,27 +164,29 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = getAppColorScheme(null, null);
+    // Distinct light + dark themes so ThemeMode.system can swap correctly.
+    final themes = buildAppThemes();
+    final overlayBrightness = getBrightnessFromThemeMode(themeMode);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
         systemNavigationBarColor: Colors.transparent,
         systemNavigationBarContrastEnforced: true,
-        statusBarBrightness: brightness == Brightness.dark
+        statusBarBrightness: overlayBrightness == Brightness.dark
             ? Brightness.light
             : Brightness.dark,
-        statusBarIconBrightness: brightness == Brightness.dark
+        statusBarIconBrightness: overlayBrightness == Brightness.dark
             ? Brightness.light
             : Brightness.dark,
-        systemNavigationBarIconBrightness: brightness == Brightness.dark
+        systemNavigationBarIconBrightness: overlayBrightness == Brightness.dark
             ? Brightness.light
             : Brightness.dark,
       ),
       child: MaterialApp.router(
         themeMode: themeMode,
-        darkTheme: getAppTheme(colorScheme),
-        theme: getAppTheme(colorScheme),
+        theme: themes.light,
+        darkTheme: themes.dark,
         localizationsDelegates: const [
           AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -205,6 +203,7 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  configureImageMemoryBudget();
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return Material(
@@ -297,6 +296,7 @@ Future<void> initialisation() async {
     OfflinePlaylistService().reloadOfflinePlaylistsFromStorage();
     // Restore YouTube Music session if previously signed in
     YouTubeAuthService().restoreSession();
+    unawaited(YouTubeMusicSyncService().initialize());
   } catch (e, stackTrace) {
     logger.log('Hive Initialization Error', error: e, stackTrace: stackTrace);
   }
@@ -333,8 +333,8 @@ Future<void> initialisation() async {
         // iOS uses the system Now Playing/remote command surfaces. Keep the
         // shared configuration platform-neutral; notification fields for a
         // different platform are intentionally not part of this target.
-        artDownscaleWidth: 1200,
-        artDownscaleHeight: 1200,
+        artDownscaleWidth: 512,
+        artDownscaleHeight: 512,
         preloadArtwork: true,
         fastForwardInterval: Duration(seconds: 15),
         rewindInterval: Duration(seconds: 15),

@@ -27,10 +27,11 @@ import 'package:musify/services/playlists_manager.dart';
 import 'package:musify/services/settings_manager.dart';
 import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/flutter_toast.dart';
+import 'package:musify/utilities/musified_picker_sheet.dart';
 import 'package:musify/utilities/playlist_utils.dart';
 import 'package:musify/widgets/confirmation_dialog.dart';
-import 'package:musify/widgets/dialog_item.dart';
 import 'package:musify/widgets/mini_player_bottom_space.dart';
+import 'package:musify/widgets/overflow_menu_button.dart';
 import 'package:musify/widgets/playlist_bar.dart';
 import 'package:musify/widgets/popup_menu_item.dart';
 
@@ -79,11 +80,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                   background: _buildHeader(context, playlists.length),
                 ),
                 actions: [
-                  PopupMenuButton<String>(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    color: Theme.of(context).colorScheme.surface,
+                  OverflowMenuButton<String>(
                     itemBuilder: (context) => [
                       buildPopupMenuItem<String>(
                         value: 'add',
@@ -273,62 +270,20 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
       return;
     }
 
-    await showDialog(
-      context: context,
-      builder: (context) {
-        final colorScheme = Theme.of(context).colorScheme;
-        return AlertDialog(
-          icon: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              CupertinoIcons.text_badge_plus,
-              color: colorScheme.secondary,
-              size: 28,
-            ),
+    await showMusifiedPickerSheet(
+      context,
+      title: context.l10n.addPlaylist,
+      emptyMessage: context.l10n.noPlaylistsAdded,
+      actions: [
+        for (final playlist in candidates)
+          PickerSheetAction(
+            label: playlist['title']?.toString() ?? '',
+            icon: CupertinoIcons.list_bullet,
+            onTap: () {
+              movePlaylistToFolder(playlist, widget.folderId, context);
+            },
           ),
-          title: Text(
-            context.l10n.addPlaylist,
-            style: TextStyle(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: candidates.length,
-              itemBuilder: (context, index) {
-                final playlist = candidates[index];
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  child: DialogItem(
-                    icon: CupertinoIcons.list_bullet,
-                    iconColor: colorScheme.tertiary,
-                    iconBgColor: colorScheme.tertiaryContainer,
-                    label: playlist['title'] ?? '',
-                    onTap: () {
-                      Navigator.pop(context);
-                      movePlaylistToFolder(playlist, widget.folderId, context);
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(context.l10n.cancel),
-            ),
-          ],
-        );
-      },
+      ],
     );
   }
 
@@ -349,46 +304,34 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
 
   void _showRenameFolderDialog() {
     var newName = _folderName;
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        icon: Icon(
-          CupertinoIcons.folder,
-          color: colorScheme.primary,
-          size: 32,
-        ),
-        title: Text(
-          context.l10n.editFolder,
-          style: TextStyle(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: TextFormField(
-          decoration: InputDecoration(
-            labelText: context.l10n.folderName,
-            prefixIcon: Icon(
-              CupertinoIcons.textformat,
-              color: colorScheme.onSurfaceVariant,
+      builder: (context) => CupertinoAlertDialog(
+        title: Text(context.l10n.editFolder),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            placeholder: context.l10n.folderName,
+            controller: TextEditingController(text: newName),
+            autofocus: true,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: isDark
+                  ? CupertinoColors.tertiarySystemFill
+                  : CupertinoColors.systemGrey6,
+              borderRadius: BorderRadius.circular(8),
             ),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: colorScheme.surfaceContainerLow,
+            onChanged: (value) => newName = value,
           ),
-          initialValue: newName,
-          autofocus: true,
-          onChanged: (value) => newName = value,
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              context.l10n.cancel,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-            ),
+            child: Text(context.l10n.cancel),
           ),
-          FilledButton.icon(
+          CupertinoDialogAction(
+            isDefaultAction: true,
             onPressed: () {
               Navigator.pop(context);
               final result = renamePlaylistFolder(
@@ -401,8 +344,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                 setState(() => _folderName = newName.trim());
               }
             },
-            icon: const Icon(CupertinoIcons.checkmark_circle_fill),
-            label: Text(context.l10n.update),
+            child: Text(context.l10n.update),
           ),
         ],
       ),

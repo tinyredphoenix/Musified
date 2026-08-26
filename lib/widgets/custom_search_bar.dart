@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 
 class CustomSearchBar extends StatefulWidget {
@@ -81,7 +81,7 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
           ),
         ),
         leading: Icon(
-          FluentIcons.search_24_regular,
+          CupertinoIcons.search,
           color: colorScheme.onSurfaceVariant,
           size: 22,
         ),
@@ -102,7 +102,7 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
           if (widget.controller.text.isNotEmpty)
             IconButton(
               icon: Icon(
-                FluentIcons.dismiss_24_regular,
+                CupertinoIcons.xmark_circle_fill,
                 color: colorScheme.onSurfaceVariant,
                 size: 20,
               ),

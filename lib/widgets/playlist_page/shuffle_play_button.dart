@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
@@ -32,8 +32,8 @@ class ShufflePlayButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return IconButton.filledTonal(
-      icon: const Icon(FluentIcons.arrow_shuffle_24_regular),
-      iconSize: 24,
+      icon: const Icon(CupertinoIcons.shuffle),
+      iconSize: 22,
       tooltip: context.l10n.shuffle,
       onPressed: () async {
         if (songs.isEmpty) return;
@@ -44,6 +44,8 @@ class ShufflePlayButton extends StatelessWidget {
           shuffledSongs,
           replace: true,
           startIndex: 0,
+          // One-shot order — don't thrash shuffle mode / Hive.
+          resetShuffle: false,
         );
       },
     );

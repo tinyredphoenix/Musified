@@ -19,9 +19,8 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
 import 'package:musify/utilities/url_launcher.dart';
 
 class AnnouncementBox extends StatelessWidget {
@@ -30,7 +29,7 @@ class AnnouncementBox extends StatelessWidget {
     required this.message,
     required this.url,
     this.onDismiss,
-    this.icon = FluentIcons.megaphone_24_regular,
+    this.icon = CupertinoIcons.speaker_2,
   });
   final String message;
   final String url;
@@ -67,48 +66,26 @@ class AnnouncementBox extends StatelessWidget {
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        message,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 2,
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            context.l10n.tapToView,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: colorScheme.onPrimaryContainer.withValues(
-                                alpha: 0.7,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            FluentIcons.arrow_right_16_regular,
-                            size: 12,
-                            color: colorScheme.onPrimaryContainer.withValues(
-                              alpha: 0.7,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  child: Text(
+                    message,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: colorScheme.onPrimaryContainer,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 3,
                   ),
+                ),
+                Icon(
+                  CupertinoIcons.chevron_forward,
+                  size: 16,
+                  color: colorScheme.onPrimaryContainer.withValues(alpha: 0.7),
                 ),
                 if (onDismiss != null)
                   IconButton(
                     icon: Icon(
-                      FluentIcons.dismiss_circle_24_regular,
+                      CupertinoIcons.xmark_circle_fill,
                       color: colorScheme.onPrimaryContainer.withValues(
                         alpha: 0.7,
                       ),

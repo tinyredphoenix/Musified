@@ -195,7 +195,8 @@ void reloadSettingsFromStorage() {
     'showAudioQualityBadge',
     defaultValue: false,
   );
-  final restoredThemeIndex = settings.get('themeIndex', defaultValue: 0);
+  final restoredThemeIndex =
+      settings.get('themeIndex') ?? settings.get('themeMode') ?? 0;
   if (restoredThemeIndex is int) themeModeSetting = restoredThemeIndex;
 
   final restoredLanguageCode = settings.get('languageCode', defaultValue: 'en');

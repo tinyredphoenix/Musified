@@ -19,7 +19,7 @@
  *     please visit: https://github.com/gokadzev/Musify
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 import 'package:musify/utilities/flutter_toast.dart';
@@ -53,14 +53,14 @@ class _PlaylistAddToPlaylistButtonState
           child: SizedBox(
             width: 24,
             height: 24,
-            child: CircularProgressIndicator(strokeWidth: 3),
+            child: CupertinoActivityIndicator(radius: 10),
           ),
         ),
       );
     }
 
     return IconButton.filledTonal(
-      icon: const Icon(FluentIcons.album_add_24_regular),
+      icon: const Icon(CupertinoIcons.music_albums),
       iconSize: 24,
       onPressed: _resolveAndAdd,
       tooltip: context.l10n.addToPlaylist,

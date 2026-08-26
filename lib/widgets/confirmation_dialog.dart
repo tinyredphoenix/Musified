@@ -1,25 +1,7 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
+ * Always Cupertino — Musified is an iOS / LiveContainer app.
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
@@ -41,75 +23,23 @@ class ConfirmationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (Theme.of(context).platform == TargetPlatform.iOS) {
-      return CupertinoAlertDialog(
-        title: Text(context.l10n.confirmation),
-        content: confirmationMessage != null
-            ? Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(confirmationMessage!),
-              )
-            : null,
-        actions: [
-          CupertinoDialogAction(
-            onPressed: onCancel,
-            child: Text(context.l10n.cancel),
-          ),
-          CupertinoDialogAction(
-            isDestructiveAction: isDangerous,
-            isDefaultAction: !isDangerous,
-            onPressed: onSubmit,
-            child: Text(submitMessage),
-          ),
-        ],
-      );
-    }
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return AlertDialog(
-      icon: Icon(
-        isDangerous
-            ? FluentIcons.warning_24_regular
-            : FluentIcons.question_circle_24_regular,
-        color: isDangerous ? colorScheme.error : colorScheme.primary,
-        size: 32,
-      ),
-      title: Text(
-        context.l10n.confirmation,
-        style: TextStyle(
-          color: colorScheme.onSurface,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+    return CupertinoAlertDialog(
+      title: Text(context.l10n.confirmation),
       content: confirmationMessage != null
-          ? Text(
-              confirmationMessage!,
-              style: TextStyle(color: colorScheme.onSurfaceVariant),
-              textAlign: TextAlign.center,
+          ? Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(confirmationMessage!),
             )
           : null,
-      actionsAlignment: MainAxisAlignment.center,
-      actions: <Widget>[
-        OutlinedButton(
+      actions: [
+        CupertinoDialogAction(
           onPressed: onCancel,
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: colorScheme.outline),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
           child: Text(context.l10n.cancel),
         ),
-        FilledButton(
+        CupertinoDialogAction(
+          isDestructiveAction: isDangerous,
+          isDefaultAction: !isDangerous,
           onPressed: onSubmit,
-          style: FilledButton.styleFrom(
-            backgroundColor: isDangerous
-                ? colorScheme.error
-                : colorScheme.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
           child: Text(submitMessage),
         ),
       ],

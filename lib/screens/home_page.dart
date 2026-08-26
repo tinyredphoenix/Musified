@@ -62,22 +62,20 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
+        centerTitle: false,
         title: Text(
           'Musified',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.8,
-            fontSize: 24,
-            fontFamily: '.SF Pro Display',
-            color: Theme.of(context).colorScheme.primary,
-          ),
+          style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
         ),
       ),
-      body: RefreshIndicator(
+      body: RefreshIndicator.adaptive(
         onRefresh: _handleRefresh,
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
+          physics: const AlwaysScrollableScrollPhysics(
+            parent: BouncingScrollPhysics(),
+          ),
           padding: commonSingleChildScrollViewPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,7 +113,7 @@ class _HomePageState extends State<HomePage> {
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                itemCount: songs.length,
+                itemCount: songs.length > 25 ? 25 : songs.length,
                 itemBuilder: (context, index) {
                   final song = songs[index];
                   return _HomeSongCard(
@@ -341,6 +339,8 @@ class _HomeSongCard extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: imageUrl.toString(),
                             fit: BoxFit.cover,
+                            memCacheWidth: 280,
+                            memCacheHeight: 280,
                             errorWidget: (_, __, ___) => Container(
                               color: Theme.of(context)
                                   .colorScheme

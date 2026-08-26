@@ -25,24 +25,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/main.dart';
 import 'package:musify/models/full_player_state.dart';
-import 'package:musify/models/position_data.dart';
 import 'package:musify/screens/now_playing_page.dart';
+import 'package:musify/theme/musified_style.dart';
 import 'package:musify/widgets/marquee.dart';
 import 'package:musify/widgets/song_artwork.dart';
-import 'package:rxdart/rxdart.dart';
-
-Stream<FullPlayerState> get _fullPlayerStateStream {
-  if (!isAudioHandlerInitialized) return const Stream<FullPlayerState>.empty();
-  return Rx.combineLatest3(
-        audioHandler.playbackStateStream,
-        audioHandler.queue.distinct(),
-        audioHandler.positionDataStream,
-        (PlaybackState state, List<MediaItem> queue, PositionData pos) =>
-            FullPlayerState(playbackState: state, queue: queue, position: pos),
-      )
-      .throttleTime(const Duration(milliseconds: 120), trailing: true)
-      .asBroadcastStream();
-}
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -67,7 +53,7 @@ class MiniPlayer extends StatelessWidget {
           if (metadata == null) return const SizedBox.shrink();
 
           return StreamBuilder<FullPlayerState>(
-            stream: _fullPlayerStateStream,
+            stream: audioHandler.fullPlayerStateStream,
             builder: (context, stateSnapshot) {
               final state = stateSnapshot.data;
               if (state == null) return const SizedBox.shrink();
@@ -163,9 +149,14 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
     final metadata = widget.metadata;
     final state = widget.state;
 
-    final totalDuration = state.position.duration > Duration.zero
-        ? state.position.duration
-        : (metadata.duration ?? Duration.zero);
+    // Prefer catalog metadata duration — iOS AVPlayer often reports ~2× for HE-AAC.
+    final metadataDuration = metadata.duration;
+    final totalDuration =
+        (metadataDuration != null && metadataDuration > Duration.zero)
+        ? metadataDuration
+        : (state.position.duration > Duration.zero
+              ? state.position.duration
+              : Duration.zero);
     final progress = totalDuration.inMilliseconds == 0
         ? 0.0
         : (state.position.position.inMilliseconds /
@@ -185,16 +176,9 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
             onTap: _navigateToNowPlaying,
             child: Container(
               height: MiniPlayer.playerHeight,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHigh.withValues(alpha: 0.92),
-                borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
-                boxShadow: [
-                  BoxShadow(
-                    color: colorScheme.shadow.withValues(alpha: 0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+              decoration: MusifiedStyle.solidElevated(
+                scheme: colorScheme,
+                radius: MiniPlayer._borderRadius,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(MiniPlayer._borderRadius),
@@ -207,9 +191,9 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                             _ArtworkWidget(metadata: metadata),
                             Expanded(
                               child: AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 300),
-                                switchInCurve: Curves.easeIn,
-                                switchOutCurve: Curves.easeOut,
+                                duration: const Duration(milliseconds: 220),
+                                switchInCurve: Curves.easeOut,
+                                switchOutCurve: Curves.easeIn,
                                 layoutBuilder:
                                     (currentChild, previousChildren) => Stack(
                                       alignment: Alignment.centerLeft,
@@ -247,12 +231,12 @@ class _MiniPlayerBodyState extends State<_MiniPlayerBody>
                         left: 0,
                         right: 0,
                         child: SizedBox(
-                          height: 1.0,
+                          height: 2,
                           child: LinearProgressIndicator(
                             value: progress,
                             backgroundColor: Colors.transparent,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              colorScheme.primary.withValues(alpha: 0.5),
+                              colorScheme.primary.withValues(alpha: 0.85),
                             ),
                           ),
                         ),

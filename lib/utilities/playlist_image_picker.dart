@@ -22,7 +22,7 @@
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 
@@ -53,13 +53,10 @@ Future<String?> pickImage() async {
         case 'webp':
           mimeType = 'image/webp';
           break;
-        default:
-          mimeType = 'application/octet-stream';
       }
-    } else {
-      mimeType = 'application/octet-stream';
     }
 
+    mimeType ??= 'image/jpeg';
     return 'data:$mimeType;base64,${base64Encode(bytes)}';
   }
 
@@ -75,24 +72,28 @@ Widget buildImagePreview({
   Widget? imageWidget;
 
   if (imageBase64 != null) {
-    final base64Data = imageBase64.contains(',')
-        ? imageBase64.split(',').last
-        : imageBase64;
-
-    imageWidget = Image.memory(
-      base64Decode(base64Data),
-      width: width,
-      height: height,
-      fit: BoxFit.cover,
-    );
+    try {
+      final base64Data = imageBase64.split(',').last;
+      final bytes = base64Decode(base64Data);
+      imageWidget = Image.memory(
+        bytes,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+      );
+    } catch (_) {
+      imageWidget = null;
+    }
   } else if (imageUrl != null && imageUrl.isNotEmpty) {
     imageWidget = Image.network(
       imageUrl,
       width: width,
       height: height,
       fit: BoxFit.cover,
+      cacheWidth: (width * 2).round(),
+      cacheHeight: (height * 2).round(),
       errorBuilder: (context, _, __) => Icon(
-        FluentIcons.image_off_20_regular,
+        CupertinoIcons.photo,
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       ),
     );
@@ -133,8 +134,8 @@ Widget buildImagePickerRow(
         padding: const EdgeInsets.only(left: 4),
         child: Icon(
           isImagePicked
-              ? FluentIcons.checkmark_circle_20_filled
-              : FluentIcons.image_add_20_regular,
+              ? CupertinoIcons.checkmark_circle_fill
+              : CupertinoIcons.photo_on_rectangle,
           size: 20,
         ),
       ),

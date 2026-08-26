@@ -687,7 +687,8 @@ class SettingsPage extends StatelessWidget {
           return BottomSheetBar(
             modeNames[mode.index],
             () {
-              addOrUpdateData<int>('settings', 'themeMode', mode.index);
+              addOrUpdateData<int>('settings', 'themeIndex', mode.index);
+              themeModeSetting = mode.index;
               Musify.updateAppState(context, newThemeMode: mode);
               showToast(context, context.l10n.settingChangedMsg);
               Navigator.pop(context);

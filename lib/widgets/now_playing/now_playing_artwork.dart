@@ -28,6 +28,7 @@ import 'package:musify/extensions/l10n.dart';
 import 'package:musify/main.dart';
 import 'package:musify/services/common_services.dart';
 import 'package:musify/services/settings_manager.dart';
+import 'package:musify/theme/musified_style.dart';
 import 'package:musify/utilities/async_loader.dart';
 import 'package:musify/utilities/flutter_toast.dart';
 import 'package:musify/widgets/flip_card.dart';
@@ -48,6 +49,7 @@ class NowPlayingArtwork extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final screenWidth = size.width;
     final screenHeight = size.height;
     final isLandscape = screenWidth > screenHeight;
@@ -68,48 +70,21 @@ class NowPlayingArtwork extends StatelessWidget {
       rotateSide: RotateSide.right,
       onTapFlipping: !offlineMode.value,
       controller: lyricsController,
-      frontWidget: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 36,
-              offset: const Offset(0, 18),
-              spreadRadius: -2,
-            ),
-            BoxShadow(
-              color: colorScheme.primary.withValues(alpha: 0.15),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-              spreadRadius: 2,
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(borderRadius),
-          child: SongArtworkWidget(
-            metadata: metadata,
-            size: imageSize,
-            errorWidgetIconSize: size.width / 8,
-            borderRadius: borderRadius,
-          ),
+      frontWidget: ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
+        child: SongArtworkWidget(
+          metadata: metadata,
+          size: imageSize,
+          errorWidgetIconSize: size.width / 8,
+          borderRadius: borderRadius,
         ),
       ),
       backWidget: Container(
         width: imageSize,
         height: imageSize,
         decoration: BoxDecoration(
-          color: colorScheme.secondaryContainer,
+          color: isDark ? MusifiedStyle.surface : colorScheme.surfaceContainerHigh,
           borderRadius: BorderRadius.circular(borderRadius),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.35),
-              blurRadius: 36,
-              offset: const Offset(0, 18),
-              spreadRadius: -2,
-            ),
-          ],
         ),
         child: AsyncLoader<String?>(
           future: getSongLyrics(metadata.artist, metadata.title),
@@ -120,17 +95,15 @@ class NowPlayingArtwork extends StatelessWidget {
                 Icon(
                   CupertinoIcons.quote_bubble,
                   size: 48,
-                  color: colorScheme.onSecondaryContainer.withValues(
-                    alpha: 0.5,
-                  ),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   context.l10n.lyricsNotAvailable,
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 17,
                     fontWeight: FontWeight.w500,
-                    color: colorScheme.onSecondaryContainer,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -144,9 +117,7 @@ class NowPlayingArtwork extends StatelessWidget {
                 Icon(
                   CupertinoIcons.quote_bubble,
                   size: 48,
-                  color: colorScheme.onSecondaryContainer.withValues(
-                    alpha: 0.5,
-                  ),
+                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
                 const SizedBox(height: 16),
                 Text(
@@ -188,10 +159,10 @@ class AudioQualityBadge extends StatelessWidget {
   void _showSourcePicker(BuildContext context) {
     final currentSource =
         metadata.extras?['resolvedSource'] as String? ?? 'youtube';
-    // Use the playback snapshot, not the mutable global download list. A
-    // download completing in the background must not relabel the currently
-    // playing online stream as offline or hide the source switcher.
-    final isOffline = metadata.extras?['isOffline'] == true;
+    final ytid = metadata.extras?['ytid']?.toString() ?? '';
+    // Fully downloaded tracks always use the local file.
+    final isOffline =
+        metadata.extras?['isOffline'] == true || hasPlayableOfflineFile(ytid);
 
     showCupertinoModalPopup<void>(
       context: context,
@@ -258,7 +229,9 @@ class AudioQualityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final extras = metadata.extras ?? {};
-    final isOffline = extras['isOffline'] == true;
+    final isOffline =
+        extras['isOffline'] == true ||
+        hasPlayableOfflineFile(extras['ytid']?.toString());
 
     String label;
     Color color;

@@ -1,28 +1,11 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
+ * Cupertino rename dialog — Musified light/dark aware.
  */
 
+import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/widgets/mini_player.dart';
+import 'package:musify/utilities/flutter_toast.dart';
 
 class RenameSongDialog extends StatefulWidget {
   const RenameSongDialog({
@@ -63,19 +46,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
     final newArtist = _artistController.text.trim();
 
     if (newTitle.isEmpty || newArtist.isEmpty) {
-      final isMiniPlayerVisible =
-          isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
-      final bottomMargin =
-          12.0 + (isMiniPlayerVisible ? MiniPlayer.playerHeight : 0.0);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.fromLTRB(16, 12, 16, bottomMargin),
-          content: Text(context.l10n.fieldsNotEmpty),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+      showToast(context, context.l10n.fieldsNotEmpty);
       return;
     }
 
@@ -85,76 +56,48 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return AlertDialog(
-      title: Text(
-        context.l10n.renameSong,
-        style: TextStyle(
-          color: colorScheme.onSurface,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-      content: SingleChildScrollView(
+    return CupertinoAlertDialog(
+      title: Text(context.l10n.renameSong),
+      content: Padding(
+        padding: const EdgeInsets.only(top: 12),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
+            CupertinoTextField(
               controller: _titleController,
-              decoration: InputDecoration(
-                labelText: context.l10n.name,
-                labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colorScheme.outline),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colorScheme.primary),
-                ),
+              placeholder: context.l10n.name,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? CupertinoColors.tertiarySystemFill
+                    : CupertinoColors.systemGrey6,
+                borderRadius: BorderRadius.circular(8),
               ),
-              style: TextStyle(color: colorScheme.onSurface),
             ),
-            const SizedBox(height: 16),
-            TextField(
+            const SizedBox(height: 10),
+            CupertinoTextField(
               controller: _artistController,
-              decoration: InputDecoration(
-                labelText: context.l10n.artist,
-                labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colorScheme.outline),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: colorScheme.primary),
-                ),
+              placeholder: context.l10n.artist,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? CupertinoColors.tertiarySystemFill
+                    : CupertinoColors.systemGrey6,
+                borderRadius: BorderRadius.circular(8),
               ),
-              style: TextStyle(color: colorScheme.onSurface),
             ),
           ],
         ),
       ),
-      actionsAlignment: MainAxisAlignment.center,
-      actions: <Widget>[
-        OutlinedButton(
+      actions: [
+        CupertinoDialogAction(
           onPressed: () => Navigator.of(context).pop(),
-          style: OutlinedButton.styleFrom(
-            side: BorderSide(color: colorScheme.outline),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
           child: Text(context.l10n.cancel),
         ),
-        FilledButton(
+        CupertinoDialogAction(
+          isDefaultAction: true,
           onPressed: _handleRename,
-          style: FilledButton.styleFrom(
-            backgroundColor: colorScheme.primary,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
           child: Text(context.l10n.confirm),
         ),
       ],

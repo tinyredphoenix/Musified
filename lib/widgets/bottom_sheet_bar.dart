@@ -1,27 +1,10 @@
 /*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
+ * Sheet option row — Cupertino tap, Musified surfaces.
  */
 
-import 'package:fluentui_system_icons/fluentui_system_icons.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:musify/theme/musified_style.dart';
 
 class BottomSheetBar extends StatelessWidget {
   const BottomSheetBar(
@@ -38,68 +21,46 @@ class BottomSheetBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isSelected
-        ? colorScheme.secondaryContainer
-        : colorScheme.surfaceContainerHigh;
-    final fgColor = isSelected
-        ? colorScheme.onSecondaryContainer
-        : colorScheme.onSurface;
+        ? scheme.primary.withValues(alpha: isDark ? 0.18 : 0.12)
+        : (isDark ? MusifiedStyle.surface : MusifiedStyle.lightSurfaceHigh);
+    final fgColor = isSelected ? scheme.primary : scheme.onSurface;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Material(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
         color: bgColor,
-        borderRadius: BorderRadius.circular(16),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                if (icon != null) ...[
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colorScheme.onSecondaryContainer.withValues(
-                              alpha: 0.12,
-                            )
-                          : colorScheme.onSurfaceVariant.withValues(
-                              alpha: 0.08,
-                            ),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, size: 20, color: fgColor),
-                  ),
-                  const SizedBox(width: 14),
-                ],
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      color: fgColor,
-                      fontSize: 15,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.w500,
-                    ),
+        onPressed: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 22, color: fgColor),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: fgColor,
+                    fontSize: 16,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                if (isSelected) ...[
-                  const SizedBox(width: 8),
-                  Icon(
-                    Theme.of(context).platform == TargetPlatform.iOS
-                        ? CupertinoIcons.checkmark_alt_circle_fill
-                        : FluentIcons.checkmark_circle_24_regular,
-                    color: colorScheme.onSecondaryContainer,
-                    size: 22,
-                  ),
-                ],
-              ],
-            ),
+              ),
+              if (isSelected)
+                Icon(
+                  CupertinoIcons.checkmark_alt,
+                  size: 18,
+                  color: scheme.primary,
+                ),
+            ],
           ),
         ),
       ),
