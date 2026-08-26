@@ -144,6 +144,7 @@ MediaItem mapToMediaItem(Map song) {
       'resolvedSource': song['resolvedSource'],
       'resolvedBitrate': song['resolvedBitrate'],
       'resolvedFormat': song['resolvedFormat'],
+      'catalogDurationSeconds': _songDuration(song['duration'])?.inSeconds,
     },
   );
 }

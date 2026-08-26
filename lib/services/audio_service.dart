@@ -374,6 +374,18 @@ class MusifyAudioHandler extends BaseAudioHandler {
         currentSongYtid,
       );
 
+      // Cap the reported duration using the immutable catalog duration.
+      // This prevents the lock screen / slider from showing the full
+      // YouTube stream length when it exceeds the actual song length.
+      final catalogSec = (currentItem ?? currentMediaItem)
+          .extras?['catalogDurationSeconds'];
+      if (catalogSec is int && catalogSec > 0) {
+        final catalogDuration = Duration(seconds: catalogSec);
+        if (duration > catalogDuration + const Duration(seconds: 5)) {
+          duration = catalogDuration;
+        }
+      }
+
       if (currentItem != null &&
           isMatchingCurrentItem &&
           _shouldUpdateDuration(currentItem.duration, duration)) {
@@ -381,8 +393,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
       } else if (!isMatchingCurrentItem) {
         mediaItem.add(currentMediaItem.copyWith(duration: duration));
       }
-
-
 
       final existingQueue = queue.valueOrNull;
       if (existingQueue != null && queueIndex < existingQueue.length) {
@@ -600,23 +610,31 @@ class MusifyAudioHandler extends BaseAudioHandler {
     if (_nativeHasSuccessor || _handlingNativeAdvance) return;
     if (!audioPlayer.playing) return;
     if (audioPlayer.processingState == ProcessingState.completed) return;
-    
+
+    // Use the immutable catalog duration from extras (set by mapToMediaItem
+    // and never overwritten by the stream's durationStream).
+    // This is the JioSaavn/metadata duration — the actual song length.
+    final currentItem = mediaItem.value;
+    final catalogSec = currentItem?.extras?['catalogDurationSeconds'];
+    final catalogDuration = catalogSec is int && catalogSec > 0
+        ? Duration(seconds: catalogSec)
+        : null;
+
     // Default to the physical audio stream duration
     var duration = audioPlayer.duration;
-    
-    // If the stream comes from YouTube but the original JioSaavn track is shorter,
-    // enforce the original track duration so we don't play YouTube compilations/intros.
-    final currentItem = mediaItem.value;
-    if (currentItem != null && currentItem.duration != null && currentItem.duration!.inSeconds > 0) {
-      final streamDuration = duration;
-      final expectedDuration = currentItem.duration!;
-      // If stream is significantly longer than expected (e.g. >5 seconds longer),
-      // cap the playback length to the expected duration.
-      if (streamDuration != null && streamDuration > expectedDuration + const Duration(seconds: 5)) {
-        duration = expectedDuration;
+
+    // If we have a catalog duration and the stream is significantly longer,
+    // cap playback to the catalog duration so YouTube compilations/intros
+    // don't bleed into the next song.
+    if (catalogDuration != null && duration != null) {
+      if (duration > catalogDuration + const Duration(seconds: 5)) {
+        logger.log(
+          'Duration cap: stream=${duration.inSeconds}s, catalog=${catalogDuration.inSeconds}s — using catalog',
+        );
+        duration = catalogDuration;
       }
     }
-    
+
     if (duration == null || duration < const Duration(seconds: 5)) return;
     final remaining = duration - position;
     if (remaining > const Duration(milliseconds: 450) || remaining.isNegative) {
