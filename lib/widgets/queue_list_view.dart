@@ -1,35 +1,14 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/widgets/confirmation_dialog.dart';
-import 'package:musify/widgets/no_artwork_cube.dart';
+import 'package:flutter/services.dart';
+import 'package:musified/main.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/widgets/confirmation_dialog.dart';
+import 'package:musified/widgets/no_artwork_cube.dart';
 
 class QueueWidget extends StatefulWidget {
   const QueueWidget({super.key, this.isBottomSheet = false});
@@ -62,7 +41,6 @@ class _QueueWidgetState extends State<QueueWidget> {
         }
       }
     });
-    // listen to mediaItem changes UI reflects current song accurately.
     _mediaSubscription = audioHandler.mediaItem
         .distinct((prev, next) => prev?.id == next?.id)
         .listen((_) {
@@ -75,16 +53,15 @@ class _QueueWidgetState extends State<QueueWidget> {
       if (!_scrollController.hasClients) return;
       final currentIndex = audioHandler.currentQueueIndex;
       if (currentIndex <= 0) return;
-      const estimatedItemHeight = 68.0;
-      const topPadding = 4.0;
-      final targetOffset = currentIndex * estimatedItemHeight + topPadding;
+      const estimatedItemHeight = 60.0;
+      final targetOffset = currentIndex * estimatedItemHeight;
       final clampedOffset = targetOffset.clamp(
         0.0,
         _scrollController.position.maxScrollExtent,
       );
       _scrollController.animateTo(
         clampedOffset,
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOut,
       );
     });
@@ -100,45 +77,42 @@ class _QueueWidgetState extends State<QueueWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final currentIndex = audioHandler.currentQueueIndex;
 
     if (widget.isBottomSheet) {
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildHeader(context, colorScheme, textTheme, compact: true),
-          _buildBottomSheetContent(context, colorScheme, currentIndex),
+          _buildHeader(context, isDark, compact: true),
+          _buildBottomSheetContent(context, isDark, currentIndex),
         ],
       );
     }
 
     return Column(
       children: [
-        _buildHeader(context, colorScheme, textTheme, compact: false),
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-          indent: 8,
-          endIndent: 8,
+        _buildHeader(context, isDark, compact: false),
+        Container(
+          height: 0.5,
+          color: isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
         ),
         Expanded(
           child: _queue.isEmpty
-              ? _buildEmptyState(context, colorScheme, textTheme)
-              : _buildList(context, colorScheme, currentIndex),
+              ? _buildEmptyState(context, isDark)
+              : _buildList(context, isDark, currentIndex),
         ),
       ],
     );
   }
 
   void _confirmClearQueue(BuildContext context) {
-    showDialog<void>(
+    showCupertinoDialog<void>(
       context: context,
       builder: (_) => ConfirmationDialog(
-        confirmationMessage: context.l10n.clearQueueQuestion,
-        submitMessage: context.l10n.clear,
+        confirmationMessage: 'Clear all upcoming tracks from queue?',
+        submitMessage: 'Clear',
         isDangerous: true,
         onCancel: () => Navigator.pop(context),
         onSubmit: () {
@@ -152,62 +126,62 @@ class _QueueWidgetState extends State<QueueWidget> {
 
   Widget _buildHeader(
     BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme, {
+    bool isDark, {
     required bool compact,
   }) {
+    final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+
     return Padding(
       padding: compact
-          ? const EdgeInsets.only(left: 10, right: 8, bottom: 12)
-          : const EdgeInsets.fromLTRB(8, 8, 8, 16),
+          ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
+          : const EdgeInsets.fromLTRB(16, 12, 16, 16),
       child: Row(
         children: [
           Container(
-            padding: EdgeInsets.all(compact ? 8 : 10),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFFFF2D55).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(
+            child: const Icon(
               CupertinoIcons.list_bullet,
-              color: colorScheme.onPrimaryContainer,
-              size: compact ? 20.0 : 22.0,
+              color: Color(0xFFFF2D55),
+              size: 20,
             ),
           ),
-          SizedBox(width: compact ? 12 : 14),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  context.l10n.queue,
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                  'Playing Next',
+                  style: TextStyle(
+                    fontFamily: MusifiedStyle.displayFont,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: titleColor,
+                    decoration: TextDecoration.none,
                   ),
                 ),
                 Text(
-                  '${_queue.length} ${context.l10n.songs}',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
+                  '${_queue.length} songs',
+                  style: const TextStyle(
+                    fontFamily: MusifiedStyle.uiFont,
+                    fontSize: 12,
+                    color: CupertinoColors.systemGrey,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ],
             ),
           ),
           if (_queue.isNotEmpty)
-            FilledButton.tonalIcon(
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               onPressed: () => _confirmClearQueue(context),
-              icon: const Icon(CupertinoIcons.xmark, size: 18),
-              label: Text(context.l10n.clear),
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
+              child: const Text('Clear', style: TextStyle(color: CupertinoColors.destructiveRed, fontSize: 14)),
             ),
         ],
       ),
@@ -216,29 +190,30 @@ class _QueueWidgetState extends State<QueueWidget> {
 
   Widget _buildBottomSheetContent(
     BuildContext context,
-    ColorScheme colorScheme,
+    bool isDark,
     int currentIndex,
   ) {
     if (_queue.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24),
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 24),
         child: Text(
-          context.l10n.noSongsInQueue,
-          style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: 14),
+          'Queue is empty',
+          style: TextStyle(
+            fontFamily: MusifiedStyle.uiFont,
+            color: CupertinoColors.systemGrey,
+            fontSize: 14,
+            decoration: TextDecoration.none,
+          ),
         ),
       );
     }
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.52,
-      child: _buildList(context, colorScheme, currentIndex, closeOnTap: true),
+      child: _buildList(context, isDark, currentIndex, closeOnTap: true),
     );
   }
 
-  Widget _buildEmptyState(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
+  Widget _buildEmptyState(BuildContext context, bool isDark) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -248,20 +223,23 @@ class _QueueWidgetState extends State<QueueWidget> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
+                color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 CupertinoIcons.music_note,
-                color: colorScheme.onSurfaceVariant,
+                color: CupertinoColors.systemGrey,
                 size: 40,
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              context.l10n.noSongsInQueue,
-              style: textTheme.titleMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
+            const Text(
+              'No upcoming tracks in queue',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
+                color: CupertinoColors.systemGrey,
+                fontSize: 15,
+                decoration: TextDecoration.none,
               ),
               textAlign: TextAlign.center,
             ),
@@ -278,64 +256,35 @@ class _QueueWidgetState extends State<QueueWidget> {
 
   Widget _buildList(
     BuildContext context,
-    ColorScheme colorScheme,
+    bool isDark,
     int currentIndex, {
     bool closeOnTap = false,
   }) {
-    return ReorderableListView.builder(
-      scrollController: _scrollController,
-      buildDefaultDragHandles: false,
-      padding: const EdgeInsets.only(top: 4, bottom: 24, left: 8, right: 8),
+    return ListView.builder(
+      controller: _scrollController,
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       itemCount: _queue.length,
-      onReorderItem: (oldIndex, newIndex) {
-        if (oldIndex < newIndex) newIndex -= 1;
-        setState(() {
-          final item = _queue.removeAt(oldIndex);
-          var insertIndex = newIndex;
-          if (insertIndex < 0) insertIndex = 0;
-          if (insertIndex > _queue.length) insertIndex = _queue.length;
-          _queue.insert(insertIndex, item);
-        });
-
-        audioHandler.reorderQueue(oldIndex, newIndex);
-      },
-      proxyDecorator: (child, index, animation) => Material(
-        elevation: 8,
-        color: colorScheme.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(14),
-        shadowColor: colorScheme.shadow.withValues(alpha: 0.35),
-        child: child,
-      ),
       itemBuilder: (context, index) {
         final song = _queue[index];
         final isCurrentSong = index == currentIndex;
         final queueEntryId = _queueEntryKey(song, index);
-        return QueueTile(
+        return _QueueTile(
           key: ValueKey(queueEntryId),
           song: song,
           index: index,
-          queueEntryId: queueEntryId,
           isCurrentSong: isCurrentSong,
-          colorScheme: colorScheme,
+          isDark: isDark,
           onTap: () {
+            HapticFeedback.selectionClick();
             audioHandler.skipToSong(index);
             if (closeOnTap) Navigator.pop(context);
           },
-          confirmDismiss: (_) async {
-            _isDismissing = true;
-            return true;
-          },
-          onDismissed: () {
-            final actualIndex = _queue.indexWhere(
-              (item) =>
-                  _queueEntryKey(item, _queue.indexOf(item)) == queueEntryId,
-            );
-            if (actualIndex == -1) return;
+          onRemove: () {
             setState(() {
-              _isDismissing = false;
-              _queue.removeAt(actualIndex);
+              _queue.removeAt(index);
             });
-            audioHandler.removeFromQueue(actualIndex);
+            audioHandler.removeQueueItemAt(index);
           },
         );
       },
@@ -343,230 +292,111 @@ class _QueueWidgetState extends State<QueueWidget> {
   }
 }
 
-class QueueTile extends StatelessWidget {
-  const QueueTile({
+class _QueueTile extends StatelessWidget {
+  const _QueueTile({
     super.key,
     required this.song,
     required this.index,
-    required this.queueEntryId,
     required this.isCurrentSong,
-    required this.colorScheme,
+    required this.isDark,
     required this.onTap,
-    required this.onDismissed,
-    this.confirmDismiss,
+    required this.onRemove,
   });
 
   final Map song;
   final int index;
-  final String queueEntryId;
   final bool isCurrentSong;
-  final ColorScheme colorScheme;
+  final bool isDark;
   final VoidCallback onTap;
-  final VoidCallback onDismissed;
-  final Future<bool?> Function(DismissDirection)? confirmDismiss;
-
-  static const double _artSize = 46;
-  static const double _artRadius = 10;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    return Dismissible(
-      key: ValueKey(queueEntryId),
-      confirmDismiss: confirmDismiss,
-      onDismissed: (_) => onDismissed(),
-      background: _DismissBackground(
-        alignment: Alignment.centerLeft,
-        colorScheme: colorScheme,
-      ),
-      secondaryBackground: _DismissBackground(
-        alignment: Alignment.centerRight,
-        colorScheme: colorScheme,
-      ),
-      child: Material(
+    final title = song['title']?.toString() ?? 'Track';
+    final artist = song['artist']?.toString() ?? 'Artist';
+    final image = song['image']?.toString() ?? song['lowResImage']?.toString() ?? '';
+    final isLocalFile = image.startsWith('/') || image.startsWith('file://');
+    final activeColor = const Color(0xFFFF2D55);
+    final titleColor = isCurrentSong
+        ? activeColor
+        : (isDark ? CupertinoColors.white : CupertinoColors.black);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
         color: isCurrentSong
-            ? colorScheme.primaryContainer.withValues(alpha: 0.45)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(14),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(14),
-          splashColor: Colors.transparent,
-          highlightColor: colorScheme.onSurface.withValues(alpha: 0.06),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: [
-                _ArtworkThumbnail(
-                  song: song,
-                  size: _artSize,
-                  radius: _artRadius,
-                  colorScheme: colorScheme,
+            ? activeColor.withValues(alpha: 0.12)
+            : (isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  width: 44,
+                  height: 44,
+                  child: isLocalFile
+                      ? Image.file(
+                          File(image.replaceFirst('file://', '')),
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const NullArtworkWidget(iconSize: 18, size: 44),
+                        )
+                      : image.isNotEmpty
+                          ? CachedNetworkImage(
+                              imageUrl: image,
+                              fit: BoxFit.cover,
+                              errorWidget: (_, __, ___) => const NullArtworkWidget(iconSize: 18, size: 44),
+                            )
+                          : const NullArtworkWidget(iconSize: 18, size: 44),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        song['title']?.toString() ?? '',
-                        style: TextStyle(
-                          color: isCurrentSong
-                              ? colorScheme.primary
-                              : colorScheme.onSurface,
-                          fontSize: 14,
-                          fontWeight: isCurrentSong
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
+                        fontSize: 14,
+                        fontWeight: isCurrentSong ? FontWeight.w700 : FontWeight.w600,
+                        color: titleColor,
+                        decoration: TextDecoration.none,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        song['artist']?.toString() ?? '',
-                        style: TextStyle(
-                          color: colorScheme.onSurfaceVariant,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w400,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      artist,
+                      style: const TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
+                        fontSize: 12,
+                        color: CupertinoColors.systemGrey,
+                        decoration: TextDecoration.none,
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (isCurrentSong) ...[
-                  Icon(
-                    CupertinoIcons.music_note_2,
-                    color: colorScheme.primary,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                ReorderableDragStartListener(
-                  index: index,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 14,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Icon(
-                      CupertinoIcons.bars,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              CupertinoButton(
+                padding: const EdgeInsets.all(8),
+                onPressed: onRemove,
+                child: const Icon(CupertinoIcons.xmark, size: 16, color: CupertinoColors.systemGrey),
+              ),
+            ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _ArtworkThumbnail extends StatelessWidget {
-  const _ArtworkThumbnail({
-    required this.song,
-    required this.size,
-    required this.radius,
-    required this.colorScheme,
-  });
-
-  final Map song;
-  final double size;
-  final double radius;
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    final artworkPath = song['artworkPath']?.toString() ??
-        song['artWorkPath']?.toString();
-    if (artworkPath != null && artworkPath.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Image.file(
-          File(artworkPath),
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          cacheWidth: (size * MediaQuery.devicePixelRatioOf(context))
-              .round()
-              .clamp(64, 256),
-          cacheHeight: (size * MediaQuery.devicePixelRatioOf(context))
-              .round()
-              .clamp(64, 256),
-          errorBuilder: (_, __, ___) => _fallback(),
-        ),
-      );
-    }
-    final imageUrl = song['lowResImage']?.toString() ?? '';
-    if (imageUrl.isEmpty) return _fallback();
-    // Low-res YouTube 'default.jpg' thumbnails ship with baked-in black
-    // letterbox bars, so BoxFit.cover keeps them visible. Detect that case and
-    // stretch over the bars with fill + centerSlice, otherwise crop with cover —
-    // matching SongBar so the queue frames covers the same way (no black bars).
-    final isImageSmall = imageUrl.contains('default.jpg');
-    return CachedNetworkImage(
-      width: size,
-      height: size,
-      imageUrl: imageUrl,
-      memCacheWidth: (size * 2).round().clamp(64, 256),
-      memCacheHeight: (size * 2).round().clamp(64, 256),
-      imageBuilder: (_, imageProvider) => ClipRRect(
-        borderRadius: BorderRadius.circular(radius),
-        child: Image(
-          image: imageProvider,
-          width: size,
-          height: size,
-          fit: isImageSmall ? BoxFit.fill : BoxFit.cover,
-          centerSlice: isImageSmall ? const Rect.fromLTRB(1, 1, 1, 1) : null,
-        ),
-      ),
-      placeholder: (_, __) => _loading(),
-      errorWidget: (_, __, ___) => _fallback(),
-    );
-  }
-
-  Widget _fallback() => NullArtworkWidget(
-    size: size,
-    borderRadius: radius,
-    iconSize: size * 0.45,
-  );
-
-  Widget _loading() => Container(
-    width: size,
-    height: size,
-    decoration: BoxDecoration(
-      color: colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(radius),
-    ),
-  );
-}
-
-class _DismissBackground extends StatelessWidget {
-  const _DismissBackground({
-    required this.alignment,
-    required this.colorScheme,
-  });
-
-  final Alignment alignment;
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      alignment: alignment,
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Icon(
-        CupertinoIcons.trash,
-        color: colorScheme.onErrorContainer,
-        size: 22,
       ),
     );
   }

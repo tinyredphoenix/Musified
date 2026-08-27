@@ -1,31 +1,10 @@
 // ignore_for_file: cascade_invocations
 
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/painting.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:hive/hive.dart';
-import 'package:musify/main.dart' show logger;
-import 'package:musify/utilities/artwork_provider.dart';
+import 'package:musified/main.dart' show logger;
+import 'package:musified/utilities/artwork_provider.dart';
 
 // Cache durations for different types of data
 const Duration songCacheDuration = Duration(hours: 1, minutes: 30);
@@ -270,5 +249,19 @@ Future<Box> _openBox(String category) async {
     return Hive.box(category);
   } else {
     return Hive.openBox(category);
+  }
+}
+
+Future<void> clearAllCache() async {
+  try {
+    _memoryCache.clear();
+    final box = await _openBox('cache');
+    await box.clear();
+    final saavnBox = Hive.isBoxOpen('saavn_match_cache')
+        ? Hive.box('saavn_match_cache')
+        : await Hive.openBox('saavn_match_cache');
+    await saavnBox.clear();
+  } catch (e) {
+    logger.log('Error clearing cache', error: e);
   }
 }

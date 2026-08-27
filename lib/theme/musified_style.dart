@@ -1,9 +1,4 @@
-/*
- * Musified visual language — calm OLED music UI.
- * Prefer solid fills over blur; motion only for state changes.
- */
-
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/cupertino.dart';
 
 /// Shared spacing / radius / type tokens used across screens.
 abstract final class MusifiedStyle {
@@ -125,15 +120,14 @@ abstract final class MusifiedStyle {
 
   /// Solid elevated fill for mini player / sheets — no BackdropFilter.
   static BoxDecoration solidElevated({
-    required ColorScheme scheme,
+    required bool isDark,
     double radius = radiusLg,
   }) {
-    final isDark = scheme.brightness == Brightness.dark;
     return BoxDecoration(
-      color: isDark ? surface : scheme.surfaceContainerHigh,
+      color: isDark ? surface : lightElevated,
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
-        color: isDark ? hairline : scheme.outlineVariant.withValues(alpha: 0.4),
+        color: isDark ? hairline : lightHairline,
         width: 0.5,
       ),
     );

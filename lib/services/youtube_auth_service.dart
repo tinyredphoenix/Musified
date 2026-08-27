@@ -5,7 +5,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:musify/main.dart' show logger;
+import 'package:musified/main.dart' show logger;
 
 class YouTubeAuthService {
 

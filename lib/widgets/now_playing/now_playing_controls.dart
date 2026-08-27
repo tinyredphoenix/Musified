@@ -1,42 +1,20 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/router_service.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/mediaitem.dart';
-import 'package:musify/widgets/now_playing/marquee_text_widget.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/router_service.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/app_utils.dart';
+import 'package:musified/utilities/mediaitem.dart';
+import 'package:musified/widgets/now_playing/marquee_text_widget.dart';
 
-import 'package:musify/widgets/playback_icon_button.dart';
-import 'package:musify/widgets/position_slider.dart';
+import 'package:musified/widgets/playback_icon_button.dart';
+import 'package:musified/widgets/position_slider.dart';
 
 class NowPlayingControls extends StatelessWidget {
   const NowPlayingControls({
@@ -256,7 +234,6 @@ class PlayerControlButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     return LayoutBuilder(
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
@@ -298,7 +275,6 @@ class PlayerControlButtons extends StatelessWidget {
             children: <Widget>[
               _buildShuffleButton(
                 context,
-                colorScheme,
                 miniControlSize,
                 buttonConstraints,
                 buttonPadding,
@@ -307,7 +283,6 @@ class PlayerControlButtons extends StatelessWidget {
               Expanded(
                 child: Center(
                   child: _PlaybackControlsRow(
-                    colorScheme: colorScheme,
                     buttonConstraints: buttonConstraints,
                     buttonPadding: buttonPadding,
                     controlIconSize: controlIconSize,
@@ -320,7 +295,6 @@ class PlayerControlButtons extends StatelessWidget {
               const SizedBox(width: buttonSpacing),
               _buildRepeatButton(
                 context,
-                colorScheme,
                 miniControlSize,
                 buttonConstraints,
                 buttonPadding,
@@ -334,7 +308,6 @@ class PlayerControlButtons extends StatelessWidget {
 
   Widget _buildShuffleButton(
     BuildContext context,
-    ColorScheme colorScheme,
     double size,
     BoxConstraints buttonConstraints,
     EdgeInsets buttonPadding,
@@ -356,7 +329,7 @@ class PlayerControlButtons extends StatelessWidget {
           child: Icon(
             CupertinoIcons.shuffle,
             color: value
-                ? CupertinoColors.activeBlue
+                ? const Color(0xFFFF2D55)
                 : CupertinoDynamicColor.resolve(
                     CupertinoColors.tertiaryLabel,
                     context,
@@ -370,7 +343,6 @@ class PlayerControlButtons extends StatelessWidget {
 
   Widget _buildRepeatButton(
     BuildContext context,
-    ColorScheme colorScheme,
     double size,
     BoxConstraints buttonConstraints,
     EdgeInsets buttonPadding,
@@ -403,7 +375,7 @@ class PlayerControlButtons extends StatelessWidget {
                     ? CupertinoIcons.repeat_1
                     : CupertinoIcons.repeat,
                 color: isEnabled
-                    ? CupertinoColors.activeBlue
+                    ? const Color(0xFFFF2D55)
                     : CupertinoDynamicColor.resolve(
                         CupertinoColors.tertiaryLabel,
                         context,
@@ -420,7 +392,6 @@ class PlayerControlButtons extends StatelessWidget {
 
 class _PlaybackControlsRow extends StatelessWidget {
   const _PlaybackControlsRow({
-    required this.colorScheme,
     required this.buttonConstraints,
     required this.buttonPadding,
     required this.controlIconSize,
@@ -429,7 +400,6 @@ class _PlaybackControlsRow extends StatelessWidget {
     required this.playPadding,
   });
 
-  final ColorScheme colorScheme;
   final BoxConstraints buttonConstraints;
   final EdgeInsets buttonPadding;
   final double controlIconSize;
@@ -457,7 +427,6 @@ class _PlaybackControlsRow extends StatelessWidget {
                         repeatMode != AudioServiceRepeatMode.none,
                     tooltip: context.l10n.skipToPrevious,
                     onPressed: () => audioHandler.skipToPrevious(),
-                    colorScheme: colorScheme,
                     buttonConstraints: buttonConstraints,
                     buttonPadding: buttonPadding,
                     controlIconSize: controlIconSize,
@@ -465,14 +434,8 @@ class _PlaybackControlsRow extends StatelessWidget {
                   ),
                   SizedBox(width: buttonSpacing),
                   PlaybackIconButton(
-                    iconColor: CupertinoDynamicColor.resolve(
-                      CupertinoColors.systemBackground,
-                      context,
-                    ),
-                    backgroundColor: CupertinoDynamicColor.resolve(
-                      CupertinoColors.label,
-                      context,
-                    ),
+                    iconColor: CupertinoColors.white,
+                    backgroundColor: const Color(0xFFFF2D55),
                     iconSize: controlIconSize,
                     padding: playPadding,
                   ),
@@ -486,7 +449,6 @@ class _PlaybackControlsRow extends StatelessWidget {
                     onPressed: () => repeatMode == AudioServiceRepeatMode.one
                         ? audioHandler.playAgain()
                         : audioHandler.skipToNext(),
-                    colorScheme: colorScheme,
                     buttonConstraints: buttonConstraints,
                     buttonPadding: buttonPadding,
                     controlIconSize: controlIconSize,
@@ -508,7 +470,6 @@ class _PlaybackControlButton extends StatelessWidget {
     required this.isEnabled,
     required this.tooltip,
     required this.onPressed,
-    required this.colorScheme,
     required this.buttonConstraints,
     required this.buttonPadding,
     required this.controlIconSize,
@@ -519,7 +480,6 @@ class _PlaybackControlButton extends StatelessWidget {
   final bool isEnabled;
   final String tooltip;
   final VoidCallback onPressed;
-  final ColorScheme colorScheme;
   final BoxConstraints buttonConstraints;
   final EdgeInsets buttonPadding;
   final double controlIconSize;

@@ -1,44 +1,18 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart' show logger, audioHandler;
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/data_manager.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/playlist_utils.dart';
-import 'package:musify/utilities/song_filtering.dart';
-import 'package:musify/widgets/confirmation_dialog.dart';
-import 'package:musify/widgets/mini_player_bottom_space.dart';
-import 'package:musify/widgets/playlist_cube.dart';
-import 'package:musify/widgets/playlist_page/empty_playlist_state.dart';
-import 'package:musify/widgets/playlist_page/playlist_header.dart';
-import 'package:musify/widgets/playlist_page/search_bar_section.dart';
-import 'package:musify/widgets/song_bar.dart';
-import 'package:musify/widgets/sort_chips.dart';
+import 'package:flutter/services.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/main.dart' show audioHandler;
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/data_manager.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/utilities/song_filtering.dart';
+import 'package:musified/widgets/mini_player_bottom_space.dart';
+import 'package:musified/widgets/playlist_cube.dart';
+import 'package:musified/widgets/playlist_page/empty_playlist_state.dart';
+import 'package:musified/widgets/playlist_page/playlist_header.dart';
+import 'package:musified/widgets/song_tile.dart';
 
 enum OfflineSortType { default_, title, artist, dateAdded }
 
@@ -83,23 +57,45 @@ class _UserSongsPageState extends State<UserSongsPage> {
   Widget build(BuildContext context) {
     final title = getTitle(widget.page, context);
     final icon = getIcon(widget.page);
-    final isOfflineSongs = title == context.l10n.offlineSongs;
+    final isOfflineSongs = widget.page == 'offline';
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Padding(
-        padding: commonSingleChildScrollViewPadding,
-        child: ValueListenableBuilder(
-          valueListenable: widget.page == 'liked'
-              ? userLikedSongsList
-              : widget.page == 'offline'
-              ? userOfflineSongs
-              : userRecentlyPlayed,
-          builder: (_, songsList, __) => _buildCustomScrollView(
-            title,
-            icon,
-            songsList.length,
-            isOfflineSongs,
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(
+          title,
+          style: const TextStyle(
+            fontFamily: MusifiedStyle.displayFont,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: navBarColor,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: commonSingleChildScrollViewPadding,
+          child: ValueListenableBuilder<List>(
+            valueListenable: widget.page == 'liked'
+                ? userLikedSongsList
+                : widget.page == 'offline'
+                ? userOfflineSongs
+                : userRecentlyPlayed,
+            builder: (_, songsList, __) => _buildCustomScrollView(
+              title,
+              icon,
+              songsList.length,
+              isOfflineSongs,
+              isDark,
+            ),
           ),
         ),
       ),
@@ -118,11 +114,13 @@ class _UserSongsPageState extends State<UserSongsPage> {
     IconData icon,
     int songsLength,
     bool isOfflineSongs,
+    bool isDark,
   ) {
     return CustomScrollView(
+      physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
       slivers: [
         SliverToBoxAdapter(
-          child: _buildHeaderSection(title, icon, songsLength, isOfflineSongs),
+          child: _buildHeaderSection(title, icon, songsLength, isOfflineSongs, isDark),
         ),
         buildSongList(title),
         const SliverMiniPlayerBottomSpace(),
@@ -132,19 +130,19 @@ class _UserSongsPageState extends State<UserSongsPage> {
 
   String getTitle(String page, BuildContext context) {
     return switch (page) {
-      'liked' => context.l10n.likedSongs,
-      'offline' => context.l10n.offlineSongs,
-      'recents' => context.l10n.recentlyPlayed,
-      _ => context.l10n.playlist,
+      'liked' => 'Favorite Tracks',
+      'offline' => 'Downloaded Songs',
+      'recents' => 'Recently Played',
+      _ => 'Playlist',
     };
   }
 
   IconData getIcon(String page) {
     return switch (page) {
-      'liked' => CupertinoIcons.heart,
-      'offline' => CupertinoIcons.cloud_download,
-      'recents' => CupertinoIcons.clock,
-      _ => CupertinoIcons.heart,
+      'liked' => CupertinoIcons.heart_fill,
+      'offline' => CupertinoIcons.arrow_down_circle_fill,
+      'recents' => CupertinoIcons.clock_fill,
+      _ => CupertinoIcons.heart_fill,
     };
   }
 
@@ -153,9 +151,9 @@ class _UserSongsPageState extends State<UserSongsPage> {
     IconData icon,
     int songsLength,
     bool isOfflineSongs,
+    bool isDark,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isRecentlyPlayed = title == context.l10n.recentlyPlayed;
+    final isRecentlyPlayed = widget.page == 'recents';
 
     return Column(
       children: [
@@ -167,13 +165,13 @@ class _UserSongsPageState extends State<UserSongsPage> {
         ),
         if (songsLength > 0) ...[
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
             child: Row(
               children: [
                 Expanded(
-                  child: FilledButton.icon(
-                    icon: const Icon(CupertinoIcons.play_fill),
-                    label: Text(context.l10n.play),
+                  child: CupertinoButton.filled(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    borderRadius: BorderRadius.circular(12),
                     onPressed: () {
                       final songsList = widget.page == 'liked'
                           ? userLikedSongsList.value
@@ -198,17 +196,22 @@ class _UserSongsPageState extends State<UserSongsPage> {
                         songIndex: 0,
                       );
                     },
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(CupertinoIcons.play_fill, size: 18),
+                        SizedBox(width: 8),
+                        Text('Play', style: TextStyle(fontWeight: FontWeight.w600)),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colorScheme.secondaryContainer,
-                      foregroundColor: colorScheme.onSecondaryContainer,
-                    ),
-                    icon: const Icon(CupertinoIcons.shuffle),
-                    label: Text(context.l10n.shuffle),
+                  child: CupertinoButton(
+                    color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    borderRadius: BorderRadius.circular(12),
                     onPressed: () async {
                       final songs = widget.page == 'liked'
                           ? userLikedSongsList.value
@@ -216,8 +219,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                           ? userOfflineSongs.value
                           : userRecentlyPlayed.value;
                       if (songs.isEmpty) return;
-                      final shuffled = List<Map>.from(songs.whereType<Map>())
-                        ..shuffle();
+                      final shuffled = List<Map>.from(songs.whereType<Map>())..shuffle();
                       await audioHandler.addPlaylistToQueue(
                         shuffled,
                         replace: true,
@@ -225,6 +227,20 @@ class _UserSongsPageState extends State<UserSongsPage> {
                         resetShuffle: false,
                       );
                     },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(CupertinoIcons.shuffle, size: 18, color: isDark ? CupertinoColors.white : CupertinoColors.black),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Shuffle',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -232,40 +248,18 @@ class _UserSongsPageState extends State<UserSongsPage> {
           ),
           if (isRecentlyPlayed) ...[
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [_buildClearRecentsButton(colorScheme.primary)],
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () async {
+                await deleteData('user', 'recentlyPlayed');
+                userRecentlyPlayed.value = [];
+                if (mounted) showToast(context, 'History cleared');
+              },
+              child: const Text('Clear History', style: TextStyle(color: CupertinoColors.destructiveRed, fontSize: 14)),
             ),
           ],
         ],
-        if (isOfflineSongs && songsLength > 1) ...[
-          const SizedBox(height: 20),
-          SortChips<OfflineSortType>(
-            currentSortType: _getCurrentOfflineSortType(),
-            sortTypes: OfflineSortType.values,
-            sortTypeToString: _getSortTypeDisplayText,
-            onSelected: (type) {
-              setState(() {
-                addOrUpdateData<String>(
-                  'settings',
-                  'offlineSortType',
-                  type.name,
-                );
-                offlineSortSetting = type.name;
-              });
-            },
-          ),
-        ],
-        if (songsLength > 0) ...[
-          const SizedBox(height: 16),
-          SearchBarSection(
-            controller: _searchController,
-            focusNode: _searchFocusNode,
-            onSearchChanged: (value) => _searchQueryNotifier.value = value,
-            labelText: context.l10n.search,
-          ),
-        ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
       ],
     );
   }
@@ -277,139 +271,58 @@ class _UserSongsPageState extends State<UserSongsPage> {
       {'title': title},
       size: isLandscape ? 250 : screenWidth / commonPlaylistArtworkDivision,
       cubeIcon: icon,
-    );
-  }
-
-  Widget _buildClearRecentsButton(Color primaryColor) {
-    return IconButton.filledTonal(
-      icon: Icon(CupertinoIcons.trash, color: primaryColor),
-      iconSize: 24,
-      onPressed: () {
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return ConfirmationDialog(
-              confirmationMessage: context.l10n.clearRecentlyPlayedQuestion,
-              submitMessage: context.l10n.clear,
-              isDangerous: true,
-              onCancel: () => Navigator.pop(context),
-              onSubmit: () {
-                Navigator.pop(context);
-                userRecentlyPlayed.value = [];
-                addOrUpdateData<List>('user', 'recentlyPlayedSongs', []);
-                showToast(context, context.l10n.recentlyPlayedMsg);
-              },
-            );
-          },
-        );
-      },
+      showTypeLabel: false,
     );
   }
 
   Widget buildSongList(String title) {
-    final isLikedSongs = title == context.l10n.likedSongs;
-    final isRecentlyPlayed = title == context.l10n.recentlyPlayed;
-    final isOfflineSongs = title == context.l10n.offlineSongs;
+    final isLikedSongs = widget.page == 'liked';
+    final isRecentSongs = widget.page == 'recents';
 
-    return ValueListenableBuilder<String>(
-      valueListenable: _searchQueryNotifier,
-      builder: (_, searchQuery, __) {
-        final songsList = widget.page == 'liked'
-            ? userLikedSongsList.value
-            : widget.page == 'offline'
-            ? userOfflineSongs.value
-            : userRecentlyPlayed.value;
-        final listKeyScope = 'user_song_${widget.page}';
-        final isSearching = searchQuery.isNotEmpty;
-        final displayList = _getDisplayList(songsList);
-        var sortedList = songsList;
-        if (isOfflineSongs) {
-          sortedList = _sortOfflineSongsLocal(
-            songsList,
-            _getCurrentOfflineSortType(),
+    return ValueListenableBuilder<List>(
+      valueListenable: isLikedSongs
+          ? userLikedSongsList
+          : widget.page == 'offline'
+          ? userOfflineSongs
+          : userRecentlyPlayed,
+      builder: (context, rawSongs, _) {
+        final songs = _getDisplayList(rawSongs);
+        if (songs.isEmpty) {
+          return EmptyPlaylistState(
+            icon: getIcon(widget.page),
+            message: 'No tracks found in $title',
           );
         }
+
         final playlist = {
           'ytid': '',
           'title': title,
           'source': 'user-created',
-          'list': sortedList,
+          'list': songs,
         };
 
-        if (displayList.isEmpty) {
-          final emptyIcon = isLikedSongs
-              ? CupertinoIcons.heart
-              : CupertinoIcons.list_bullet;
-          return EmptyPlaylistState(
-            icon: emptyIcon,
-            message: context.l10n.playlistEmpty,
-          );
-        }
-
         return SliverList(
-          key: isOfflineSongs && !isSearching
-              ? ValueKey(_getCurrentOfflineSortType())
-              : null,
-          delegate: SliverChildBuilderDelegate((context, index) {
-            final song = displayList[index];
-            final borderRadius = getItemBorderRadius(index, displayList.length);
-            return RepaintBoundary(
-              key: listItemKey(listKeyScope, index, song),
-              child: _buildSongBar(
-                song,
-                index,
-                borderRadius,
-                playlist,
-                isRecentSong: isRecentlyPlayed,
-              ),
-            );
-          }, childCount: displayList.length),
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
+              final song = songs[index] as Map;
+              return SongTile(
+                song: song,
+                key: ValueKey('user_song_${song['ytid']}_$index'),
+                isRecent: isRecentSongs,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  audioHandler.playPlaylistSong(
+                    playlist: playlist,
+                    songIndex: index,
+                  );
+                },
+              );
+            },
+            childCount: songs.length,
+          ),
         );
       },
     );
-  }
-
-  Widget _buildSongBar(
-    Map song,
-    int index,
-    BorderRadius borderRadius,
-    Map playlist, {
-    bool isRecentSong = false,
-  }) {
-    final isLikedSongs = playlist['title'] == context.l10n.likedSongs;
-
-    return SongBar(
-      key: listItemKey('user_song', index, song),
-      song,
-      true,
-      onPlay: () {
-        final fullIndex = PlaylistUtils.findSongIndexByYtid(
-          playlist,
-          song['ytid'],
-        );
-        if (fullIndex == -1) {
-          logger.log(
-            'Warning: Song ${song['ytid']} not found in full song list',
-          );
-        }
-        audioHandler.playPlaylistSong(
-          playlist: playlist,
-          songIndex: fullIndex != -1 ? fullIndex : index,
-        );
-      },
-      borderRadius: borderRadius,
-      isRecentSong: isRecentSong,
-      isFromLikedSongs: isLikedSongs,
-    );
-  }
-
-  String _getSortTypeDisplayText(OfflineSortType type) {
-    return switch (type) {
-      OfflineSortType.default_ => context.l10n.default_,
-      OfflineSortType.title => context.l10n.name,
-      OfflineSortType.artist => context.l10n.artist,
-      OfflineSortType.dateAdded => context.l10n.dateAdded,
-    };
   }
 
   List _sortOfflineSongsLocal(List list, OfflineSortType type) {

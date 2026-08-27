@@ -1,39 +1,17 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/theme/musified_style.dart';
-import 'package:musify/utilities/async_loader.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/widgets/flip_card.dart';
-import 'package:musify/widgets/now_playing/synced_lyrics_view.dart';
-import 'package:musify/widgets/song_artwork.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/async_loader.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/widgets/flip_card.dart';
+import 'package:musified/widgets/now_playing/synced_lyrics_view.dart';
+import 'package:musified/widgets/song_artwork.dart';
 
 class NowPlayingArtwork extends StatelessWidget {
   const NowPlayingArtwork({
@@ -48,8 +26,7 @@ class NowPlayingArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final screenWidth = size.width;
     final screenHeight = size.height;
     final isLandscape = screenWidth > screenHeight;
@@ -97,49 +74,53 @@ class NowPlayingArtwork extends StatelessWidget {
         width: imageSize,
         height: imageSize,
         decoration: BoxDecoration(
-          color: isDark ? MusifiedStyle.surface : colorScheme.surfaceContainerHigh,
+          color: isDark ? MusifiedStyle.surface : const Color(0xFFE5E5EA),
           borderRadius: BorderRadius.circular(borderRadius),
         ),
         child: AsyncLoader<String?>(
           future: getSongLyrics(metadata.artist, metadata.title),
-          emptyWidget: Center(
+          emptyWidget: const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   CupertinoIcons.quote_bubble,
                   size: 48,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: CupertinoColors.systemGrey,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
-                  context.l10n.lyricsNotAvailable,
+                  'Lyrics Not Available',
                   style: TextStyle(
-                    fontSize: 17,
+                    fontFamily: MusifiedStyle.uiFont,
+                    fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurfaceVariant,
+                    color: CupertinoColors.systemGrey,
+                    decoration: TextDecoration.none,
                   ),
                   textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
-          errorBuilder: (ctx, error, stack) => Center(
+          errorBuilder: (ctx, error, stack) => const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   CupertinoIcons.quote_bubble,
                   size: 48,
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                  color: CupertinoColors.systemGrey,
                 ),
-                const SizedBox(height: 16),
+                SizedBox(height: 16),
                 Text(
-                  context.l10n.lyricsNotAvailable,
+                  'Lyrics Not Available',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontFamily: MusifiedStyle.uiFont,
+                    fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: colorScheme.onSecondaryContainer,
+                    color: CupertinoColors.systemGrey,
+                    decoration: TextDecoration.none,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -264,7 +245,7 @@ class AudioQualityBadge extends StatelessWidget {
 
     if (isOffline) {
       label = 'Offline';
-      color = Theme.of(context).colorScheme.onSurfaceVariant;
+      color = CupertinoColors.systemGrey;
     } else {
       final bitrate = extras['resolvedBitrate'] as int?;
       final format = extras['resolvedFormat'] as String?;
@@ -277,10 +258,10 @@ class AudioQualityBadge extends StatelessWidget {
 
       if (source == 'jiosaavn') {
         label = qualityStr.isNotEmpty ? 'JioSaavn $qualityStr' : 'JioSaavn';
-        color = Theme.of(context).colorScheme.primary;
+        color = const Color(0xFFFF2D55);
       } else {
         label = qualityStr.isNotEmpty ? 'YouTube $qualityStr' : 'YouTube';
-        color = Theme.of(context).colorScheme.primary;
+        color = const Color(0xFFFF2D55);
       }
     }
 
@@ -289,14 +270,14 @@ class AudioQualityBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.2),
+          color: CupertinoColors.black.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          border: Border.all(color: const Color(0x33FFFFFF)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(CupertinoIcons.waveform, size: 13, color: Colors.white),
+            const Icon(CupertinoIcons.waveform, size: 13, color: CupertinoColors.white),
             const SizedBox(width: 5),
             Container(
               width: 8,
@@ -309,14 +290,14 @@ class AudioQualityBadge extends StatelessWidget {
               button: true,
               child: Icon(
                 isOffline
-                    ? source == 'jiosaavn'
-                          ? CupertinoIcons.music_note_2
-                          : CupertinoIcons.play_rectangle_fill
-                    : source == 'jiosaavn'
-                    ? CupertinoIcons.music_note_2
-                    : CupertinoIcons.play_rectangle_fill,
+                    ? (source == 'jiosaavn'
+                        ? CupertinoIcons.music_note_2
+                        : CupertinoIcons.play_rectangle_fill)
+                    : (source == 'jiosaavn'
+                        ? CupertinoIcons.music_note_2
+                        : CupertinoIcons.play_rectangle_fill),
                 size: 16,
-                color: Colors.white,
+                color: CupertinoColors.white,
               ),
             ),
           ],

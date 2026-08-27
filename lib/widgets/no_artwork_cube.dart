@@ -1,26 +1,5 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
+import 'package:musified/theme/musified_style.dart';
 
 class NullArtworkWidget extends StatelessWidget {
   const NullArtworkWidget({
@@ -40,9 +19,7 @@ class NullArtworkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final badgeSize = size * 0.4;
     final calculatedIconSize = iconSize ?? (badgeSize * 0.5);
 
@@ -52,7 +29,7 @@ class NullArtworkWidget extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(borderRadius),
-          color: colorScheme.surfaceContainerHighest,
+          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
         ),
         child: Center(
           child: Column(
@@ -63,12 +40,12 @@ class NullArtworkWidget extends StatelessWidget {
                 height: badgeSize,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: colorScheme.primaryContainer.withValues(alpha: 0.55),
+                  color: const Color(0xFFFF2D55).withValues(alpha: 0.15),
                 ),
                 child: Icon(
                   icon,
                   size: calculatedIconSize,
-                  color: colorScheme.onPrimaryContainer,
+                  color: const Color(0xFFFF2D55),
                 ),
               ),
               if (title != null) ...[
@@ -78,9 +55,12 @@ class NullArtworkWidget extends StatelessWidget {
                   child: Text(
                     title!,
                     textAlign: TextAlign.center,
-                    style: textTheme.labelMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
+                    style: const TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      color: CupertinoColors.systemGrey,
                       fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                      decoration: TextDecoration.none,
                     ),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2,

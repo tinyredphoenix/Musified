@@ -1,24 +1,3 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 
 import 'package:app_links/app_links.dart';
@@ -28,31 +7,30 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:material_ui/material_ui.dart' hide GlobalMaterialLocalizations;
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/localization/app_localizations.dart';
-import 'package:musify/services/audio_service.dart';
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/data_manager.dart';
-import 'package:musify/services/io_service.dart';
-import 'package:musify/services/logger_service.dart';
-import 'package:musify/services/playlist_download_service.dart';
-import 'package:musify/services/playlist_sharing.dart';
-import 'package:musify/services/playlists_manager.dart';
-import 'package:musify/services/router_service.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/services/source_resolver.dart';
-import 'package:musify/services/youtube_auth_service.dart';
-import 'package:musify/services/youtube_music_sync_service.dart';
-import 'package:musify/theme/app_themes.dart';
-import 'package:musify/theme/musified_style.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/language_utils.dart';
-import 'package:musify/utilities/playlist_utils.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/localization/app_localizations.dart';
+import 'package:musified/services/audio_service.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/data_manager.dart';
+import 'package:musified/services/io_service.dart';
+import 'package:musified/services/logger_service.dart';
+import 'package:musified/services/playlist_download_service.dart';
+import 'package:musified/services/playlist_sharing.dart';
+import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/router_service.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/services/source_resolver.dart';
+import 'package:musified/services/youtube_auth_service.dart';
+import 'package:musified/services/youtube_music_sync_service.dart';
+import 'package:musified/theme/app_themes.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/utilities/language_utils.dart';
+import 'package:musified/utilities/playlist_utils.dart';
 import 'package:path_provider/path_provider.dart';
 
-MusifyAudioHandler? _audioHandlerInstance;
-MusifyAudioHandler get audioHandler {
+MusifiedAudioHandler? _audioHandlerInstance;
+MusifiedAudioHandler get audioHandler {
   final h = _audioHandlerInstance;
   if (h != null) return h;
   throw StateError('audioHandler not initialized yet');
@@ -63,8 +41,8 @@ bool get isAudioHandlerInitialized => _audioHandlerInstance != null;
 final logger = Logger();
 final appLinks = AppLinks();
 
-class Musify extends StatefulWidget {
-  const Musify({super.key});
+class MusifiedApp extends StatefulWidget {
+  const MusifiedApp({super.key});
 
   static Future<void> updateAppState(
     BuildContext context, {
@@ -73,7 +51,7 @@ class Musify extends StatefulWidget {
     Color? newAccentColor,
     bool? useSystemColor,
   }) async {
-    context.findAncestorStateOfType<_MusifyState>()?.changeSettings(
+    context.findAncestorStateOfType<_MusifiedAppState>()?.changeSettings(
       newThemeMode: newThemeMode,
       newLocale: newLocale,
       newAccentColor: newAccentColor,
@@ -82,10 +60,12 @@ class Musify extends StatefulWidget {
   }
 
   @override
-  _MusifyState createState() => _MusifyState();
+  _MusifiedAppState createState() => _MusifiedAppState();
 }
 
-class _MusifyState extends State<Musify> with WidgetsBindingObserver {
+typedef Musify = MusifiedApp;
+
+class _MusifiedAppState extends State<MusifiedApp> with WidgetsBindingObserver {
   void changeSettings({
     ThemeMode? newThemeMode,
     Locale? newLocale,
@@ -175,14 +155,12 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // Distinct light + dark themes so ThemeMode.system can swap correctly.
-    final themes = buildAppThemes();
     final overlayBrightness = getBrightnessFromThemeMode(themeMode);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
-        statusBarColor: Colors.transparent,
-        systemNavigationBarColor: Colors.transparent,
+        statusBarColor: const Color(0x00000000),
+        systemNavigationBarColor: const Color(0x00000000),
         systemNavigationBarContrastEnforced: true,
         statusBarBrightness: overlayBrightness == Brightness.dark
             ? Brightness.light
@@ -194,40 +172,12 @@ class _MusifyState extends State<Musify> with WidgetsBindingObserver {
             ? Brightness.light
             : Brightness.dark,
       ),
-      child: MaterialApp.router(
-        themeMode: themeMode,
-        theme: themes.light,
-        darkTheme: themes.dark,
-        builder: (context, child) {
-          return CupertinoTheme(
-            data: CupertinoThemeData(
-              brightness: overlayBrightness,
-              primaryColor: const Color(0xFF007AFF),
-              scaffoldBackgroundColor: overlayBrightness == Brightness.dark
-                  ? MusifiedStyle.oledBlack
-                  : MusifiedStyle.lightCanvas,
-              barBackgroundColor: overlayBrightness == Brightness.dark
-                  ? MusifiedStyle.elevated
-                  : MusifiedStyle.lightElevated,
-              textTheme: const CupertinoTextThemeData(
-                textStyle: TextStyle(
-                  fontFamily: '.SF Pro Text',
-                  fontSize: 17,
-                  decoration: TextDecoration.none,
-                ),
-              ),
-            ),
-            child: DefaultTextStyle(
-              style: const TextStyle(decoration: TextDecoration.none),
-              child: child ?? const SizedBox.shrink(),
-            ),
-          );
-        },
+      child: CupertinoApp.router(
+        theme: buildCupertinoTheme(brightness: overlayBrightness),
         localizationsDelegates: const [
           AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
         ],
         supportedLocales: appSupportedLocales,
         locale: languageSetting,
@@ -242,7 +192,7 @@ void main() async {
   configureImageMemoryBudget();
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
-    return Material(
+    return Container(
       color: const Color(0xFF121212),
       child: SafeArea(
         child: SingleChildScrollView(
@@ -251,27 +201,29 @@ void main() async {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(
-                Icons.error_outline,
-                color: Colors.redAccent,
+                CupertinoIcons.exclamationmark_triangle,
+                color: CupertinoColors.systemRed,
                 size: 44,
               ),
               const SizedBox(height: 12),
               const Text(
                 'Musified Notice',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: CupertinoColors.white,
                   fontSize: 17,
                   fontWeight: FontWeight.bold,
+                  decoration: TextDecoration.none,
                 ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 8),
-              SelectableText(
+              Text(
                 '${details.exception}\n\n${details.stack?.toString().split('\n').take(12).join('\n') ?? ''}',
                 style: const TextStyle(
-                  color: Colors.grey,
+                  color: CupertinoColors.systemGrey,
                   fontSize: 11,
                   fontFamily: 'monospace',
+                  decoration: TextDecoration.none,
                 ),
                 textAlign: TextAlign.left,
               ),
@@ -364,11 +316,8 @@ Future<void> initialisation() async {
     // MusifyAudioHandler() below (no system media integration, but songs
     // still play), instead of leaving `_audioHandlerInstance` null forever.
     _audioHandlerInstance = await AudioService.init(
-      builder: MusifyAudioHandler.new,
+      builder: MusifiedAudioHandler.new,
       config: const AudioServiceConfig(
-        // iOS uses the system Now Playing/remote command surfaces. Keep the
-        // shared configuration platform-neutral; notification fields for a
-        // different platform are intentionally not part of this target.
         artDownscaleWidth: 512,
         artDownscaleHeight: 512,
         preloadArtwork: true,
@@ -378,17 +327,16 @@ Future<void> initialisation() async {
     ).timeout(const Duration(seconds: 9));
   } catch (e, stackTrace) {
     logger.log('AudioService init error', error: e, stackTrace: stackTrace);
-    // Fallback: create handler directly so UI never sees a LateError.
     try {
-      _audioHandlerInstance = MusifyAudioHandler();
-      logger.log('Created fallback MusifyAudioHandler without AudioService');
+      _audioHandlerInstance = MusifiedAudioHandler();
+      logger.log('Created fallback MusifiedAudioHandler without AudioService');
     } catch (e2, st2) {
       logger.log('Fallback handler also failed', error: e2, stackTrace: st2);
     }
   }
   if (_audioHandlerInstance == null) {
     try {
-      _audioHandlerInstance = MusifyAudioHandler();
+      _audioHandlerInstance = MusifiedAudioHandler();
     } catch (e, st) {
       logger.log('Last-resort handler failed', error: e, stackTrace: st);
     }
@@ -417,7 +365,7 @@ Future<void> initialisation() async {
 }
 
 void handleIncomingLink(Uri? uri) async {
-  if (uri == null || uri.scheme != 'musify' || uri.host != 'playlist') return;
+  if (uri == null || (uri.scheme != 'musified' && uri.scheme != 'musify') || uri.host != 'playlist') return;
 
   if (uri.pathSegments.length < 2 || uri.pathSegments[0] != 'custom') return;
 

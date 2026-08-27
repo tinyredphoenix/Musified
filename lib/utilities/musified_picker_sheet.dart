@@ -1,11 +1,6 @@
-/*
- * Shared Cupertino picker sheet for list choices (folders, playlists, etc.).
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/theme/musified_style.dart';
-import 'package:musify/utilities/flutter_bottom_sheet.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/flutter_bottom_sheet.dart';
 
 class PickerSheetAction {
   const PickerSheetAction({
@@ -27,8 +22,7 @@ Future<void> showMusifiedPickerSheet(
   required List<PickerSheetAction> actions,
   String? emptyMessage,
 }) {
-  final scheme = Theme.of(context).colorScheme;
-  final isDark = Theme.of(context).brightness == Brightness.dark;
+  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
 
   if (actions.isEmpty) {
     return showCupertinoDialog<void>(
@@ -47,7 +41,6 @@ Future<void> showMusifiedPickerSheet(
     );
   }
 
-  // Prefer action sheet when the list is short (true iOS feel).
   if (actions.length <= 8) {
     return showCupertinoModalPopup<void>(
       context: context,
@@ -69,7 +62,7 @@ Future<void> showMusifiedPickerSheet(
                     size: 18,
                     color: action.isDestructive
                         ? CupertinoColors.destructiveRed
-                        : scheme.primary,
+                        : const Color(0xFFFF2D55),
                   ),
                   const SizedBox(width: 8),
                   Flexible(child: Text(action.label)),
@@ -86,7 +79,6 @@ Future<void> showMusifiedPickerSheet(
     );
   }
 
-  // Longer lists use the solid Musified sheet.
   showCustomBottomSheet(
     context,
     Column(
@@ -97,8 +89,11 @@ Future<void> showMusifiedPickerSheet(
           child: Text(
             title,
             textAlign: TextAlign.center,
-            style: MusifiedStyle.sectionTitle(scheme.onSurface).copyWith(
+            style: TextStyle(
+              fontFamily: MusifiedStyle.displayFont,
               fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
             ),
           ),
         ),
@@ -109,8 +104,8 @@ Future<void> showMusifiedPickerSheet(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
               color: isDark
-                  ? MusifiedStyle.surface
-                  : MusifiedStyle.lightSurfaceHigh,
+                  ? const Color(0xFF2C2C2E)
+                  : const Color(0xFFE5E5EA),
               onPressed: () {
                 Navigator.pop(context);
                 action.onTap();
@@ -122,25 +117,26 @@ Future<void> showMusifiedPickerSheet(
                     size: 20,
                     color: action.isDestructive
                         ? CupertinoColors.destructiveRed
-                        : scheme.primary,
+                        : const Color(0xFFFF2D55),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       action.label,
                       style: TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
                         color: action.isDestructive
                             ? CupertinoColors.destructiveRed
-                            : scheme.onSurface,
+                            : (isDark ? CupertinoColors.white : CupertinoColors.black),
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  Icon(
+                  const Icon(
                     CupertinoIcons.chevron_forward,
                     size: 16,
-                    color: scheme.onSurfaceVariant,
+                    color: CupertinoColors.systemGrey,
                   ),
                 ],
               ),

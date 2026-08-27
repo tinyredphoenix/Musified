@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/theme/musified_style.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/theme/musified_style.dart';
 
 class DialogItem extends StatelessWidget {
   const DialogItem({
@@ -33,15 +32,15 @@ class DialogItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Padding(
       padding: padding,
       child: CupertinoButton(
         padding: EdgeInsets.zero,
         borderRadius: commonBarRadius,
-        color: isDark ? MusifiedStyle.surface : MusifiedStyle.lightSurfaceHigh,
+        color: isDark ? MusifiedStyle.surface : const Color(0xFFE5E5EA),
         onPressed: onTap,
         child: Padding(
           padding: EdgeInsets.symmetric(
@@ -64,17 +63,19 @@ class DialogItem extends StatelessWidget {
                 child: Text(
                   label,
                   style: TextStyle(
-                    color: colorScheme.onSurface,
+                    fontFamily: MusifiedStyle.uiFont,
+                    color: textColor,
                     fontWeight: FontWeight.w600,
                     fontSize: fontSize,
                     letterSpacing: -0.2,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ),
               if (showChevron)
-                Icon(
+                const Icon(
                   CupertinoIcons.chevron_forward,
-                  color: colorScheme.onSurfaceVariant,
+                  color: CupertinoColors.systemGrey,
                   size: 16,
                 ),
             ],

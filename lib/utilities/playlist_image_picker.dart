@@ -1,30 +1,7 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
 
 Future<String?> pickImage() async {
   final file = await FilePicker.pickFile(type: FileType.image);
@@ -92,9 +69,9 @@ Widget buildImagePreview({
       fit: BoxFit.cover,
       cacheWidth: (width * 2).round(),
       cacheHeight: (height * 2).round(),
-      errorBuilder: (context, _, __) => Icon(
+      errorBuilder: (context, _, __) => const Icon(
         CupertinoIcons.photo,
-        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        color: CupertinoColors.systemGrey,
       ),
     );
   }
@@ -115,34 +92,35 @@ Widget buildImagePickerRow(
   Function() onPickImage,
   bool isImagePicked,
 ) {
-  final colorScheme = Theme.of(context).colorScheme;
+  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
 
   return SizedBox(
     width: double.infinity,
-    child: OutlinedButton.icon(
+    child: CupertinoButton(
+      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      borderRadius: BorderRadius.circular(12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       onPressed: onPickImage,
-      style: OutlinedButton.styleFrom(
-        alignment: Alignment.centerLeft,
-        foregroundColor: colorScheme.primary,
-        side: BorderSide(
-          color: isImagePicked ? colorScheme.primary : colorScheme.outline,
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      ),
-      icon: Padding(
-        padding: const EdgeInsets.only(left: 4),
-        child: Icon(
-          isImagePicked
-              ? CupertinoIcons.checkmark_circle_fill
-              : CupertinoIcons.photo_on_rectangle,
-          size: 20,
-        ),
-      ),
-      label: Text(
-        isImagePicked
-            ? context.l10n.imagePicked
-            : context.l10n.pickImageFromDevice,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            isImagePicked
+                ? CupertinoIcons.checkmark_circle_fill
+                : CupertinoIcons.photo_on_rectangle,
+            size: 20,
+            color: const Color(0xFFFF2D55),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            isImagePicked ? 'Image Selected' : 'Choose Image from Files',
+            style: TextStyle(
+              color: isDark ? CupertinoColors.white : CupertinoColors.black,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     ),
   );

@@ -7,18 +7,18 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/playlist_download_service.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/flutter_bottom_sheet.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/mediaitem.dart';
-import 'package:musify/utilities/playlist_dialogs.dart';
-import 'package:musify/widgets/download_picker_sheet.dart';
-import 'package:musify/widgets/now_playing/source_picker_sheet.dart';
-import 'package:musify/widgets/queue_list_view.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/playlist_download_service.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/flutter_bottom_sheet.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/utilities/mediaitem.dart';
+import 'package:musified/utilities/playlist_dialogs.dart';
+import 'package:musified/widgets/download_picker_sheet.dart';
+import 'package:musified/widgets/now_playing/source_picker_sheet.dart';
+import 'package:musified/widgets/queue_list_view.dart';
 
 class BottomActionsRow extends StatefulWidget {
   const BottomActionsRow({

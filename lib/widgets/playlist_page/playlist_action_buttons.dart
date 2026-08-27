@@ -1,10 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/theme/musified_style.dart';
+import 'package:musified/theme/musified_style.dart';
 
-/// Play and shuffle — shared by playlist and artist pages.
 class PlaylistActionButtons extends StatelessWidget {
   const PlaylistActionButtons({
     super.key,
@@ -19,18 +16,19 @@ class PlaylistActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final secondaryBtnBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final secondaryTextColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
           Expanded(
             child: CupertinoButton(
               padding: const EdgeInsets.symmetric(vertical: 14),
               borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
-              color: scheme.primary,
+              color: const Color(0xFFFF2D55),
               onPressed: isLoading ? null : onPlay,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -38,17 +36,18 @@ class PlaylistActionButtons extends StatelessWidget {
                   if (isLoading)
                     const CupertinoActivityIndicator(radius: 9)
                   else
-                    Icon(
+                    const Icon(
                       CupertinoIcons.play_fill,
                       size: 18,
-                      color: scheme.onPrimary,
+                      color: CupertinoColors.white,
                     ),
                   const SizedBox(width: 8),
-                  Text(
-                    context.l10n.play,
+                  const Text(
+                    'Play',
                     style: TextStyle(
-                      color: scheme.onPrimary,
-                      fontWeight: FontWeight.w600,
+                      fontFamily: MusifiedStyle.uiFont,
+                      color: CupertinoColors.white,
+                      fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
                   ),
@@ -61,30 +60,26 @@ class PlaylistActionButtons extends StatelessWidget {
             child: CupertinoButton(
               padding: const EdgeInsets.symmetric(vertical: 14),
               borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
-              color: isDark
-                  ? MusifiedStyle.surfaceHigh
-                  : MusifiedStyle.lightSurfaceHigh,
+              color: secondaryBtnBg,
               onPressed: isLoading ? null : onShuffle,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   if (isLoading)
-                    CupertinoActivityIndicator(
-                      radius: 9,
-                      color: scheme.onSurface,
-                    )
+                    const CupertinoActivityIndicator(radius: 9)
                   else
                     Icon(
                       CupertinoIcons.shuffle,
                       size: 18,
-                      color: scheme.onSurface,
+                      color: secondaryTextColor,
                     ),
                   const SizedBox(width: 8),
                   Text(
-                    context.l10n.shuffle,
+                    'Shuffle',
                     style: TextStyle(
-                      color: scheme.onSurface,
-                      fontWeight: FontWeight.w600,
+                      fontFamily: MusifiedStyle.uiFont,
+                      color: secondaryTextColor,
+                      fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
                   ),

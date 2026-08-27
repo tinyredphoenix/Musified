@@ -1,40 +1,19 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
-import 'package:musify/screens/artist_page.dart';
-import 'package:musify/screens/bottom_navigation_page.dart';
-import 'package:musify/screens/home_page.dart';
-import 'package:musify/screens/library_page.dart';
-import 'package:musify/screens/logs_page.dart';
-import 'package:musify/screens/playlist_folder_page.dart';
-import 'package:musify/screens/playlist_page.dart';
-import 'package:musify/screens/search_page.dart';
-import 'package:musify/screens/settings_page.dart';
-import 'package:musify/screens/user_songs_page.dart';
-import 'package:musify/services/playlist_download_service.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/widgets/offline_search_placeholder.dart';
+import 'package:musified/screens/artist_page.dart';
+import 'package:musified/screens/bottom_navigation_page.dart';
+import 'package:musified/screens/home_page.dart';
+import 'package:musified/screens/library_page.dart';
+import 'package:musified/screens/logs_page.dart';
+import 'package:musified/screens/playlist_folder_page.dart';
+import 'package:musified/screens/playlist_page.dart';
+import 'package:musified/screens/search_page.dart';
+import 'package:musified/screens/settings_page.dart';
+import 'package:musified/screens/user_songs_page.dart';
+import 'package:musified/services/playlist_download_service.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/widgets/offline_search_placeholder.dart';
 
 class NavigationManager {
   factory NavigationManager() {

@@ -1,10 +1,8 @@
-// ignore_for_file: omit_local_variable_types
-
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:musify/services/common_services.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/theme/musified_style.dart';
 
 void showSongInfoDialog(BuildContext context, Map song) async {
   final ytid = song['ytid']?.toString() ?? '';
@@ -62,19 +60,25 @@ void showSongInfoDialog(BuildContext context, Map song) async {
 
   if (!context.mounted) return;
 
-  final colorScheme = Theme.of(context).colorScheme;
+  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final cardBg = isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white;
+  const secondaryColor = CupertinoColors.systemGrey;
+  final labelColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+  final separatorColor = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
 
-  unawaited(showCupertinoModalPopup(
+  unawaited(showCupertinoModalPopup<void>(
     context: context,
-    builder: (context) => CupertinoActionSheet(
+    builder: (ctx) => CupertinoActionSheet(
       title: Column(
         children: [
           const SizedBox(height: 6),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
+              fontFamily: MusifiedStyle.displayFont,
               fontSize: 17,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
+              color: labelColor,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -84,8 +88,9 @@ void showSongInfoDialog(BuildContext context, Map song) async {
           Text(
             artist,
             style: TextStyle(
+              fontFamily: MusifiedStyle.uiFont,
               fontSize: 14,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+              color: secondaryColor,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -93,23 +98,23 @@ void showSongInfoDialog(BuildContext context, Map song) async {
           ),
           const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
+              color: cardBg,
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Column(
               children: [
-                _infoRow('Source', source, isHighlight: true, color: colorScheme.primary),
-                const Divider(height: 16, thickness: 0.5),
-                _infoRow('Audio Bitrate', bitrate),
-                const Divider(height: 16, thickness: 0.5),
-                _infoRow('Audio Codec', format),
-                const Divider(height: 16, thickness: 0.5),
-                _infoRow('Storage Status', isOffline ? 'Downloaded ($fileSize)' : 'Streaming Online'),
+                _infoRow('Audio Source', source, isDark, highlightColor: const Color(0xFFFF2D55)),
+                Container(height: 0.5, color: separatorColor, margin: const EdgeInsets.symmetric(vertical: 8)),
+                _infoRow('Audio Bitrate', bitrate, isDark),
+                Container(height: 0.5, color: separatorColor, margin: const EdgeInsets.symmetric(vertical: 8)),
+                _infoRow('Audio Codec', format, isDark),
+                Container(height: 0.5, color: separatorColor, margin: const EdgeInsets.symmetric(vertical: 8)),
+                _infoRow('Storage', isOffline ? 'Downloaded ($fileSize)' : 'Streaming Online', isDark),
                 if (isOffline) ...[
-                  const Divider(height: 16, thickness: 0.5),
-                  _infoRow('Downloaded At', dateAdded),
+                  Container(height: 0.5, color: separatorColor, margin: const EdgeInsets.symmetric(vertical: 8)),
+                  _infoRow('Saved Date', dateAdded, isDark),
                 ],
               ],
             ),
@@ -118,31 +123,34 @@ void showSongInfoDialog(BuildContext context, Map song) async {
       ),
       cancelButton: CupertinoActionSheetAction(
         isDefaultAction: true,
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Close'),
+        onPressed: () => Navigator.pop(ctx),
+        child: const Text('Done'),
       ),
     ),
   ));
 }
 
-Widget _infoRow(String label, String value, {bool isHighlight = false, Color? color}) {
+Widget _infoRow(String label, String value, bool isDark, {Color? highlightColor}) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
       Text(
         label,
         style: const TextStyle(
+          fontFamily: MusifiedStyle.uiFont,
           fontSize: 13,
           fontWeight: FontWeight.w500,
+          color: CupertinoColors.systemGrey,
         ),
       ),
       Flexible(
         child: Text(
           value,
           style: TextStyle(
+            fontFamily: MusifiedStyle.uiFont,
             fontSize: 13,
-            fontWeight: isHighlight ? FontWeight.bold : FontWeight.w600,
-            color: color,
+            fontWeight: highlightColor != null ? FontWeight.w700 : FontWeight.w600,
+            color: highlightColor ?? (isDark ? CupertinoColors.white : CupertinoColors.black),
           ),
           overflow: TextOverflow.ellipsis,
         ),

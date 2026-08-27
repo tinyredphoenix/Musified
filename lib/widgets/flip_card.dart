@@ -3,7 +3,7 @@
  * Crossfade only — no 3D matrix flip (CPU/GPU friendly on LiveContainer).
  */
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
 enum RotateSide { right, left, top, bottom }
 

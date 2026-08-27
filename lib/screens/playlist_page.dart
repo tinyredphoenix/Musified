@@ -1,56 +1,34 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/artist_service.dart';
-import 'package:musify/services/data_manager.dart';
-import 'package:musify/services/playlist_download_service.dart';
-import 'package:musify/services/playlist_sharing.dart';
-import 'package:musify/services/playlists_manager.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/playlist_utils.dart';
-import 'package:musify/utilities/song_filtering.dart';
-import 'package:musify/utilities/sort_utils.dart';
-import 'package:musify/widgets/edit_playlist_dialog.dart';
-import 'package:musify/widgets/mini_player_bottom_space.dart';
-import 'package:musify/widgets/playlist_cube.dart';
-import 'package:musify/widgets/playlist_page/add_to_playlist_button.dart';
-import 'package:musify/widgets/playlist_page/download_button.dart';
-import 'package:musify/widgets/playlist_page/empty_playlist_state.dart';
-import 'package:musify/widgets/playlist_page/like_button.dart';
-import 'package:musify/widgets/playlist_page/playlist_action_buttons.dart';
-import 'package:musify/widgets/playlist_page/playlist_header.dart';
-import 'package:musify/widgets/playlist_page/search_bar_section.dart';
-import 'package:musify/widgets/song_bar.dart';
-import 'package:musify/widgets/sort_chips.dart';
-import 'package:musify/widgets/spinner.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/artist_service.dart';
+import 'package:musified/services/data_manager.dart';
+import 'package:musified/services/playlist_download_service.dart';
+import 'package:musified/services/playlist_sharing.dart';
+import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/app_utils.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/utilities/playlist_utils.dart';
+import 'package:musified/utilities/song_filtering.dart';
+import 'package:musified/utilities/sort_utils.dart';
+import 'package:musified/widgets/edit_playlist_dialog.dart';
+import 'package:musified/widgets/mini_player_bottom_space.dart';
+import 'package:musified/widgets/playlist_cube.dart';
+import 'package:musified/widgets/playlist_page/add_to_playlist_button.dart';
+import 'package:musified/widgets/playlist_page/download_button.dart';
+import 'package:musified/widgets/playlist_page/empty_playlist_state.dart';
+import 'package:musified/widgets/playlist_page/like_button.dart';
+import 'package:musified/widgets/playlist_page/playlist_action_buttons.dart';
+import 'package:musified/widgets/playlist_page/playlist_header.dart';
+import 'package:musified/widgets/song_tile.dart';
+import 'package:musified/widgets/sort_chips.dart';
+import 'package:musified/widgets/spinner.dart';
 
 enum PlaylistSortType { default_, title, artist, dateAdded }
 
@@ -177,102 +155,70 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   @override
   Widget build(BuildContext context) {
-    final showPlaylist = !_isInitializingPlaylist && _playlist != null;
-    return Scaffold(
-      appBar: showPlaylist ? null : _buildAppBar(context),
-      body: Padding(
-        padding: commonSingleChildScrollViewPadding,
-        child: _isInitializingPlaylist
-            ? SizedBox(
-                height: MediaQuery.sizeOf(context).height - 100,
-                child: const Spinner(),
-              )
-            : _playlist != null
-            ? CustomScrollView(
-                slivers: [
-                  SliverAppBar(
-                    leading: _buildBackButton(context),
-                    pinned: true,
-                    expandedHeight:
-                        MediaQuery.sizeOf(context).width >
-                            MediaQuery.sizeOf(context).height
-                        ? 380
-                        : 320,
-                    flexibleSpace: FlexibleSpaceBar(
-                      centerTitle: true,
-                      expandedTitleScale: 1.35,
-                      titlePadding: const EdgeInsetsDirectional.only(
-                        start: 64,
-                        end: 64,
-                        bottom: 16,
-                      ),
-                      title: Text(
-                        _playlistTitle,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).colorScheme.onSurface,
-                          letterSpacing: 0,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      background: Padding(
-                        padding: const EdgeInsets.only(top: 56, bottom: 64),
-                        child: Center(child: _buildPlaylistHeroArtwork()),
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(child: _buildHeaderSection()),
-                  if ((_playlist['list'] as List? ?? const []).isNotEmpty) ...[
-                    ValueListenableBuilder<String>(
-                      valueListenable: _searchQueryNotifier,
-                      builder: (context, searchQuery, _) {
-                        final sourceList = _getSourceList(searchQuery);
-                        return SliverPadding(
-                          padding: commonListViewBottomPadding,
-                          sliver: SliverList.builder(
-                            itemCount: sourceList.length,
-                            itemBuilder: (context, index) {
-                              final isRemovable =
-                                  _playlist['source'] == 'user-created';
-                              return _buildSongListItem(
-                                sourceList[index],
-                                index,
-                                isRemovable,
-                                sourceList,
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  ] else if (_isArtistCatalogFailed)
-                    EmptyPlaylistState(message: context.l10n.error)
-                  else
-                    EmptyPlaylistState(
-                      message: context.l10n.noSongsInPlaylist,
-                    ),
-                  const SliverMiniPlayerBottomSpace(),
-                ],
-              )
-            : CustomScrollView(
-                slivers: [
-                  EmptyPlaylistState(message: context.l10n.error),
-                ],
-              ),
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(
+          _playlistTitle,
+          style: const TextStyle(
+            fontFamily: MusifiedStyle.displayFont,
+            fontWeight: FontWeight.w700,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: navBarColor,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
+            width: 0.5,
+          ),
+        ),
       ),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar(BuildContext context) {
-    return AppBar(leading: _buildBackButton(context));
-  }
-
-  Widget _buildBackButton(BuildContext context) {
-    return CupertinoButton(
-      padding: EdgeInsets.zero,
-      onPressed: () => Navigator.pop(context, widget.playlistData == _playlist),
-      child: const Icon(CupertinoIcons.back),
+      child: SafeArea(
+        bottom: false,
+        child: _isInitializingPlaylist
+            ? const Center(child: CupertinoActivityIndicator(radius: 14))
+            : _playlist != null
+                ? CustomScrollView(
+                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                    slivers: [
+                      SliverToBoxAdapter(child: _buildHeaderSection()),
+                      if ((_playlist['list'] as List? ?? const []).isNotEmpty) ...[
+                        ValueListenableBuilder<String>(
+                          valueListenable: _searchQueryNotifier,
+                          builder: (context, searchQuery, _) {
+                            final sourceList = _getSourceList(searchQuery);
+                            return SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final isRemovable = _playlist['source'] == 'user-created';
+                                  return _buildSongListItem(
+                                    sourceList[index] as Map,
+                                    index,
+                                    isRemovable,
+                                    sourceList,
+                                  );
+                                },
+                                childCount: sourceList.length,
+                              ),
+                            );
+                          },
+                        ),
+                      ] else if (_isArtistCatalogFailed)
+                        EmptyPlaylistState(message: context.l10n.error)
+                      else
+                        EmptyPlaylistState(
+                          message: context.l10n.noSongsInPlaylist,
+                        ),
+                      const SliverMiniPlayerBottomSpace(),
+                    ],
+                  )
+                : Center(child: EmptyPlaylistState(message: context.l10n.error)),
+      ),
     );
   }
 
@@ -398,11 +344,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
         ],
         if (songsLength > 0) ...[
           const SizedBox(height: 16),
-          SearchBarSection(
-            controller: _searchController,
-            focusNode: _searchFocusNode,
-            onSearchChanged: (value) => _searchQueryNotifier.value = value,
-            labelText: context.l10n.search,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: CupertinoSearchTextField(
+              controller: _searchController,
+              focusNode: _searchFocusNode,
+              placeholder: 'Search in playlist',
+              onChanged: (value) => _searchQueryNotifier.value = value,
+            ),
           ),
         ],
         const SizedBox(height: 16),
@@ -411,18 +360,20 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Widget _buildShareButton() {
-    return IconButton.filledTonal(
-      icon: const Icon(CupertinoIcons.share),
-      iconSize: 24,
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    return CupertinoButton(
+      padding: const EdgeInsets.all(10),
+      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      borderRadius: BorderRadius.circular(22),
       onPressed: () async {
         try {
           final encodedPlaylist = PlaylistSharingService.encodePlaylist(
             _playlist,
           );
-          final url = 'musify://playlist/custom/$encodedPlaylist';
+          final url = 'musified://playlist/custom/$encodedPlaylist';
           await Clipboard.setData(ClipboardData(text: url));
           if (mounted) {
-            showToast(context, context.l10n.linkCopied);
+            showToast(context, 'Playlist link copied');
           }
         } catch (e, stackTrace) {
           logger.log(
@@ -431,29 +382,33 @@ class _PlaylistPageState extends State<PlaylistPage> {
             stackTrace: stackTrace,
           );
           if (mounted) {
-            showToast(context, context.l10n.error);
+            showToast(context, 'Unable to share playlist');
           }
         }
       },
-      tooltip: context.l10n.share,
+      child: const Icon(CupertinoIcons.share, size: 20, color: Color(0xFFFF2D55)),
     );
   }
 
   Widget _buildSyncButton() {
-    return IconButton.filledTonal(
-      icon: const Icon(CupertinoIcons.arrow_2_circlepath),
-      iconSize: 24,
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    return CupertinoButton(
+      padding: const EdgeInsets.all(10),
+      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      borderRadius: BorderRadius.circular(22),
       onPressed: _handleSyncPlaylist,
-      tooltip: context.l10n.update,
+      child: const Icon(CupertinoIcons.arrow_2_circlepath, size: 20, color: Color(0xFFFF2D55)),
     );
   }
 
   Widget _buildEditButton() {
-    return IconButton.filledTonal(
-      icon: const Icon(CupertinoIcons.pencil_circle_fill),
-      iconSize: 24,
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    return CupertinoButton(
+      padding: const EdgeInsets.all(10),
+      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      borderRadius: BorderRadius.circular(22),
       onPressed: () async {
-        final result = await showDialog<Map?>(
+        final result = await showCupertinoDialog<Map?>(
           context: context,
           builder: (context) => EditPlaylistDialog(playlistData: _playlist),
         );
@@ -528,10 +483,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
             );
             _sortPlaylist(_sortType);
           });
-          showToast(context, context.l10n.playlistUpdated);
+          showToast(context, 'Playlist updated');
         }
       },
-      tooltip: context.l10n.editPlaylist,
+      child: const Icon(CupertinoIcons.pencil, size: 20, color: Color(0xFFFF2D55)),
     );
   }
 
@@ -687,10 +642,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
       logger.log('Warning: Song ${song['ytid']} not found in full playlist');
     }
 
-    return SongBar(
-      song,
-      true,
-      key: listItemKey('playlist_song', index, song),
+    return SongTile(
+      song: song,
+      key: ValueKey('playlist_${song['ytid']}_$index'),
+      canRemove: isRemovable && !isSearching,
       onRemove: (isRemovable && !isSearching)
           ? () {
               if (removeSongFromPlaylist(
@@ -702,15 +657,13 @@ class _PlaylistPageState extends State<PlaylistPage> {
               }
             }
           : null,
-      onPlay: () {
+      onTap: () {
+        HapticFeedback.selectionClick();
         audioHandler.playPlaylistSong(
           playlist: _playlist,
           songIndex: fullIndex != -1 ? fullIndex : index,
         );
       },
-      borderRadius: borderRadius,
-      playlistId: playlistId,
-      onRenamed: () => setState(() {}),
     );
   }
 }

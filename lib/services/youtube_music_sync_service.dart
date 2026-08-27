@@ -5,11 +5,11 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:musify/main.dart' show logger;
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/data_manager.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musified/main.dart' show logger;
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/data_manager.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/services/youtube_auth_service.dart';
 
 class YouTubeMusicSyncService {
 

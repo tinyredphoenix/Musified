@@ -1,26 +1,5 @@
 // ignore_for_file: cascade_invocations
 
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 import 'dart:io';
 
@@ -28,20 +7,20 @@ import 'package:audio_service/audio_service.dart';
 import 'package:audio_session/audio_session.dart';
 import 'package:hive/hive.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:musify/main.dart';
-import 'package:musify/models/full_player_state.dart';
-import 'package:musify/models/position_data.dart';
-import 'package:musify/services/common_services.dart';
+import 'package:musified/main.dart';
+import 'package:musified/models/full_player_state.dart';
+import 'package:musified/models/position_data.dart';
+import 'package:musified/services/common_services.dart';
 
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/map_utils.dart';
-import 'package:musify/utilities/mediaitem.dart';
-import 'package:musify/utilities/queue_entry_utils.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/app_utils.dart';
+import 'package:musified/utilities/map_utils.dart';
+import 'package:musified/utilities/mediaitem.dart';
+import 'package:musified/utilities/queue_entry_utils.dart';
 import 'package:rxdart/rxdart.dart';
 
-class MusifyAudioHandler extends BaseAudioHandler {
-  MusifyAudioHandler() {
+class MusifiedAudioHandler extends BaseAudioHandler {
+  MusifiedAudioHandler() {
     audioPlayer = AudioPlayer();
     _setupEventSubscriptions();
     _updatePlaybackState();
@@ -1819,31 +1798,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
     _updatePlaybackState();
   }
 
-  Future<void> _ensureActuallyPlaying(int? transitionId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 800));
-    if (_isStaleTransition(transitionId)) return;
-    if (audioPlayer.playing) return;
-    // Still making progress toward playback — don't interfere. Calling play()
-    // or re-activating the session mid-buffer causes a stutter and can restart
-    // the item from 0 on iOS.
-    final state = audioPlayer.processingState;
-    if (state == ProcessingState.loading ||
-        state == ProcessingState.buffering ||
-        state == ProcessingState.completed) {
-      return;
-    }
-    if (audioPlayer.audioSource == null) return;
-    _logPlayer('Playback idle after source change; issuing one play()');
-    // A gentle play() resumes from the current position; it does not seek to 0.
-    // Deliberately NOT calling session.setActive(true) here — the session is
-    // already active from the load, and re-activating resets the pipeline.
-    unawaited(
-      audioPlayer.play().catchError((Object e, StackTrace st) {
-        logger.log('Retry play() failed', error: e, stackTrace: st);
-      }),
-    );
-  }
-
   @override
   Future<void> pause() async {
     try {
@@ -2519,7 +2473,6 @@ class MusifyAudioHandler extends BaseAudioHandler {
           _lastError = e.toString();
         }),
       );
-      unawaited(_ensureActuallyPlaying(transitionId));
       unawaited(updateRecentlyPlayed(song['ytid'], songFallback: song));
 
       _updatePlaybackState();

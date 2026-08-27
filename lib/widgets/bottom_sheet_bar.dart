@@ -1,10 +1,5 @@
-/*
- * Sheet option row — Cupertino tap, Musified surfaces.
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/theme/musified_style.dart';
+import 'package:musified/theme/musified_style.dart';
 
 class BottomSheetBar extends StatelessWidget {
   const BottomSheetBar(
@@ -21,12 +16,14 @@ class BottomSheetBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final primary = const Color(0xFFFF2D55);
     final bgColor = isSelected
-        ? scheme.primary.withValues(alpha: isDark ? 0.18 : 0.12)
-        : (isDark ? MusifiedStyle.surface : MusifiedStyle.lightSurfaceHigh);
-    final fgColor = isSelected ? scheme.primary : scheme.onSurface;
+        ? primary.withValues(alpha: isDark ? 0.18 : 0.12)
+        : (isDark ? MusifiedStyle.surface : const Color(0xFFE5E5EA));
+    final fgColor = isSelected
+        ? primary
+        : (isDark ? CupertinoColors.white : CupertinoColors.black);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
@@ -47,18 +44,20 @@ class BottomSheetBar extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
+                    fontFamily: MusifiedStyle.uiFont,
                     color: fgColor,
                     fontSize: 16,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     letterSpacing: -0.2,
+                    decoration: TextDecoration.none,
                   ),
                 ),
               ),
               if (isSelected)
-                Icon(
+                const Icon(
                   CupertinoIcons.checkmark_alt,
                   size: 18,
-                  color: scheme.primary,
+                  color: Color(0xFFFF2D55),
                 ),
             ],
           ),

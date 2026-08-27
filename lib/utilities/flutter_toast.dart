@@ -1,14 +1,8 @@
-/*
- * Transient HUD toast — Cupertino-feeling, theme-aware, no Material SnackBar.
- */
-
 import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/main.dart';
-import 'package:musify/theme/musified_style.dart';
-import 'package:musify/widgets/mini_player.dart';
+import 'package:musified/main.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/widgets/mini_player.dart';
 
 OverlayEntry? _activeToast;
 Timer? _toastTimer;
@@ -24,9 +18,7 @@ void showToast(
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
 
-  final theme = Theme.of(context);
-  final scheme = theme.colorScheme;
-  final isDark = theme.brightness == Brightness.dark;
+  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
   final isMiniPlayerVisible =
       isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
   final bottom =
@@ -45,47 +37,40 @@ void showToast(
             child: AnimatedOpacity(
               opacity: 1,
               duration: const Duration(milliseconds: 180),
-              child: DecoratedBox(
+              child: Container(
                 decoration: BoxDecoration(
                   color: isDark
-                      ? MusifiedStyle.surfaceHigh
-                      : MusifiedStyle.lightOnSurface,
-                  borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
+                      ? const Color(0xFF2C2C2E)
+                      : const Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: isDark
-                        ? MusifiedStyle.hairline
-                        : Colors.white.withValues(alpha: 0.08),
+                    color: isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000),
                   ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 12,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        icon ?? CupertinoIcons.checkmark_alt_circle_fill,
-                        size: 18,
-                        color: isDark
-                            ? scheme.primary
-                            : Colors.white.withValues(alpha: 0.92),
-                      ),
-                      const SizedBox(width: 10),
-                      Flexible(
-                        child: Text(
-                          text,
-                          style: TextStyle(
-                            color: isDark ? scheme.onSurface : Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: -0.15,
-                          ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      icon ?? CupertinoIcons.checkmark_circle_fill,
+                      size: 18,
+                      color: const Color(0xFFFF2D55),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        text,
+                        style: const TextStyle(
+                          fontFamily: MusifiedStyle.uiFont,
+                          color: CupertinoColors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.15,
+                          decoration: TextDecoration.none,
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -113,9 +98,7 @@ void showToastWithButton(
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
 
-  final theme = Theme.of(context);
-  final scheme = theme.colorScheme;
-  final isDark = theme.brightness == Brightness.dark;
+  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
   final isMiniPlayerVisible =
       isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
   final bottom =
@@ -130,52 +113,56 @@ void showToastWithButton(
         alignment: Alignment.bottomCenter,
         child: Padding(
           padding: EdgeInsets.fromLTRB(24, 0, 24, bottom),
-          child: DecoratedBox(
+          child: Container(
             decoration: BoxDecoration(
               color: isDark
-                  ? MusifiedStyle.surfaceHigh
-                  : MusifiedStyle.lightOnSurface,
-              borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    icon ?? CupertinoIcons.info_circle_fill,
-                    size: 18,
-                    color: scheme.primary,
-                  ),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      text,
-                      style: TextStyle(
-                        color: isDark ? scheme.onSurface : Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                  CupertinoButton(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    minimumSize: Size.zero,
-                    onPressed: () {
-                      _dismissToast();
-                      onPressedToast();
-                    },
-                    child: Text(
-                      buttonName,
-                      style: TextStyle(
-                        color: scheme.primary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ],
+                  ? const Color(0xFF2C2C2E)
+                  : const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(
+                color: isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000),
               ),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon ?? CupertinoIcons.info_circle_fill,
+                  size: 18,
+                  color: const Color(0xFFFF2D55),
+                ),
+                const SizedBox(width: 10),
+                Flexible(
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      color: CupertinoColors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ),
+                CupertinoButton(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: Size.zero,
+                  onPressed: () {
+                    _dismissToast();
+                    onPressedToast();
+                  },
+                  child: Text(
+                    buttonName,
+                    style: const TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      color: Color(0xFFFF2D55),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

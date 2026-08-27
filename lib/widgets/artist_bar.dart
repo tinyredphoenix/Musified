@@ -1,29 +1,7 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/services/artist_service.dart';
-import 'package:musify/utilities/artwork_provider.dart';
+import 'package:musified/services/artist_service.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/artwork_provider.dart';
 
 class ArtistBar extends StatelessWidget {
   const ArtistBar({
@@ -39,23 +17,28 @@ class ArtistBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final title = normalizeArtistDisplayTitle(
-      artist['title']?.toString() ?? context.l10n.artist,
+      artist['title']?.toString() ?? 'Artist',
     );
     final image = normalizeArtistThumbnailUrl(artist['image']?.toString());
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
-    return Material(
-      color: colorScheme.surfaceContainerLow,
-      borderRadius: borderRadius,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: cardBg,
+        borderRadius: borderRadius == BorderRadius.zero ? BorderRadius.circular(12) : borderRadius,
+      ),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
           child: Row(
             children: [
-              _ArtistArtwork(image: image),
+              _ArtistArtwork(image: image, isDark: isDark),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -65,27 +48,31 @@ class ArtistBar extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
-                        color: colorScheme.onSurface,
+                        color: titleColor,
+                        decoration: TextDecoration.none,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
-                    Text(
-                      context.l10n.artist,
+                    const Text(
+                      'Artist',
                       style: TextStyle(
-                        color: colorScheme.onSurfaceVariant,
+                        fontFamily: MusifiedStyle.uiFont,
+                        color: CupertinoColors.systemGrey,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
+                        decoration: TextDecoration.none,
                       ),
                     ),
                   ],
                 ),
               ),
-              Icon(
+              const Icon(
                 CupertinoIcons.chevron_forward,
-                color: colorScheme.onSurfaceVariant,
+                color: CupertinoColors.systemGrey,
                 size: 18,
               ),
             ],
@@ -97,14 +84,13 @@ class ArtistBar extends StatelessWidget {
 }
 
 class _ArtistArtwork extends StatelessWidget {
-  const _ArtistArtwork({required this.image});
+  const _ArtistArtwork({required this.image, required this.isDark});
 
   final String? image;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     if (image != null && image!.isNotEmpty) {
       return ClipOval(
         child: Image(
@@ -112,26 +98,26 @@ class _ArtistArtwork extends StatelessWidget {
           width: 52,
           height: 52,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _fallback(colorScheme),
+          errorBuilder: (_, __, ___) => _fallback(),
         ),
       );
     }
 
-    return _fallback(colorScheme);
+    return _fallback();
   }
 
-  Widget _fallback(ColorScheme colorScheme) {
+  Widget _fallback() {
     return Container(
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
+        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
         shape: BoxShape.circle,
       ),
-      child: Icon(
+      child: const Icon(
         CupertinoIcons.person_fill,
         size: 26,
-        color: colorScheme.onSecondaryContainer,
+        color: Color(0xFFFF2D55),
       ),
     );
   }

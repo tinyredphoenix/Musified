@@ -1,39 +1,10 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/playlist_download_service.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/offline_playlist_dialogs.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/playlist_download_service.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/utilities/offline_playlist_dialogs.dart';
 
-/// Downloads a playlist for offline playback, showing the download progress
-/// and turning into a "remove offline" button once every song is stored.
-///
-/// Shared by the playlist page and the artist page: the artist page only has
-/// its top songs on screen, so [resolvePlaylist] is what actually produces the
-/// songs to download, and it is only called when the button is pressed.
 class PlaylistDownloadButton extends StatefulWidget {
   const PlaylistDownloadButton({
     super.key,
@@ -44,17 +15,8 @@ class PlaylistDownloadButton extends StatefulWidget {
   });
 
   final String playlistId;
-
-  /// Loads the playlist together with its songs, on demand.
   final Future<Map?> Function() resolvePlaylist;
-
-  /// The songs already on screen, when the caller has the whole list. Without
-  /// them the button falls back to whether the playlist was downloaded.
   final List? songs;
-
-  /// Also require the stored playlist snapshot to contain [songs]. Artists use
-  /// this after refresh so files downloaded through another playlist cannot
-  /// hide a newly discovered release.
   final bool requireSnapshotMatch;
 
   @override
@@ -62,9 +24,6 @@ class PlaylistDownloadButton extends StatefulWidget {
 }
 
 class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
-  /// Whether the songs to download are still being read. On a page that does
-  /// not hold them that is a whole discography, and nothing about the button
-  /// would say so, so a second tap would read all of it a second time.
   bool _isResolving = false;
 
   String get playlistId => widget.playlistId;
@@ -77,9 +36,6 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
     if (!isPlaylistFullyOffline(songs)) return false;
     if (!widget.requireSnapshotMatch) return true;
 
-    // The files may already exist because another playlist downloaded them.
-    // The artist itself is only current offline when its stored snapshot also
-    // contains every song of the catalog now on screen.
     final snapshot = offlinePlaylistService.getOfflinePlaylist(playlistId);
     if (snapshot == null) return false;
     final snapshotIds = (snapshot['list'] as List? ?? const [])
@@ -92,21 +48,25 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
   Widget build(BuildContext context) {
     if (playlistId.isEmpty) return const SizedBox.shrink();
 
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+
     return ValueListenableBuilder<List>(
       valueListenable: userOfflineSongs,
       builder: (context, _, __) => ValueListenableBuilder<List>(
         valueListenable: offlinePlaylistService.offlinePlaylists,
         builder: (context, __, ___) {
           if (_isOffline) {
-            return IconButton.filled(
-              icon: Icon(
-                CupertinoIcons.arrow_down_circle_fill,
-                color: Theme.of(context).colorScheme.onPrimary,
-              ),
-              iconSize: 24,
+            return CupertinoButton(
+              padding: const EdgeInsets.all(10),
+              color: const Color(0xFFFF2D55),
+              borderRadius: BorderRadius.circular(22),
               onPressed: () =>
                   showRemoveOfflinePlaylistDialog(context, playlistId),
-              tooltip: context.l10n.removeOffline,
+              child: const Icon(
+                CupertinoIcons.arrow_down_circle_fill,
+                color: CupertinoColors.white,
+                size: 20,
+              ),
             );
           }
 
@@ -123,23 +83,24 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
 
               if (_isResolving) {
                 return const SizedBox(
-                  width: 48,
-                  height: 48,
+                  width: 44,
+                  height: 44,
                   child: Center(
-                    child: SizedBox(
-                      width: 24,
-                      height: 24,
-                      child: CupertinoActivityIndicator(),
-                    ),
+                    child: CupertinoActivityIndicator(),
                   ),
                 );
               }
 
-              return IconButton.filledTonal(
-                icon: const Icon(CupertinoIcons.arrow_down_to_line),
-                iconSize: 24,
+              return CupertinoButton(
+                padding: const EdgeInsets.all(10),
+                color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                borderRadius: BorderRadius.circular(22),
                 onPressed: () => _download(context),
-                tooltip: context.l10n.downloadPlaylist,
+                child: const Icon(
+                  CupertinoIcons.arrow_down_to_line,
+                  size: 20,
+                  color: Color(0xFFFF2D55),
+                ),
               );
             },
           );
@@ -150,26 +111,22 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
 
   Widget _buildProgress(BuildContext context, DownloadProgress progress) {
     return SizedBox(
-      width: 48,
-      height: 48,
+      width: 44,
+      height: 44,
       child: Stack(
         alignment: Alignment.center,
         children: [
-          SizedBox(
-            width: 40,
-            height: 40,
-            child: CircularProgressIndicator(
-              value: progress.isCancelled ? null : progress.progress,
-              strokeWidth: 3,
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-            ),
+          const SizedBox(
+            width: 32,
+            height: 32,
+            child: CupertinoActivityIndicator(),
           ),
           if (!progress.isCancelled)
-            IconButton(
-              icon: const Icon(CupertinoIcons.xmark, size: 16),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
               onPressed: () =>
                   offlinePlaylistService.cancelDownload(context, playlistId),
-              tooltip: context.l10n.cancel,
+              child: const Icon(CupertinoIcons.xmark, size: 14, color: CupertinoColors.destructiveRed),
             ),
         ],
       ),
@@ -184,7 +141,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
     try {
       playlist = await widget.resolvePlaylist();
     } catch (_) {
-      if (context.mounted) showToast(context, context.l10n.error);
+      if (context.mounted) showToast(context, 'Error loading playlist');
       return;
     } finally {
       if (mounted) setState(() => _isResolving = false);
@@ -192,7 +149,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
     if (!context.mounted) return;
 
     if (playlist == null) {
-      showToast(context, context.l10n.error);
+      showToast(context, 'Error loading playlist');
       return;
     }
 

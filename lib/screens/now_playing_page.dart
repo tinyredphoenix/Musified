@@ -1,17 +1,12 @@
-/*
- * Full-screen player — Apple Music layout, Cupertino chrome.
- */
-
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:musify/main.dart';
-import 'package:musify/theme/musified_style.dart';
-import 'package:musify/widgets/flip_card.dart';
-import 'package:musify/widgets/now_playing/bottom_actions_row.dart';
-import 'package:musify/widgets/now_playing/now_playing_artwork.dart';
-import 'package:musify/widgets/now_playing/now_playing_controls.dart';
-import 'package:musify/widgets/queue_list_view.dart';
+import 'package:musified/main.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/widgets/flip_card.dart';
+import 'package:musified/widgets/now_playing/bottom_actions_row.dart';
+import 'package:musified/widgets/now_playing/now_playing_artwork.dart';
+import 'package:musified/widgets/now_playing/now_playing_controls.dart';
+import 'package:musified/widgets/queue_list_view.dart';
 
 class NowPlayingPage extends StatefulWidget {
   const NowPlayingPage({super.key});
@@ -33,82 +28,63 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final isLargeScreen = size.width > 800 && size.height > 600;
-    final brightness = MediaQuery.platformBrightnessOf(context);
-    final bg = CupertinoDynamicColor.resolve(
-      CupertinoColors.systemBackground,
-      context,
-    );
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final bg = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
     final screenWidth = size.width;
-    final baseIconSize = screenWidth < 360
-        ? 36.0
-        : screenWidth < 400
-        ? 40.0
-        : 44.0;
+    final baseIconSize = screenWidth < 360 ? 36.0 : (screenWidth < 400 ? 40.0 : 44.0);
     final miniIconSize = screenWidth < 360 ? 18.0 : 22.0;
 
     return CupertinoPageScaffold(
       backgroundColor: bg,
-      child: Material(
-        type: MaterialType.transparency,
-        child: DefaultTextStyle(
-          style: TextStyle(
-            fontFamily: MusifiedStyle.uiFont,
-            decoration: TextDecoration.none,
-            color: CupertinoDynamicColor.resolve(CupertinoColors.label, context),
-          ),
-          child: GestureDetector(
-            onVerticalDragEnd: (details) {
-              if ((details.primaryVelocity ?? 0) > 300) {
-                Navigator.pop(context);
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onVerticalDragEnd: (details) {
+          if ((details.primaryVelocity ?? 0) > 300) {
+            Navigator.pop(context);
+          }
+        },
+        child: SafeArea(
+          child: StreamBuilder<MediaItem?>(
+            stream: audioHandler.mediaItem,
+            builder: (context, snapshot) {
+              final metadata = snapshot.data;
+              if (metadata == null) {
+                return const Center(child: CupertinoActivityIndicator());
               }
+              return Column(
+                children: [
+                  _Grabber(isDark: isDark),
+                  Expanded(
+                    child: isLargeScreen
+                        ? _DesktopLayout(
+                            metadata: metadata,
+                            size: size,
+                            adjustedIconSize: baseIconSize,
+                            adjustedMiniIconSize: miniIconSize,
+                            lyricsController: _lyricsController,
+                          )
+                        : _MobileLayout(
+                            metadata: metadata,
+                            size: size,
+                            adjustedIconSize: baseIconSize,
+                            adjustedMiniIconSize: miniIconSize,
+                            isLargeScreen: isLargeScreen,
+                            lyricsController: _lyricsController,
+                          ),
+                  ),
+                ],
+              );
             },
-            child: ColoredBox(
-              color: bg,
-              child: SafeArea(
-                child: StreamBuilder<MediaItem?>(
-              stream: audioHandler.mediaItem,
-              builder: (context, snapshot) {
-                final metadata = snapshot.data;
-                if (metadata == null) {
-                  return const Center(child: CupertinoActivityIndicator());
-                }
-                return Column(
-                  children: [
-                    _Grabber(brightness: brightness),
-                    Expanded(
-                      child: isLargeScreen
-                          ? _DesktopLayout(
-                              metadata: metadata,
-                              size: size,
-                              adjustedIconSize: baseIconSize,
-                              adjustedMiniIconSize: miniIconSize,
-                              lyricsController: _lyricsController,
-                            )
-                          : _MobileLayout(
-                              metadata: metadata,
-                              size: size,
-                              adjustedIconSize: baseIconSize,
-                              adjustedMiniIconSize: miniIconSize,
-                              isLargeScreen: isLargeScreen,
-                              lyricsController: _lyricsController,
-                            ),
-                    ),
-                  ],
-                );
-              },
-            ),
           ),
         ),
       ),
-    ),
-  ),
-);
+    );
   }
 }
 
 class _Grabber extends StatelessWidget {
-  const _Grabber({required this.brightness});
-  final Brightness brightness;
+  const _Grabber({required this.isDark});
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
@@ -119,10 +95,7 @@ class _Grabber extends StatelessWidget {
           width: 36,
           height: 5,
           decoration: BoxDecoration(
-            color: CupertinoDynamicColor.resolve(
-              CupertinoColors.tertiaryLabel,
-              context,
-            ),
+            color: isDark ? const Color(0x66FFFFFF) : const Color(0x33000000),
             borderRadius: BorderRadius.circular(2.5),
           ),
         ),

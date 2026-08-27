@@ -1,53 +1,49 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
+import 'package:musified/theme/musified_style.dart';
 
 class OfflineSearchPlaceholder extends StatelessWidget {
   const OfflineSearchPlaceholder({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.search)),
-      body: Center(
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      navigationBar: CupertinoNavigationBar(
+        middle: const Text(
+          'Offline Mode',
+          style: TextStyle(
+            fontFamily: MusifiedStyle.displayFont,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        backgroundColor: navBarColor,
+        border: Border(
+          bottom: BorderSide(
+            color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
+            width: 0.5,
+          ),
+        ),
+      ),
+      child: const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
               CupertinoIcons.cloud_download,
-              size: 64,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              size: 56,
+              color: CupertinoColors.systemGrey,
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: 16),
             Text(
-              context.l10n.error,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.7),
+              'Search unavailable in offline mode',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
+                fontSize: 15,
+                color: CupertinoColors.systemGrey,
+                decoration: TextDecoration.none,
               ),
             ),
           ],

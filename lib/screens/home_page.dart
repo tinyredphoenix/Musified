@@ -1,41 +1,19 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/playlists_manager.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/services/youtube_auth_service.dart';
-import 'package:musify/services/youtube_music_sync_service.dart';
-import 'package:musify/widgets/mini_player_bottom_space.dart';
-import 'package:musify/widgets/playlist_cube.dart';
-import 'package:musify/widgets/section_header.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/services/youtube_auth_service.dart';
+import 'package:musified/services/youtube_music_sync_service.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/widgets/mini_player_bottom_space.dart';
+import 'package:musified/widgets/playlist_cube.dart';
+import 'package:musified/widgets/section_header.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -60,31 +38,56 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Musified')),
-      body: RefreshIndicator.adaptive(
-        onRefresh: _handleRefresh,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        slivers: [
+          CupertinoSliverNavigationBar(
+            largeTitle: const Text(
+              'Musified',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.displayFont,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+            ),
+            backgroundColor: navBarColor,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
+                width: 0.5,
+              ),
+            ),
           ),
-          padding: commonSingleChildScrollViewPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildLikedSongsSection(),
-              _buildMostPlayedSection(),
-              _buildPlaylistsSection(),
-              _buildEmptyStateIfNeeded(),
-              const MiniPlayerBottomSpace(),
-            ],
+          CupertinoSliverRefreshControl(
+            onRefresh: _handleRefresh,
           ),
-        ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: commonSingleChildScrollViewPadding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  _buildLikedSongsSection(isDark),
+                  _buildMostPlayedSection(isDark),
+                  _buildPlaylistsSection(isDark),
+                  _buildEmptyStateIfNeeded(isDark),
+                  const MiniPlayerBottomSpace(),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildLikedSongsSection() {
+  Widget _buildLikedSongsSection(bool isDark) {
     return ValueListenableBuilder<List>(
       valueListenable: userLikedSongsList,
       builder: (context, rawSongs, _) {
@@ -98,7 +101,7 @@ class _HomePageState extends State<HomePage> {
               title: 'Favorites',
               icon: CupertinoIcons.heart_fill,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             SizedBox(
               height: 205,
               child: ListView.builder(
@@ -110,6 +113,7 @@ class _HomePageState extends State<HomePage> {
                   final song = songs[index];
                   return _HomeSongCard(
                     song: song,
+                    isDark: isDark,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       audioHandler.playPlaylistSong(
@@ -128,7 +132,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildMostPlayedSection() {
+  Widget _buildMostPlayedSection(bool isDark) {
     return ValueListenableBuilder<List>(
       valueListenable: userRecentlyPlayed,
       builder: (context, rawSongs, _) {
@@ -145,7 +149,7 @@ class _HomePageState extends State<HomePage> {
               title: 'Heavy Rotation',
               icon: CupertinoIcons.flame_fill,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             SizedBox(
               height: 205,
               child: ListView.builder(
@@ -157,6 +161,7 @@ class _HomePageState extends State<HomePage> {
                   final song = displayList[index];
                   return _HomeSongCard(
                     song: song,
+                    isDark: isDark,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       audioHandler.playPlaylistSong(
@@ -178,7 +183,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildPlaylistsSection() {
+  Widget _buildPlaylistsSection(bool isDark) {
     return AnimatedBuilder(
       animation: Listenable.merge([
         userCustomPlaylists,
@@ -203,7 +208,7 @@ class _HomePageState extends State<HomePage> {
               title: 'Playlists & Mixes',
               icon: CupertinoIcons.music_albums_fill,
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             SizedBox(
               height: playlistHeight,
               child: ListView.builder(
@@ -213,9 +218,7 @@ class _HomePageState extends State<HomePage> {
                 itemCount: allPlaylists.length,
                 itemBuilder: (context, index) {
                   final playlist = allPlaylists[index];
-                  final id = playlist['playlistId'] ??
-                      playlist['ytid'] ??
-                      playlist['id'];
+                  final id = playlist['playlistId'] ?? playlist['ytid'] ?? playlist['id'];
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: GestureDetector(
@@ -244,7 +247,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildEmptyStateIfNeeded() {
+  Widget _buildEmptyStateIfNeeded(bool isDark) {
     return AnimatedBuilder(
       animation: Listenable.merge([
         userLikedSongsList,
@@ -262,33 +265,35 @@ class _HomePageState extends State<HomePage> {
 
         if (hasAny) return const SizedBox.shrink();
 
-        final colorScheme = Theme.of(context).colorScheme;
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 60, horizontal: 24),
           child: Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
+                const Icon(
                   CupertinoIcons.music_note_2,
                   size: 56,
-                  color: colorScheme.primary.withValues(alpha: 0.6),
+                  color: Color(0xFFFF2D55),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Your Music Library',
                   style: TextStyle(
+                    fontFamily: MusifiedStyle.displayFont,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
+                    color: isDark ? CupertinoColors.white : CupertinoColors.black,
                   ),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                const Text(
                   'Songs you like and play will appear here.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
+                    fontFamily: MusifiedStyle.uiFont,
                     fontSize: 14,
-                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.8),
+                    color: CupertinoColors.systemGrey,
                   ),
                 ),
               ],
@@ -301,16 +306,23 @@ class _HomePageState extends State<HomePage> {
 }
 
 class _HomeSongCard extends StatelessWidget {
-  const _HomeSongCard({required this.song, required this.onTap});
+  const _HomeSongCard({
+    required this.song,
+    required this.onTap,
+    required this.isDark,
+  });
+
   final Map song;
   final VoidCallback onTap;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
     final title = song['title']?.toString() ?? 'Unknown';
     final artist = song['artist']?.toString() ?? '';
-    final imageUrl =
-        song['highResImage'] ?? song['image'] ?? song['lowResImage'] ?? '';
+    final imageUrl = song['highResImage'] ?? song['image'] ?? song['lowResImage'] ?? '';
+    final primaryColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+    final secondaryColor = CupertinoColors.systemGrey;
 
     return GestureDetector(
       onTap: onTap,
@@ -333,23 +345,21 @@ class _HomeSongCard extends StatelessWidget {
                             fit: BoxFit.cover,
                             memCacheWidth: 280,
                             memCacheHeight: 280,
-                            errorWidget: (_, __, ___) => ColoredBox(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest,
+                            errorWidget: (_, __, ___) => Container(
+                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
                               child: const Icon(
                                 CupertinoIcons.music_note,
                                 size: 36,
+                                color: CupertinoColors.systemGrey,
                               ),
                             ),
                           )
-                        : ColoredBox(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .surfaceContainerHighest,
+                        : Container(
+                            color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
                             child: const Icon(
                               CupertinoIcons.music_note,
                               size: 36,
+                              color: CupertinoColors.systemGrey,
                             ),
                           ),
                   ),
@@ -359,14 +369,14 @@ class _HomeSongCard extends StatelessWidget {
                   bottom: 8,
                   child: Container(
                     padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.65),
+                    decoration: const BoxDecoration(
+                      color: Color(0x99000000),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
                       CupertinoIcons.play_fill,
                       size: 13,
-                      color: Colors.white,
+                      color: CupertinoColors.white,
                     ),
                   ),
                 ),
@@ -377,10 +387,12 @@ class _HomeSongCard extends StatelessWidget {
               title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.2,
+                color: primaryColor,
               ),
             ),
             const SizedBox(height: 2),
@@ -389,11 +401,9 @@ class _HomeSongCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
                 fontSize: 12,
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withValues(alpha: 0.8),
+                color: secondaryColor,
                 fontWeight: FontWeight.w400,
               ),
             ),

@@ -1,52 +1,31 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/screens/playlist_page.dart';
-import 'package:musify/services/artist_service.dart';
-import 'package:musify/services/playlists_manager.dart';
-import 'package:musify/services/router_service.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/async_loader.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/widgets/artist_shelf.dart';
-import 'package:musify/widgets/mini_player_bottom_space.dart';
-import 'package:musify/widgets/playlist_cube.dart';
-import 'package:musify/widgets/playlist_page/add_to_playlist_button.dart';
-import 'package:musify/widgets/playlist_page/download_button.dart';
-import 'package:musify/widgets/playlist_page/empty_playlist_state.dart';
-import 'package:musify/widgets/playlist_page/like_button.dart';
-import 'package:musify/widgets/playlist_page/playlist_action_buttons.dart';
-import 'package:musify/widgets/playlist_page/playlist_header.dart';
-import 'package:musify/widgets/section_header.dart';
-import 'package:musify/widgets/song_bar.dart';
-import 'package:musify/widgets/spinner.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/main.dart';
+import 'package:musified/screens/playlist_page.dart';
+import 'package:musified/services/artist_service.dart';
+import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/router_service.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/app_utils.dart';
+import 'package:musified/utilities/async_loader.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/widgets/artist_shelf.dart';
+import 'package:musified/widgets/mini_player_bottom_space.dart';
+import 'package:musified/widgets/playlist_cube.dart';
+import 'package:musified/widgets/playlist_page/add_to_playlist_button.dart';
+import 'package:musified/widgets/playlist_page/download_button.dart';
+import 'package:musified/widgets/playlist_page/empty_playlist_state.dart';
+import 'package:musified/widgets/playlist_page/like_button.dart';
+import 'package:musified/widgets/playlist_page/playlist_action_buttons.dart';
+import 'package:musified/widgets/playlist_page/playlist_header.dart';
+import 'package:musified/widgets/section_header.dart';
+import 'package:musified/widgets/song_tile.dart';
+import 'package:musified/widgets/spinner.dart';
 
 /// The page an artist opens on: who the artist is, its top songs, its releases
 /// and related artists.
@@ -203,21 +182,32 @@ class _ArtistPageState extends State<ArtistPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Offline: show downloaded songs only; online: fetch full profile
     if (offlineMode.value) return _buildAllSongsPage();
+
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return AsyncLoader<Map<String, dynamic>?>(
       future: _artistFuture ??= _loadArtist(),
-      loadingWidget: Scaffold(appBar: AppBar(), body: const Spinner()),
+      loadingWidget: CupertinoPageScaffold(
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: navBarColor,
+        ),
+        child: const Center(child: Spinner()),
+      ),
       emptyWidget: _buildNotFoundPage(),
-      builder: (context, _) => Scaffold(
-        appBar: AppBar(),
-        body: SingleChildScrollView(
-          padding: commonSingleChildScrollViewPadding,
-          child: Column(
-            children: [
-              _buildHeaderSection(),
-              _buildTopSongsSection(),
+      builder: (context, _) => CupertinoPageScaffold(
+        navigationBar: CupertinoNavigationBar(
+          backgroundColor: navBarColor,
+        ),
+        child: SafeArea(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: commonSingleChildScrollViewPadding,
+            child: Column(
+              children: [
+                _buildHeaderSection(),
+                _buildTopSongsSection(),
               if (_albums.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.only(top: 24),
@@ -258,6 +248,7 @@ class _ArtistPageState extends State<ArtistPage> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -276,17 +267,20 @@ class _ArtistPageState extends State<ArtistPage> {
   }
 
   Widget _buildNotFoundPage() {
-    return Scaffold(
-      appBar: AppBar(),
-      body: CustomScrollView(
-        slivers: [
-          // Not finding an artist is an answer, not a failure of the app.
-          EmptyPlaylistState(
-            icon: CupertinoIcons.person_crop_circle_fill,
-            message: context.l10n.artistNotFound,
-          ),
-          const SliverMiniPlayerBottomSpace(),
-        ],
+    return CupertinoPageScaffold(
+      navigationBar: const CupertinoNavigationBar(
+        middle: Text('Artist Not Found'),
+      ),
+      child: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            EmptyPlaylistState(
+              icon: CupertinoIcons.person_crop_circle_fill,
+              message: context.l10n.artistNotFound,
+            ),
+            const SliverMiniPlayerBottomSpace(),
+          ],
+        ),
       ),
     );
   }
@@ -294,6 +288,7 @@ class _ArtistPageState extends State<ArtistPage> {
   Widget _buildHeaderSection() {
     final screenSize = MediaQuery.sizeOf(context);
     final isLandscape = screenSize.width > screenSize.height;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
     final artistMap = _artist ?? widget.artistData ?? const <String, dynamic>{};
 
     return Column(
@@ -330,11 +325,12 @@ class _ArtistPageState extends State<ArtistPage> {
               songs: _catalog?['list'] as List?,
               requireSnapshotMatch: true,
             ),
-            IconButton.filledTonal(
-              icon: const Icon(CupertinoIcons.arrow_2_circlepath),
-              iconSize: 24,
+            CupertinoButton(
+              padding: const EdgeInsets.all(10),
+              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+              borderRadius: BorderRadius.circular(22),
               onPressed: _refresh,
-              tooltip: context.l10n.update,
+              child: const Icon(CupertinoIcons.arrow_2_circlepath, size: 20, color: Color(0xFFFF2D55)),
             ),
           ],
         ),
@@ -369,19 +365,16 @@ class _ArtistPageState extends State<ArtistPage> {
           physics: const NeverScrollableScrollPhysics(),
           padding: commonListViewBottomPadding,
           itemCount: _topSongs.length,
-          itemBuilder: (context, index) => RepaintBoundary(
-            key: listItemKey('artist_top_song', index, _topSongs[index]),
-            child: SongBar(
-              _topSongs[index],
-              true,
-              rank: index + 1,
-              playCount: _topSongPlayCounts[index],
-              borderRadius: getItemBorderRadius(index, _topSongs.length),
-              onPlay: () => audioHandler.playPlaylistSong(
+          itemBuilder: (context, index) => SongTile(
+            song: _topSongs[index],
+            key: ValueKey('artist_top_${_topSongs[index]['ytid']}_$index'),
+            onTap: () {
+              HapticFeedback.selectionClick();
+              audioHandler.playPlaylistSong(
                 playlist: {'title': _artistTitle, 'list': _topSongs},
                 songIndex: index,
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],

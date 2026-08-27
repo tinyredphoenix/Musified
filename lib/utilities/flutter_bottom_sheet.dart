@@ -1,24 +1,18 @@
-/*
- * iOS-style modal sheet — solid Musified surfaces, no blur tax.
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/theme/musified_style.dart';
+import 'package:musified/theme/musified_style.dart';
 
-PersistentBottomSheetController? _currentBottomSheetController;
 bool _isIOSSheetOpen = false;
 
-/// Shows a bottom sheet using the Musified iOS presentation style.
+bool isBottomSheetOpen() => _isIOSSheetOpen;
+
+/// Shows a bottom sheet using the Musified pure iOS presentation style.
 dynamic showCustomBottomSheet(BuildContext context, Widget content) {
   final size = MediaQuery.sizeOf(context);
-  final scheme = Theme.of(context).colorScheme;
-  final isDark = Theme.of(context).brightness == Brightness.dark;
-  final sheetColor =
-      isDark ? MusifiedStyle.elevated : MusifiedStyle.lightElevated;
+  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final sheetColor = isDark ? MusifiedStyle.elevated : MusifiedStyle.lightElevated;
 
   _isIOSSheetOpen = true;
-  showCupertinoModalPopup(
+  showCupertinoModalPopup<void>(
     context: context,
     builder: (ctx) => Container(
       decoration: BoxDecoration(
@@ -44,7 +38,7 @@ dynamic showCustomBottomSheet(BuildContext context, Widget content) {
                 width: 36,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: scheme.onSurface.withValues(alpha: 0.22),
+                  color: isDark ? const Color(0x66FFFFFF) : const Color(0x33000000),
                   borderRadius: BorderRadius.circular(2.5),
                 ),
               ),
@@ -55,6 +49,7 @@ dynamic showCustomBottomSheet(BuildContext context, Widget content) {
                 maxHeight: size.height * 0.72,
               ),
               child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.only(bottom: 16),
                 child: content,
               ),
@@ -68,18 +63,8 @@ dynamic showCustomBottomSheet(BuildContext context, Widget content) {
 }
 
 void closeCurrentBottomSheet([BuildContext? context]) {
-  if (_isIOSSheetOpen) {
-    if (context != null) {
-      Navigator.of(context, rootNavigator: true).maybePop();
-    }
-    _isIOSSheetOpen = false;
-    return;
+  if (context != null) {
+    Navigator.of(context, rootNavigator: true).maybePop();
   }
-  final controller = _currentBottomSheetController;
-  if (controller != null) {
-    controller.close();
-    _currentBottomSheetController = null;
-  } else if (context != null) {
-    Navigator.of(context).maybePop();
-  }
+  _isIOSSheetOpen = false;
 }

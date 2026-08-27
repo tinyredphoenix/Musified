@@ -1,31 +1,8 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/widgets/playlist_cube.dart';
-import 'package:musify/widgets/section_header.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/widgets/playlist_cube.dart';
+import 'package:musified/widgets/section_header.dart';
 
-/// A titled row of artwork on the artist page: its releases, or the artists
-/// suggested next to it. Releases are shown square, artists round.
 class ArtistShelf extends StatelessWidget {
   const ArtistShelf({
     super.key,
@@ -63,11 +40,10 @@ class ArtistShelf extends StatelessWidget {
       children: [
         SectionHeader(title: title, icon: icon),
         SizedBox(
-          // A horizontal list has to be given a height, and the labels below
-          // the artwork are as tall as the text scale makes them.
           height: cubeSize + _labelsHeight(context),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, index) =>
@@ -91,7 +67,8 @@ class ArtistShelf extends StatelessWidget {
     Map<String, dynamic> item,
     double cubeSize,
   ) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
     final subtitle = subtitleOf?.call(item);
     final artwork = PlaylistCube(
       item,
@@ -118,10 +95,12 @@ class ArtistShelf extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               textAlign: circular ? TextAlign.center : TextAlign.start,
               style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
                 fontWeight: FontWeight.w600,
                 fontSize: _titleFontSize,
                 height: _lineHeight,
-                color: colorScheme.onSurface,
+                color: titleColor,
+                decoration: TextDecoration.none,
               ),
             ),
             if (subtitle != null && subtitle.isNotEmpty) ...[
@@ -130,11 +109,13 @@ class ArtistShelf extends StatelessWidget {
                 subtitle,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
+                style: const TextStyle(
+                  fontFamily: MusifiedStyle.uiFont,
                   fontWeight: FontWeight.w500,
                   fontSize: _subtitleFontSize,
                   height: _lineHeight,
-                  color: colorScheme.onSurfaceVariant,
+                  color: CupertinoColors.systemGrey,
+                  decoration: TextDecoration.none,
                 ),
               ),
             ],

@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/utilities/playlist_image_picker.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/utilities/playlist_image_picker.dart';
 
 class EditPlaylistDialog extends StatefulWidget {
   const EditPlaylistDialog({super.key, required this.playlistData});
@@ -67,8 +66,6 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return CupertinoAlertDialog(
       title: Text(context.l10n.editPlaylist),
       content: SingleChildScrollView(
@@ -110,7 +107,7 @@ class _EditPlaylistDialogState extends State<EditPlaylistDialog> {
                   _imageBase64 != null
                       ? context.l10n.imagePicked
                       : context.l10n.pickImageFromDevice,
-                  style: TextStyle(color: colorScheme.primary, fontSize: 15),
+                  style: const TextStyle(color: Color(0xFFFF2D55), fontSize: 15),
                 ),
               ),
               buildImagePreview(

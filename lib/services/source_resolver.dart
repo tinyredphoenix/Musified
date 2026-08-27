@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:hive/hive.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/jiosaavn_service.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/track_matcher.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/jiosaavn_service.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/track_matcher.dart';
 
 class SourceResolver {
   factory SourceResolver() => _instance;

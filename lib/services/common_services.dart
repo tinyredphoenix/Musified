@@ -1,44 +1,23 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
-import 'package:musify/constants/clients.dart';
-import 'package:musify/main.dart' show logger;
-import 'package:musify/services/artist_service.dart' show ytMusicClient;
-import 'package:musify/services/data_manager.dart';
-import 'package:musify/services/io_service.dart';
-import 'package:musify/services/lyrics_manager.dart';
-import 'package:musify/services/playlists_manager.dart';
-import 'package:musify/services/proxy_manager.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/services/source_resolver.dart';
-import 'package:musify/services/youtube_auth_service.dart';
-import 'package:musify/services/youtube_music_sync_service.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/formatter.dart';
+import 'package:musified/constants/clients.dart';
+import 'package:musified/main.dart' show logger;
+import 'package:musified/services/artist_service.dart' show ytMusicClient;
+import 'package:musified/services/data_manager.dart';
+import 'package:musified/services/io_service.dart';
+import 'package:musified/services/lyrics_manager.dart';
+import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/proxy_manager.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/services/source_resolver.dart';
+import 'package:musified/services/youtube_auth_service.dart';
+import 'package:musified/services/youtube_music_sync_service.dart';
+import 'package:musified/utilities/app_utils.dart';
+import 'package:musified/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 T _safeUserGet<T>(String key, T defaultValue) {
@@ -839,90 +818,66 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
 
     const cacheDuration = Duration(hours: 3);
     final forceSource = song['forceSource']?.toString();
-    // The UI uses `jiosaavn`, while older settings/download records use
-    // `saavn`. Normalize both spellings before selecting a provider.
     final requestedPreference = forceSource ?? preferredSource.value;
-    final preference = requestedPreference == 'saavn'
+    final preference = (requestedPreference == 'saavn' || requestedPreference == 'jiosaavn')
         ? 'jiosaavn'
-        : requestedPreference;
-    // Always keep the other provider as fallback. An explicit source switch
-    // still tries the requested service first; if that song isn't listed
-    // there we stream the alternative instead of failing the whole play.
-    final sources = switch (preference) {
-      'youtube' => ['youtube', 'jiosaavn'],
-      'jiosaavn' => ['jiosaavn', 'youtube'],
-      _ => ['jiosaavn', 'youtube'],
-    };
+        : 'youtube';
+
     logger.log(
       'Resolution start for songId=$songId',
       data: {
         'title': song['title'],
         'force': forceSource ?? '-',
-        'pref': preference,
-        'try': sources.join('>'),
+        'target': preference,
         'offlineMode': offlineMode.value,
       },
     );
 
-    // Cache entries are source-specific. This prevents a JioSaavn URL from
-    // being replayed after switching to YouTube (and vice versa).
-    for (final source in sources) {
-      final sourceKey = _songStreamCacheKey(songId, source);
-      final cachedUrl = await _getCachedSongUrl(sourceKey, cacheDuration);
-      if (cachedUrl == null) continue;
+    // Check source-specific cache
+    final sourceKey = _songStreamCacheKey(songId, preference);
+    final cachedUrl = await _getCachedSongUrl(sourceKey, cacheDuration);
+    if (cachedUrl != null) {
       final cacheBox = await Hive.openBox('cache');
-      final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, source));
-      if (metadata is! Map || metadata['source'] != source) {
-        await deleteData('cache', sourceKey);
-        continue;
+      final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, preference));
+      if (metadata is Map && metadata['source'] == preference) {
+        final isBadHeAac = preference == 'youtube' && _isCachedHeAacYoutube(metadata);
+        if (!isBadHeAac) {
+          final stillValid = await _validateCachedUrl(
+            cachedUrl,
+            userAgent: metadata['userAgent']?.toString(),
+          );
+          if (stillValid) {
+            song['resolvedSource'] = preference;
+            song['resolvedBitrate'] = metadata['bitrate'];
+            song['resolvedFormat'] = metadata['format'];
+            song['resolvedUserAgent'] = metadata['userAgent'];
+            if (preference == 'youtube') {
+              await ensureYoutubeCatalogDuration(song);
+            }
+            logger.log(
+              'Using cached $preference URL for $songId',
+              data: {'host': Uri.tryParse(cachedUrl)?.host},
+            );
+            return cachedUrl;
+          }
+        }
       }
-      if (source == 'youtube' && _isCachedHeAacYoutube(metadata)) {
-        logger.log('Dropping cached HE-AAC YouTube URL for $songId');
-        await invalidateSongStreamCache(songId);
-        continue;
-      }
-      final stillValid = await _validateCachedUrl(
-        cachedUrl,
-        userAgent: metadata['userAgent']?.toString(),
-      );
-      if (!stillValid) {
-        await invalidateSongStreamCache(songId);
-        continue;
-      }
-      song['resolvedSource'] = source;
-      song['resolvedBitrate'] = metadata['bitrate'];
-      song['resolvedFormat'] = metadata['format'];
-      song['resolvedUserAgent'] = metadata['userAgent'];
-      if (source == 'youtube') {
-        await ensureYoutubeCatalogDuration(song);
-      }
-      logger.log(
-        'Using cached $source URL for $songId',
-        data: {'host': Uri.tryParse(cachedUrl)?.host, 'fallback': source != preference},
-      );
-      return cachedUrl;
+      await invalidateSongStreamCache(songId);
     }
 
-    // Try JioSaavn only when it is an allowed source. If YouTube is also an allowed
-    // source, resolve both concurrently so if JioSaavn doesn't have the track, YouTube
-    // starts playing immediately without waiting 4+ seconds.
-    if (jiosaavnEnabled.value && sources.contains('jiosaavn')) {
-      Future<AudioOnlyStreamInfo?>? parallelYtFuture;
-      if (sources.contains('youtube')) {
-        parallelYtFuture = fetchBestAudioStream(songId);
+    // Strict single-source resolution
+    if (preference == 'jiosaavn') {
+      if (!jiosaavnEnabled.value) {
+        logger.log('JioSaavn is disabled in settings');
+        return null;
       }
-
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
-            .timeout(const Duration(milliseconds: 1500), onTimeout: () => null);
+            .timeout(const Duration(seconds: 4), onTimeout: () => null);
         if (saavnSource != null && saavnSource['url'] != null) {
           final url = saavnSource['url'] as String;
           if (url.isNotEmpty) {
-            logger.log(
-              'JioSaavn stream result found: host=${Uri.tryParse(url)?.host}'
-              '${forceSource == 'youtube' ? ' (fallback; YouTube was requested)' : ''}',
-            );
             song['resolvedSource'] = 'jiosaavn';
             song['resolvedBitrate'] = saavnSource['bitrate'];
             song['resolvedFormat'] = saavnSource['format'];
@@ -930,62 +885,34 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
               'bitrate': saavnSource['bitrate'],
               'format': saavnSource['format'],
             });
-            logger.log('Final URL resolved via jiosaavn');
+            logger.log('Resolved JioSaavn stream: host=${Uri.tryParse(url)?.host}');
             return url;
           }
         }
-        logger.log('JioSaavn search result not found or empty url');
+        logger.log('JioSaavn search result not found for $songId');
+        return null;
       } catch (e) {
-        logger.log('JioSaavn resolve error: $e');
-      }
-
-      if (parallelYtFuture != null) {
-        final selectedStream = await parallelYtFuture;
-        if (selectedStream != null) {
-          final url = selectedStream.url.toString();
-          logger.log(
-            'YouTube stream result found: host=${Uri.tryParse(url)?.host}'
-            '${preference == 'jiosaavn' ? ' (fallback; JioSaavn had no match)' : ''}',
-          );
-          final selectedClient = _getSelectedAudioStream(songId)?.client;
-          final userAgent = selectedClient == null
-              ? null
-              : _youtubeClientUserAgent(selectedClient);
-          song['resolvedSource'] = 'youtube';
-          song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
-          song['resolvedFormat'] = selectedStream.audioCodec;
-          song['resolvedUserAgent'] = userAgent;
-          await _cacheResolvedStream(songId, 'youtube', url, {
-            'bitrate': selectedStream.bitrate.kiloBitsPerSecond.round(),
-            'format': selectedStream.audioCodec,
-            'itag': selectedStream.tag,
-            'userAgent': userAgent,
-          });
-          await ensureYoutubeCatalogDuration(song);
-          logger.log('Final URL resolved via youtube');
-          return url;
-        }
+        logger.log('JioSaavn resolution failed: $e');
+        return null;
       }
     }
 
-    if (!sources.contains('youtube')) return null;
-
-    // Get fresh URL, reusing the stream already resolved for this song.
+    // Preference is YouTube
     final selectedStream = await fetchBestAudioStream(songId);
     if (selectedStream == null) {
-      logger.log('fetchSongStreamUrl: no audio streams for $songId');
+      logger.log('fetchSongStreamUrl: no YouTube audio streams for $songId');
       return null;
     }
 
     final url = selectedStream.url.toString();
-    logger.log('YouTube stream result found: host=${Uri.tryParse(url)?.host}');
-    song['resolvedSource'] = 'youtube';
-    song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
-    song['resolvedFormat'] = selectedStream.audioCodec;
     final selectedClient = _getSelectedAudioStream(songId)?.client;
     final userAgent = selectedClient == null
         ? null
         : _youtubeClientUserAgent(selectedClient);
+
+    song['resolvedSource'] = 'youtube';
+    song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
+    song['resolvedFormat'] = selectedStream.audioCodec;
     song['resolvedUserAgent'] = userAgent;
 
     await _cacheResolvedStream(songId, 'youtube', url, {
@@ -995,8 +922,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       'userAgent': userAgent,
     });
     await ensureYoutubeCatalogDuration(song);
-    logger.log('Final URL resolved via youtube');
-
+    logger.log('Resolved YouTube stream: host=${Uri.tryParse(url)?.host}');
     return url;
   } on TimeoutException catch (_) {
     logger.log('fetchSongStreamUrl request timed out for $songId');

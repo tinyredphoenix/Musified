@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:musify/main.dart' show logger;
-import 'package:musify/services/youtube_auth_service.dart';
+import 'package:musified/main.dart' show logger;
+import 'package:musified/services/youtube_auth_service.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 class YouTubeAuthWebView extends StatefulWidget {

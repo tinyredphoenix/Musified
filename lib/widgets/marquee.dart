@@ -1,25 +1,4 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
-import 'package:material_ui/material_ui.dart';
+import 'package:flutter/cupertino.dart';
 
 class MarqueeWidget extends StatefulWidget {
   const MarqueeWidget({
@@ -38,8 +17,6 @@ class MarqueeWidget extends StatefulWidget {
   final Duration animationDuration, backDuration, pauseDuration;
   final bool manualScrollEnabled;
 
-  /// How the child sits when it is short enough not to scroll. Defaults to
-  /// centered; pass [Alignment.centerLeft] to keep it flush with siblings.
   final AlignmentGeometry alignment;
 
   @override
@@ -98,7 +75,6 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
 
     while (_scrollController.hasClients && !_isDisposed) {
       try {
-        // Check if content actually needs scrolling
         if (_scrollController.position.maxScrollExtent <= 0) {
           break;
         }
@@ -121,7 +97,6 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
           curve: Curves.easeOut,
         );
       } catch (e) {
-        // Handle animation interruptions gracefully
         break;
       }
     }

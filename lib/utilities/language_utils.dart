@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:musify/localization/app_localizations.dart';
+import 'package:musified/localization/app_localizations.dart';
 
 // Supported app language codes.
 const appLanguages = <String>{

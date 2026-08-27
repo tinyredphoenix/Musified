@@ -1,39 +1,16 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/services/playlists_manager.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/musified_picker_sheet.dart';
-import 'package:musify/utilities/playlist_utils.dart';
-import 'package:musify/widgets/confirmation_dialog.dart';
-import 'package:musify/widgets/mini_player_bottom_space.dart';
-import 'package:musify/widgets/overflow_menu_button.dart';
-import 'package:musify/widgets/playlist_bar.dart';
-import 'package:musify/widgets/popup_menu_item.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/app_utils.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/utilities/musified_picker_sheet.dart';
+import 'package:musified/utilities/playlist_utils.dart';
+import 'package:musified/widgets/confirmation_dialog.dart';
+import 'package:musified/widgets/mini_player_bottom_space.dart';
+import 'package:musified/widgets/playlist_bar.dart';
 
 class PlaylistFolderPage extends StatefulWidget {
   const PlaylistFolderPage({
@@ -58,203 +35,180 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
     _folderName = widget.folderName;
   }
 
+  void _showFolderActions() {
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (ctx) => CupertinoActionSheet(
+        title: Text(_folderName),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showAddPlaylistDialog();
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.plus, size: 20),
+                SizedBox(width: 8),
+                Text('Add Playlist to Folder'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showRenameFolderDialog();
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.pencil, size: 20),
+                SizedBox(width: 8),
+                Text('Rename Folder'),
+              ],
+            ),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.pop(ctx);
+              _showDeleteFolderDialog();
+            },
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.trash, size: 20, color: CupertinoColors.destructiveRed),
+                SizedBox(width: 8),
+                Text('Delete Folder'),
+              ],
+            ),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          isDefaultAction: true,
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+
     return ValueListenableBuilder<List>(
       valueListenable: userPlaylistFolders,
       builder: (context, _, __) {
         final isOffline = offlineMode.value;
         final playlists = isOffline
-            ? getPlaylistsInFolder(
-                widget.folderId,
-              ).where(PlaylistUtils.isPlaylistOffline).toList()
+            ? getPlaylistsInFolder(widget.folderId).where(PlaylistUtils.isPlaylistOffline).toList()
             : getPlaylistsInFolder(widget.folderId);
-        return CupertinoPageScaffold(
-          child: CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                pinned: true,
-                expandedHeight: 300,
-                flexibleSpace: FlexibleSpaceBar(
-                  collapseMode: CollapseMode.pin,
-                  background: _buildHeader(context, playlists.length),
-                ),
-                actions: [
-                  OverflowMenuButton<String>(
-                    itemBuilder: (context) => [
-                      buildPopupMenuItem<String>(
-                        value: 'add',
-                        icon: CupertinoIcons.plus,
-                        label: context.l10n.addPlaylist,
-                        colorScheme: Theme.of(context).colorScheme,
-                        iconSize: 18,
-                        spacing: 10,
-                      ),
-                      buildPopupMenuItem<String>(
-                        value: 'rename',
-                        icon: CupertinoIcons.pencil,
-                        label: context.l10n.editFolder,
-                        colorScheme: Theme.of(context).colorScheme,
-                        iconSize: 18,
-                        spacing: 10,
-                      ),
-                      buildPopupMenuItem<String>(
-                        value: 'delete',
-                        icon: CupertinoIcons.trash,
-                        label: context.l10n.deleteFolder,
-                        colorScheme: Theme.of(context).colorScheme,
-                        iconColor: Theme.of(context).colorScheme.error,
-                        labelStyle: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                        iconSize: 18,
-                        spacing: 10,
-                      ),
-                    ],
-                    onSelected: (value) {
-                      if (value == 'add') {
-                        _showAddPlaylistDialog();
-                      } else if (value == 'rename') {
-                        _showRenameFolderDialog();
-                      } else if (value == 'delete') {
-                        _showDeleteFolderDialog();
-                      }
-                    },
-                  ),
-                ],
-              ),
-              if (playlists.isEmpty)
-                SliverFillRemaining(child: _buildEmptyState())
-              else
-                SliverPadding(
-                  padding: commonListViewBottomPadding,
-                  sliver: SliverList.builder(
-                    itemCount: playlists.length,
-                    itemBuilder: (context, index) {
-                      final playlist = playlists[index];
-                      final borderRadius = getItemBorderRadius(
-                        index,
-                        playlists.length,
-                      );
-                      return PlaylistBar(
-                        key: listItemKey('folder_playlist', index, playlist),
-                        playlist['title'],
-                        playlistId: playlist['ytid'],
-                        playlistArtwork: playlist['image'],
-                        playlistData: playlist,
-                        onDelete: () => _showRemovePlaylistDialog(playlist),
-                        borderRadius: borderRadius,
-                      );
-                    },
-                  ),
-                ),
-              const SliverMiniPlayerBottomSpace(),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
-  Widget _buildHeader(BuildContext context, int playlistCount) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final theme = Theme.of(context);
-    return Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          ClipPath(
-            clipper: const ShapeBorderClipper(
-              shape: StarBorder(
-                points: 8,
-                pointRounding: 0.8,
-                valleyRounding: 0.2,
-                innerRadiusRatio: 0.6,
+        return CupertinoPageScaffold(
+          backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+          navigationBar: CupertinoNavigationBar(
+            middle: Text(
+              _folderName,
+              style: const TextStyle(
+                fontFamily: MusifiedStyle.displayFont,
+                fontWeight: FontWeight.w700,
               ),
             ),
-            child: Container(
-              width: 130,
-              height: 130,
-              color: colorScheme.surfaceContainerHighest,
-              child: Icon(
-                CupertinoIcons.folder_fill,
-                size: 64,
-                color: colorScheme.onSurfaceVariant,
+            backgroundColor: navBarColor,
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: _showFolderActions,
+              child: const Icon(CupertinoIcons.ellipsis, size: 22),
+            ),
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
+                width: 0.5,
               ),
             ),
           ),
-          const SizedBox(height: 20),
-          Text(
-            _folderName,
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface,
-              letterSpacing: -0.3,
-            ),
-            overflow: TextOverflow.ellipsis,
-            maxLines: 2,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: colorScheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  CupertinoIcons.list_bullet,
-                  size: 14,
-                  color: colorScheme.onSecondaryContainer,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  playlistCount == 1
-                      ? '1 ${context.l10n.playlist.toLowerCase()}'
-                      : '$playlistCount ${context.l10n.playlists.toLowerCase()}',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: colorScheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.2,
+          child: SafeArea(
+            bottom: false,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 100,
+                            height: 100,
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Icon(
+                              CupertinoIcons.folder_fill,
+                              size: 48,
+                              color: Color(0xFFFF2D55),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text(
+                            '${playlists.length} playlists',
+                            style: const TextStyle(
+                              fontFamily: MusifiedStyle.uiFont,
+                              fontSize: 14,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
+                if (playlists.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        'This folder is empty',
+                        style: TextStyle(
+                          fontFamily: MusifiedStyle.uiFont,
+                          color: CupertinoColors.systemGrey,
+                        ),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: commonListViewBottomPadding,
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final playlist = playlists[index];
+                          final borderRadius = getItemBorderRadius(index, playlists.length);
+                          return PlaylistBar(
+                            key: ValueKey('folder_playlist_${playlist['ytid']}_$index'),
+                            playlist['title'],
+                            playlistId: playlist['ytid'],
+                            playlistArtwork: playlist['image'],
+                            playlistData: playlist,
+                            onDelete: () => _showRemovePlaylistDialog(playlist),
+                            borderRadius: borderRadius,
+                          );
+                        },
+                        childCount: playlists.length,
+                      ),
+                    ),
+                  ),
+                const SliverMiniPlayerBottomSpace(),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              CupertinoIcons.folder,
-              size: 64,
-              color: Theme.of(context).colorScheme.onSurface.withAlpha(120),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              context.l10n.emptyFolderMsg,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface.withAlpha(180),
-                fontSize: 16,
-              ),
-            ),
-          ],
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -272,8 +226,8 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
 
     await showMusifiedPickerSheet(
       context,
-      title: context.l10n.addPlaylist,
-      emptyMessage: context.l10n.noPlaylistsAdded,
+      title: 'Add to Folder',
+      emptyMessage: 'No playlists available',
       actions: [
         for (final playlist in candidates)
           PickerSheetAction(
@@ -288,14 +242,14 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
   }
 
   void _showRemovePlaylistDialog(Map playlist) {
-    showDialog(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => ConfirmationDialog(
-        submitMessage: context.l10n.remove,
-        confirmationMessage: context.l10n.removeFromFolder,
-        onCancel: () => Navigator.of(context).pop(),
+      builder: (ctx) => ConfirmationDialog(
+        submitMessage: 'Remove',
+        confirmationMessage: 'Remove this playlist from the folder?',
+        onCancel: () => Navigator.of(ctx).pop(),
         onSubmit: () {
-          Navigator.of(context).pop();
+          Navigator.of(ctx).pop();
           movePlaylistToFolder(playlist, null, context);
         },
       ),
@@ -304,47 +258,37 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
 
   void _showRenameFolderDialog() {
     var newName = _folderName;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    showDialog(
+    final controller = TextEditingController(text: newName);
+
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => CupertinoAlertDialog(
-        title: Text(context.l10n.editFolder),
+      builder: (ctx) => CupertinoAlertDialog(
+        title: const Text('Rename Folder'),
         content: Padding(
           padding: const EdgeInsets.only(top: 12),
           child: CupertinoTextField(
-            placeholder: context.l10n.folderName,
-            controller: TextEditingController(text: newName),
+            controller: controller,
+            placeholder: 'Folder Name',
             autofocus: true,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: isDark
-                  ? CupertinoColors.tertiarySystemFill
-                  : CupertinoColors.systemGrey6,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            onChanged: (value) => newName = value,
+            onChanged: (val) => newName = val,
           ),
         ),
         actions: [
           CupertinoDialogAction(
-            onPressed: () => Navigator.pop(context),
-            child: Text(context.l10n.cancel),
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
           ),
           CupertinoDialogAction(
             isDefaultAction: true,
             onPressed: () {
-              Navigator.pop(context);
-              final result = renamePlaylistFolder(
-                widget.folderId,
-                newName,
-                context,
-              );
+              Navigator.pop(ctx);
+              final result = renamePlaylistFolder(widget.folderId, newName, context);
               showToast(context, result);
               if (newName.trim().isNotEmpty) {
                 setState(() => _folderName = newName.trim());
               }
             },
-            child: Text(context.l10n.update),
+            child: const Text('Rename'),
           ),
         ],
       ),
@@ -352,16 +296,17 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
   }
 
   void _showDeleteFolderDialog() {
-    showDialog(
+    showCupertinoDialog<void>(
       context: context,
-      builder: (context) => ConfirmationDialog(
-        submitMessage: context.l10n.delete,
-        confirmationMessage: context.l10n.deleteFolderQuestion,
-        onCancel: () => Navigator.of(context).pop(),
+      builder: (ctx) => ConfirmationDialog(
+        submitMessage: 'Delete',
+        confirmationMessage: 'Delete this folder and all its contents?',
+        isDangerous: true,
+        onCancel: () => Navigator.of(ctx).pop(),
         onSubmit: () {
-          Navigator.of(context).pop();
+          Navigator.of(ctx).pop();
           deletePlaylistFolder(widget.folderId, context);
-          Navigator.of(context).pop(); // Go back to library
+          Navigator.of(context).pop();
         },
       ),
     );

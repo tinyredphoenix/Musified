@@ -1,34 +1,7 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/utilities/flutter_toast.dart';
-import 'package:musify/utilities/playlist_dialogs.dart';
+import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/utilities/playlist_dialogs.dart';
 
-/// Adds every song of a resolved playlist to one of the user's playlists.
-///
-/// The artist landing page only has its ranked songs on screen, so resolving
-/// on demand is what makes this action share the complete "All songs" catalog.
 class PlaylistAddToPlaylistButton extends StatefulWidget {
   const PlaylistAddToPlaylistButton({super.key, required this.resolvePlaylist});
 
@@ -47,23 +20,22 @@ class _PlaylistAddToPlaylistButtonState
   Widget build(BuildContext context) {
     if (_isResolving) {
       return const SizedBox(
-        width: 48,
-        height: 48,
+        width: 44,
+        height: 44,
         child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: CupertinoActivityIndicator(),
-          ),
+          child: CupertinoActivityIndicator(),
         ),
       );
     }
 
-    return IconButton.filledTonal(
-      icon: const Icon(CupertinoIcons.music_albums),
-      iconSize: 24,
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+
+    return CupertinoButton(
+      padding: const EdgeInsets.all(10),
+      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      borderRadius: BorderRadius.circular(22),
       onPressed: _resolveAndAdd,
-      tooltip: context.l10n.addToPlaylist,
+      child: const Icon(CupertinoIcons.plus, size: 20, color: Color(0xFFFF2D55)),
     );
   }
 
@@ -75,7 +47,7 @@ class _PlaylistAddToPlaylistButtonState
     try {
       playlist = await widget.resolvePlaylist();
     } catch (_) {
-      if (mounted) showToast(context, context.l10n.error);
+      if (mounted) showToast(context, 'Unable to load playlist');
       return;
     } finally {
       if (mounted) setState(() => _isResolving = false);
@@ -83,16 +55,16 @@ class _PlaylistAddToPlaylistButtonState
     if (!mounted) return;
 
     if (playlist == null || playlist['list'] is! List) {
-      showToast(context, context.l10n.error);
+      showToast(context, 'Unable to load playlist');
       return;
     }
 
     final songs = playlist['list'] as List;
     if (songs.isEmpty) {
-      showToast(context, context.l10n.noSongsInPlaylist);
+      showToast(context, 'Playlist is empty');
       return;
     }
 
-    showAddToPlaylistDialog(context, songs: songs);
+    showAddToPlaylistDialog(context, song: null);
   }
 }

@@ -1,493 +1,370 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'dart:async';
-
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/common_services.dart';
-import 'package:musify/services/data_manager.dart';
-import 'package:musify/services/playlists_manager.dart';
-import 'package:musify/services/router_service.dart';
-import 'package:musify/utilities/app_utils.dart';
-import 'package:musify/widgets/artist_bar.dart';
-import 'package:musify/widgets/confirmation_dialog.dart';
-import 'package:musify/widgets/custom_bar.dart';
-import 'package:musify/widgets/custom_search_bar.dart';
-import 'package:musify/widgets/mini_player_bottom_space.dart';
-import 'package:musify/widgets/playlist_bar.dart';
-import 'package:musify/widgets/section_title.dart';
-import 'package:musify/widgets/song_bar.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/common_services.dart';
+import 'package:musified/services/data_manager.dart';
+import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/router_service.dart';
+import 'package:musified/theme/musified_style.dart';
+import 'package:musified/widgets/artist_bar.dart';
+import 'package:musified/widgets/mini_player_bottom_space.dart';
+import 'package:musified/widgets/playlist_bar.dart';
+import 'package:musified/widgets/section_header.dart';
+import 'package:musified/widgets/song_tile.dart';
+
+final ValueNotifier<List> searchHistoryNotifier = ValueNotifier<List>(
+  Hive.box('user').get('searchHistory', defaultValue: []),
+);
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
   @override
-  _SearchPageState createState() => _SearchPageState();
-}
-
-// Global ValueNotifier for search history to make it reactive
-final ValueNotifier<List> searchHistoryNotifier = ValueNotifier<List>(
-  Hive.box('user').get('searchHistory', defaultValue: []),
-);
-
-// Backward compatibility - keep the global variable for existing code
-List get searchHistory => searchHistoryNotifier.value;
-set searchHistory(List value) {
-  searchHistoryNotifier.value = value;
-}
-
-void reloadSearchHistoryFromStorage() {
-  searchHistoryNotifier.value = Hive.box('user')
-      .get('searchHistory', defaultValue: []);
+  State<SearchPage> createState() => _SearchPageState();
 }
 
 class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchBar = TextEditingController();
   final FocusNode _inputNode = FocusNode();
-  final ValueNotifier<bool> _fetchingSongs = ValueNotifier(false);
-  int maxSongsInList = 15;
+  bool _isSearching = false;
   List<dynamic> _songsSearchResult = [];
   List<Map<String, dynamic>> _artistsSearchResult = [];
-  List<dynamic> _albumsSearchResult = [];
   List<dynamic> _playlistsSearchResult = [];
   List<String> _suggestionsList = [];
   Timer? _debounce;
-  int _latestSuggestionRequest = 0;
   int _latestSearchRequest = 0;
-
-  Future<void> _submitSearch([String? query]) async {
-    if (query != null) {
-      _searchBar.text = query;
-      _searchBar.selection = TextSelection.fromPosition(
-        TextPosition(offset: _searchBar.text.length),
-      );
-    }
-
-    _latestSuggestionRequest++;
-    _debounce?.cancel();
-    _suggestionsList = [];
-    if (mounted) setState(() {});
-
-    await search();
-    _inputNode.unfocus();
-  }
-
-  @override
-  void deactivate() {
-    _debounce?.cancel();
-    super.deactivate();
-  }
 
   @override
   void dispose() {
     _searchBar.dispose();
     _inputNode.dispose();
-    _fetchingSongs.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
-  Future<void> search() async {
-    final query = _searchBar.text;
+  Future<void> _submitSearch([String? query]) async {
+    if (query != null) {
+      _searchBar.text = query;
+    }
+    _debounce?.cancel();
+    _suggestionsList = [];
+    _inputNode.unfocus();
+    await _performSearch();
+  }
+
+  Future<void> _performSearch() async {
+    final query = _searchBar.text.trim();
     final requestId = ++_latestSearchRequest;
 
     if (query.isEmpty) {
-      _songsSearchResult = [];
-      _artistsSearchResult = [];
-      _albumsSearchResult = [];
-      _playlistsSearchResult = [];
-      _suggestionsList = [];
-      if (mounted) setState(() {});
+      setState(() {
+        _songsSearchResult = [];
+        _artistsSearchResult = [];
+        _playlistsSearchResult = [];
+        _isSearching = false;
+      });
       return;
     }
-    _fetchingSongs.value = true;
 
-    if (!searchHistory.contains(query)) {
-      final updatedHistory = List.from(searchHistory)..insert(0, query);
-      const searchHistoryLimit = 50;
-      if (updatedHistory.length > searchHistoryLimit) {
-        updatedHistory.removeRange(searchHistoryLimit, updatedHistory.length);
-      }
-      searchHistoryNotifier.value = updatedHistory;
-      unawaited(addOrUpdateData<List>('user', 'searchHistory', updatedHistory));
-    }
+    setState(() {
+      _isSearching = true;
+    });
 
     try {
-      final results = await Future.wait<List<dynamic>>([
-        fetchSongsList(query),
-        searchArtists(query),
-        getPlaylists(query: query, type: 'album'),
-        getPlaylists(query: query, type: 'playlist'),
-      ]);
-
-      if (!mounted || requestId != _latestSearchRequest) return;
-
-      _songsSearchResult = results[0];
-      _artistsSearchResult = results[1]
-          .whereType<Map>()
-          .map(Map<String, dynamic>.from)
-          .toList();
-      if (_songsSearchResult.isEmpty && _artistsSearchResult.isNotEmpty) {
-        _songsSearchResult = await _fetchSongsForResolvedArtist(query);
+      final searchHistory = List.from(searchHistoryNotifier.value);
+      if (!searchHistory.contains(query)) {
+        searchHistory.insert(0, query);
+        if (searchHistory.length > 20) searchHistory.removeLast();
+        searchHistoryNotifier.value = searchHistory;
+        unawaited(addOrUpdateData<List>('user', 'searchHistory', searchHistory));
       }
-      _albumsSearchResult = results[2];
-      _playlistsSearchResult = results[3];
-    } catch (e, stackTrace) {
-      logger.log(
-        'Error while searching online songs',
-        error: e,
-        stackTrace: stackTrace,
-      );
-    } finally {
-      if (requestId == _latestSearchRequest) {
-        _fetchingSongs.value = false;
-        if (mounted) setState(() {});
+
+      final songResults = await fetchSongsList(query);
+      if (requestId != _latestSearchRequest || !mounted) return;
+
+      final artistResults = await searchArtists(query);
+      if (requestId != _latestSearchRequest || !mounted) return;
+
+      final playlistResults = await getPlaylists(query: query);
+      if (requestId != _latestSearchRequest || !mounted) return;
+
+      setState(() {
+        _songsSearchResult = songResults;
+        _artistsSearchResult = artistResults;
+        _playlistsSearchResult = playlistResults;
+        _isSearching = false;
+      });
+    } catch (e) {
+      logger.log('Search error: $e');
+      if (mounted) {
+        setState(() {
+          _isSearching = false;
+        });
       }
     }
   }
 
-  Future<List<dynamic>> _fetchSongsForResolvedArtist(String query) async {
-    if (_artistsSearchResult.isEmpty) return [];
-    final artistName = _artistsSearchResult.first['title']?.toString().trim();
-    if (artistName == null || artistName.isEmpty) return [];
-
-    final fallbackQueries = <String>{
-      if (artistName.toLowerCase() != query.trim().toLowerCase()) artistName,
-      '$artistName songs',
-      '$artistName music',
-    };
-
-    for (final fallbackQuery in fallbackQueries) {
-      final songs = await fetchSongsList(fallbackQuery);
-      if (songs.isNotEmpty) return songs;
+  void _onQueryChanged(String query) {
+    _debounce?.cancel();
+    if (query.trim().isEmpty) {
+      setState(() {
+        _suggestionsList = [];
+        _isSearching = false;
+      });
+      return;
     }
 
-    return [];
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
+      final suggestions = await getSearchSuggestions(query);
+      if (mounted && _searchBar.text == query) {
+        setState(() {
+          _suggestionsList = List<String>.from(suggestions);
+        });
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).colorScheme.primary;
-    return Scaffold(
-      appBar: AppBar(title: Text(context.l10n.search)),
-      body: SingleChildScrollView(
-        padding: commonSingleChildScrollViewPadding,
-        child: Column(
-          children: <Widget>[
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final isWide = constraints.maxWidth > 600;
-                final bar = ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: isWide ? 600 : double.infinity,
-                  ),
-                  child: CustomSearchBar(
-                    loadingProgressNotifier: _fetchingSongs,
-                    controller: _searchBar,
-                    focusNode: _inputNode,
-                    labelText: '${context.l10n.search}...',
-                    onChanged: (value) {
-                      // debounce suggestions to avoid rapid API calls
-                      _debounce?.cancel();
-                      final query = value;
-                      final requestId = ++_latestSuggestionRequest;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+    final hasResults = _songsSearchResult.isNotEmpty ||
+        _artistsSearchResult.isNotEmpty ||
+        _playlistsSearchResult.isNotEmpty;
 
-                      // Clear suggestions immediately if input is empty
-                      if (query.isEmpty) {
-                        _suggestionsList = [];
-                        if (mounted) setState(() {});
-                        return;
-                      }
-
-                      _debounce = Timer(
-                        const Duration(milliseconds: 300),
-                        () async {
-                          final searchSuggestions = await getSearchSuggestions(
-                            query,
-                          );
-
-                          if (!mounted ||
-                              requestId != _latestSuggestionRequest ||
-                              _searchBar.text != query) {
-                            return;
-                          }
-
-                          _suggestionsList = List<String>.from(
-                            searchSuggestions,
-                          );
-                          if (mounted) setState(() {});
-                        },
-                      );
-                    },
-                    onSubmitted: (String value) {
-                      _submitSearch();
-                    },
-                  ),
-                );
-                if (isWide) {
-                  return Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [bar],
+    return CupertinoPageScaffold(
+      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      child: CustomScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        slivers: [
+          CupertinoSliverNavigationBar(
+            largeTitle: const Text(
+              'Search',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.displayFont,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+            ),
+            backgroundColor: navBarColor,
+            border: Border(
+              bottom: BorderSide(
+                color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
+                width: 0.5,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              child: CupertinoSearchTextField(
+                controller: _searchBar,
+                focusNode: _inputNode,
+                placeholder: 'Artists, songs, or playlists',
+                onChanged: _onQueryChanged,
+                onSubmitted: _submitSearch,
+                style: TextStyle(
+                  fontFamily: MusifiedStyle.uiFont,
+                  color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                ),
+              ),
+            ),
+          ),
+          if (_isSearching)
+            const SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 40),
+                child: Center(child: CupertinoActivityIndicator(radius: 12)),
+              ),
+            )
+          else if (_suggestionsList.isNotEmpty)
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  final suggestion = _suggestionsList[index];
+                  return CupertinoListTile(
+                    leading: const Icon(CupertinoIcons.search, size: 18, color: CupertinoColors.systemGrey),
+                    title: Text(
+                      suggestion,
+                      style: TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
+                        color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                      ),
+                    ),
+                    onTap: () => _submitSearch(suggestion),
                   );
-                } else {
-                  return bar;
-                }
-              },
+                },
+                childCount: _suggestionsList.length,
+              ),
+            )
+          else if (!hasResults && _searchBar.text.isEmpty)
+            _buildSearchHistory(isDark)
+          else if (hasResults)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_songsSearchResult.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: SectionHeader(title: 'Songs', icon: CupertinoIcons.music_note_list),
+                      ),
+                      ..._songsSearchResult.map(
+                        (s) => SongTile(
+                          song: s is Map ? s : {},
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            audioHandler.playSong(s is Map ? s : {});
+                          },
+                        ),
+                      ),
+                    ],
+                    if (_artistsSearchResult.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: SectionHeader(title: 'Artists', icon: CupertinoIcons.person_2_fill),
+                      ),
+                      ..._artistsSearchResult.map(
+                        (a) => ArtistBar(
+                          artist: a is Map ? a : {},
+                          onTap: () {
+                            if (a is Map && a['ytid'] != null) {
+                              context.push(
+                                NavigationManager.artistPath(context, a['ytid'].toString()),
+                                extra: a,
+                              );
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                    if (_playlistsSearchResult.isNotEmpty) ...[
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        child: SectionHeader(title: 'Playlists', icon: CupertinoIcons.music_albums_fill),
+                      ),
+                      ..._playlistsSearchResult.map(
+                        (p) => PlaylistBar(
+                          p is Map ? (p['title']?.toString() ?? 'Playlist') : 'Playlist',
+                          playlistData: p is Map ? p : null,
+                        ),
+                      ),
+                    ],
+                    const MiniPlayerBottomSpace(),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 60),
+                child: Center(
+                  child: Text(
+                    'No results found',
+                    style: TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      fontSize: 16,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
+                ),
+              ),
             ),
+        ],
+      ),
+    );
+  }
 
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child:
-                  (_suggestionsList.isNotEmpty ||
-                      (_songsSearchResult.isEmpty &&
-                          _artistsSearchResult.isEmpty &&
-                          _albumsSearchResult.isEmpty &&
-                          _playlistsSearchResult.isEmpty))
-                  ? ValueListenableBuilder<List>(
-                      valueListenable: searchHistoryNotifier,
-                      builder: (context, searchHistory, _) {
-                        final items = _suggestionsList.isEmpty
-                            ? searchHistory
-                            : _suggestionsList;
+  Widget _buildSearchHistory(bool isDark) {
+    return ValueListenableBuilder<List>(
+      valueListenable: searchHistoryNotifier,
+      builder: (context, history, _) {
+        if (history.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
 
-                        return Column(
-                          key: ValueKey(
-                            'history-${_suggestionsList.length}-${_searchBar.text}-${searchHistory.length}',
-                          ),
-                          children: [
-                            for (int index = 0; index < items.length; index++)
-                              Builder(
-                                builder: (context) {
-                                  final query = items[index];
-                                  final borderRadius = getItemBorderRadius(
-                                    index,
-                                    items.length,
-                                  );
-
-                                  return CustomBar(
-                                    query,
-                                    CupertinoIcons.search,
-                                    borderRadius: borderRadius,
-                                    onTap: () async {
-                                      await _submitSearch(query.toString());
-                                    },
-                                    onLongPress: () async {
-                                      final confirm =
-                                          await _showConfirmationDialog(
-                                            context,
-                                          ) ??
-                                          false;
-                                      if (confirm &&
-                                          searchHistory.contains(query)) {
-                                        final updatedHistory = List.from(
-                                          searchHistory,
-                                        )..remove(query);
-                                        searchHistoryNotifier.value =
-                                            updatedHistory;
-                                        unawaited(
-                                          addOrUpdateData<List>(
-                                            'user',
-                                            'searchHistory',
-                                            updatedHistory,
-                                          ),
-                                        );
-                                      }
-                                    },
-                                  );
-                                },
-                              ),
-                          ],
-                        );
+        return SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Recent Searches',
+                      style: TextStyle(
+                        fontFamily: MusifiedStyle.displayFont,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      onPressed: () {
+                        searchHistoryNotifier.value = [];
+                        unawaited(deleteData('user', 'searchHistory'));
                       },
-                    )
-                  : _buildSearchResults(context, primaryColor),
-            ),
-            const MiniPlayerBottomSpace(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSearchResults(BuildContext context, Color primaryColor) {
-    final widgets = <Widget>[];
-
-    // Artists section
-    if (_artistsSearchResult.isNotEmpty) {
-      widgets.add(
-        SectionTitle(
-          context.l10n.artists,
-          primaryColor,
-          icon: CupertinoIcons.person_crop_circle_fill,
-        ),
-      );
-
-      final artists = _artistsSearchResult.take(3).toList();
-      for (var index = 0; index < artists.length; index++) {
-        final artist = Map<String, dynamic>.from(artists[index]);
-        final artistId =
-            artist['ytid']?.toString() ?? artist['title']?.toString() ?? '';
-        if (artistId.isEmpty) continue;
-
-        final borderRadius = getItemBorderRadius(index, artists.length);
-        widgets.add(
-          ArtistBar(
-            key: listItemKey('search_artist', index, artist),
-            artist: artist,
-            borderRadius: borderRadius,
-            onTap: () {
-              context.push(
-                '${NavigationManager.searchPath}/artist/${Uri.encodeComponent(artistId)}',
-                extra: artist,
-              );
-            },
-          ),
-        );
-      }
-    }
-
-    // Songs section
-    if (_songsSearchResult.isNotEmpty) {
-      widgets.add(
-        SectionTitle(
-          context.l10n.songs,
-          primaryColor,
-          icon: CupertinoIcons.music_note,
-        ),
-      );
-
-      final songsCount = _songsSearchResult.length > maxSongsInList
-          ? maxSongsInList
-          : _songsSearchResult.length;
-
-      for (var index = 0; index < songsCount; index++) {
-        final song = _songsSearchResult[index];
-        final borderRadius = getItemBorderRadius(index, songsCount);
-        widgets.add(
-          SongBar(
-            song,
-            true,
-            key: listItemKey('search_song', index, song),
-            showMusicDuration: true,
-            borderRadius: borderRadius,
-          ),
-        );
-      }
-    }
-
-    // Albums section
-    if (_albumsSearchResult.isNotEmpty) {
-      widgets.add(
-        SectionTitle(
-          context.l10n.albums,
-          primaryColor,
-          icon: CupertinoIcons.music_albums_fill,
-        ),
-      );
-
-      final albumsCount = _albumsSearchResult.length > maxSongsInList
-          ? maxSongsInList
-          : _albumsSearchResult.length;
-
-      for (var index = 0; index < albumsCount; index++) {
-        final playlist = _albumsSearchResult[index];
-        final borderRadius = getItemBorderRadius(index, albumsCount);
-
-        widgets.add(
-          PlaylistBar(
-            key: listItemKey('search_album', index, playlist),
-            playlist['title'],
-            playlistId: playlist['ytid'],
-            playlistArtwork: playlist['image'],
-            cubeIcon: CupertinoIcons.music_albums,
-            isAlbum: true,
-            borderRadius: borderRadius,
-          ),
-        );
-      }
-    }
-
-    // Playlists section
-    if (_playlistsSearchResult.isNotEmpty) {
-      widgets.add(
-        SectionTitle(
-          context.l10n.playlists,
-          primaryColor,
-          icon: CupertinoIcons.list_bullet,
-        ),
-      );
-
-      final playlistsCount = _playlistsSearchResult.length > maxSongsInList
-          ? maxSongsInList
-          : _playlistsSearchResult.length;
-
-      for (var index = 0; index < playlistsCount; index++) {
-        final playlist = _playlistsSearchResult[index];
-        final isLast = index == playlistsCount - 1;
-        final borderRadius = getItemBorderRadius(index, playlistsCount);
-
-        widgets.add(
-          Padding(
-            padding: isLast ? commonListViewBottomPadding : EdgeInsets.zero,
-            child: PlaylistBar(
-              key: listItemKey('search_playlist', index, playlist),
-              playlist['title'],
-              playlistId: playlist['ytid'],
-              playlistArtwork: playlist['image'],
-              borderRadius: borderRadius,
+                      child: const Text(
+                        'Clear',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFFFF2D55),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: history.map<Widget>((query) {
+                    return GestureDetector(
+                      onTap: () => _submitSearch(query.toString()),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000),
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(CupertinoIcons.clock, size: 14, color: CupertinoColors.systemGrey),
+                            const SizedBox(width: 6),
+                            Text(
+                              query.toString(),
+                              style: TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 14,
+                                color: isDark ? CupertinoColors.white : CupertinoColors.black,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+                const MiniPlayerBottomSpace(),
+              ],
             ),
           ),
-        );
-      }
-    }
-
-
-
-    return Column(
-      key: ValueKey(
-        'results-${_songsSearchResult.length}-${_artistsSearchResult.length}-${_albumsSearchResult.length}-${_playlistsSearchResult.length}',
-      ),
-      children: widgets,
-    );
-  }
-
-  Future<bool?> _showConfirmationDialog(BuildContext context) {
-    return showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return ConfirmationDialog(
-          confirmationMessage: context.l10n.removeSearchQueryQuestion,
-          submitMessage: context.l10n.confirm,
-          onCancel: () {
-            Navigator.of(context).pop(false);
-          },
-          onSubmit: () {
-            Navigator.of(context).pop(true);
-          },
         );
       },
     );

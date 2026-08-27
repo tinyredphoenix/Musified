@@ -1,30 +1,6 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
 import 'package:flutter/cupertino.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/extensions/l10n.dart';
+import 'package:musified/theme/musified_style.dart';
 
-/// The top of a playlist, album or artist page: artwork, title and the chips
-/// describing what is being shown.
 class PlaylistHeader extends StatelessWidget {
   const PlaylistHeader(
     this.image,
@@ -41,24 +17,18 @@ class PlaylistHeader extends StatelessWidget {
 
   final Widget image;
   final String title;
-
-  /// Left null by the artist page, which does not hold the song list itself.
   final int? songsLength;
   final bool? isAlbum;
   final bool isArtist;
   final bool showImage;
   final bool showTitle;
-
-  /// Monthly listeners of an artist, already shortened, e.g. `447M`.
   final String? monthlyListeners;
-
-  /// Artist biography, collapsed until tapped.
   final String? description;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
@@ -68,26 +38,22 @@ class PlaylistHeader extends StatelessWidget {
             if (isArtist)
               ClipOval(child: image)
             else
-              ClipPath(
-                clipper: const ShapeBorderClipper(
-                  shape: StarBorder(
-                    points: 8,
-                    pointRounding: 0.8,
-                    valleyRounding: 0.2,
-                    innerRadiusRatio: 0.6,
-                  ),
-                ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(16),
                 child: image,
               ),
           ],
           if (showTitle) ...[
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
             Text(
               title,
-              style: theme.textTheme.headlineSmall?.copyWith(
+              style: TextStyle(
+                fontFamily: MusifiedStyle.displayFont,
                 fontWeight: FontWeight.w700,
-                color: colorScheme.onSurface,
-                letterSpacing: 0,
+                fontSize: 22,
+                color: titleColor,
+                letterSpacing: -0.3,
+                decoration: TextDecoration.none,
               ),
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
@@ -104,55 +70,45 @@ class PlaylistHeader extends StatelessWidget {
               if (isArtist)
                 _Chip(
                   icon: CupertinoIcons.person,
-                  label: context.l10n.artist,
-                  color: colorScheme.primaryContainer,
-                  onColor: colorScheme.onPrimaryContainer,
-                  theme: theme,
+                  label: 'Artist',
+                  isDark: isDark,
                 )
               else if (isAlbum != null)
                 _Chip(
                   icon: isAlbum!
                       ? CupertinoIcons.music_note_2
                       : CupertinoIcons.list_bullet,
-                  label: isAlbum!
-                      ? context.l10n.album
-                      : context.l10n.playlist,
-                  color: colorScheme.primaryContainer,
-                  onColor: colorScheme.onPrimaryContainer,
-                  theme: theme,
+                  label: isAlbum! ? 'Album' : 'Playlist',
+                  isDark: isDark,
                 ),
               if (songsLength != null)
                 _Chip(
-                  icon: CupertinoIcons.list_bullet,
-                  label: '$songsLength ${context.l10n.songs}',
-                  color: colorScheme.secondaryContainer,
-                  onColor: colorScheme.onSecondaryContainer,
-                  theme: theme,
+                  icon: CupertinoIcons.music_note_list,
+                  label: '$songsLength songs',
+                  isDark: isDark,
                 ),
               if (monthlyListeners != null)
                 _Chip(
                   icon: CupertinoIcons.headphones,
-                  label: '$monthlyListeners ${context.l10n.monthlyListeners}',
-                  color: colorScheme.secondaryContainer,
-                  onColor: colorScheme.onSecondaryContainer,
-                  theme: theme,
+                  label: '$monthlyListeners listeners',
+                  isDark: isDark,
                 ),
             ],
           ),
           if (description != null && description!.trim().isNotEmpty)
-            _Description(description!.trim()),
-          const SizedBox(height: 20),
+            _Description(description!.trim(), isDark: isDark),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 }
 
-/// The artist biography, three lines until it is tapped.
 class _Description extends StatefulWidget {
-  const _Description(this.text);
+  const _Description(this.text, {required this.isDark});
 
   final String text;
+  final bool isDark;
 
   @override
   State<_Description> createState() => _DescriptionState();
@@ -163,17 +119,18 @@ class _DescriptionState extends State<_Description> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.only(top: 14),
       child: GestureDetector(
         onTap: () => setState(() => _isExpanded = !_isExpanded),
         child: Text(
           widget.text,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+          style: const TextStyle(
+            fontFamily: MusifiedStyle.uiFont,
+            color: CupertinoColors.systemGrey,
+            fontSize: 13,
             height: 1.4,
+            decoration: TextDecoration.none,
           ),
           textAlign: TextAlign.center,
           maxLines: _isExpanded ? null : 3,
@@ -188,36 +145,37 @@ class _Chip extends StatelessWidget {
   const _Chip({
     required this.icon,
     required this.label,
-    required this.color,
-    required this.onColor,
-    required this.theme,
+    required this.isDark,
   });
 
   final IconData icon;
   final String label;
-  final Color color;
-  final Color onColor;
-  final ThemeData theme;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    final chipBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final chipText = isDark ? CupertinoColors.white : CupertinoColors.black;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
+        color: chipBg,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: onColor),
+          Icon(icon, size: 13, color: const Color(0xFFFF2D55)),
           const SizedBox(width: 6),
           Text(
             label,
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: onColor,
+            style: TextStyle(
+              fontFamily: MusifiedStyle.uiFont,
+              color: chipText,
               fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
+              fontSize: 12,
+              decoration: TextDecoration.none,
             ),
           ),
         ],

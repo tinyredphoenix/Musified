@@ -3,7 +3,7 @@
  */
 
 import 'package:flutter/cupertino.dart';
-import 'package:musify/extensions/l10n.dart';
+import 'package:musified/extensions/l10n.dart';
 
 class ConfirmationDialog extends StatelessWidget {
   const ConfirmationDialog({

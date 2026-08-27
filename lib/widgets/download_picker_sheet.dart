@@ -1,7 +1,6 @@
-// ignore_for_file: deprecated_member_use
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart';
-import 'package:musify/services/settings_manager.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/musified_style.dart';
 
 class DownloadPickerSheet extends StatefulWidget {
   const DownloadPickerSheet({
@@ -25,18 +24,16 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final title = widget.song['title']?.toString() ?? 'Song';
+    final title = widget.song['title']?.toString() ?? 'Track';
     final artist = widget.song['artist']?.toString() ?? '';
-    final colorScheme = Theme.of(context).colorScheme;
-    final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
-    // Keep the sheet's selection state recognisably iOS even when the app's
-    // user accent is yellow or another high-contrast color.
-    final selectionColor = isIOS
-        ? CupertinoColors.activeBlue
-        : colorScheme.primary;
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final primaryColor = const Color(0xFFFF2D55);
+    final cardBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7);
+    final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+    final secondaryTextColor = CupertinoColors.systemGrey;
 
-    return Material(
-      color: Colors.transparent,
+    return SafeArea(
+      top: false,
       child: Padding(
         padding: EdgeInsets.only(
           left: 16,
@@ -45,201 +42,156 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
           bottom: MediaQuery.of(context).viewInsets.bottom + 16,
         ),
         child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x66FFFFFF) : const Color(0x33000000),
+                  borderRadius: BorderRadius.circular(2.5),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Download',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface,
-              letterSpacing: -0.3,
+            const SizedBox(height: 16),
+            Text(
+              'Download Track',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.displayFont,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                color: textColor,
+                letterSpacing: -0.3,
+                decoration: TextDecoration.none,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            artist.isEmpty ? title : '$title • $artist',
-            style: TextStyle(fontSize: 13, color: colorScheme.onSurfaceVariant),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Source',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurfaceVariant,
-              letterSpacing: 0.5,
+            const SizedBox(height: 4),
+            Text(
+              artist.isEmpty ? title : '$title • $artist',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
+                fontSize: 13,
+                color: secondaryTextColor,
+                decoration: TextDecoration.none,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          const SizedBox(height: 8),
-          _buildSourceOption(
-            'best',
-            'Best Quality',
-            'JioSaavn 320k if available, YouTube otherwise',
-            colorScheme,
-            isIOS,
-            selectionColor,
-          ),
-          _buildSourceOption(
-            'saavn',
-            'JioSaavn',
-            '320k AAC',
-            colorScheme,
-            isIOS,
-            selectionColor,
-          ),
-          _buildSourceOption(
-            'youtube',
-            'YouTube',
-            'Up to 160k Opus',
-            colorScheme,
-            isIOS,
-            selectionColor,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Quality',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: colorScheme.onSurfaceVariant,
-              letterSpacing: 0.5,
+            const SizedBox(height: 20),
+            Text(
+              'SOURCE',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: secondaryTextColor,
+                letterSpacing: 0.5,
+                decoration: TextDecoration.none,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
+            const SizedBox(height: 8),
+            _buildSourceOption('saavn', 'JioSaavn 320k Lossless', 'High-definition 320 kbps AAC stream', isDark, primaryColor, cardBg, textColor, secondaryTextColor),
+            _buildSourceOption('youtube', 'YouTube Music', 'Standard 160 kbps Opus/AAC stream', isDark, primaryColor, cardBg, textColor, secondaryTextColor),
+            const SizedBox(height: 16),
+            Text(
+              'BITRATE',
+              style: TextStyle(
+                fontFamily: MusifiedStyle.uiFont,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: secondaryTextColor,
+                letterSpacing: 0.5,
+                decoration: TextDecoration.none,
+              ),
             ),
-            child: Row(
-              children: [
-                for (final q in ['128', '160', '320'])
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedQuality = q),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                          color: _selectedQuality == q
-                              ? selectionColor
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          '$q kbps',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: _selectedQuality == q
-                                ? (isIOS
-                                      ? CupertinoColors.white
-                                      : colorScheme.onPrimary)
-                                : colorScheme.onSurfaceVariant,
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  for (final q in ['128', '160', '320'])
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedQuality = q),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: _selectedQuality == q ? primaryColor : const Color(0x00000000),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '$q kbps',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontFamily: MusifiedStyle.uiFont,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: _selectedQuality == q ? CupertinoColors.white : secondaryTextColor,
+                              decoration: TextDecoration.none,
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity,
-            child: isIOS
-                ? CupertinoButton.filled(
-                    borderRadius: BorderRadius.circular(12),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      widget.onDownload(_selectedSource, _selectedQuality);
-                    },
-                    child: const Text(
-                      'Download',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  )
-                : ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: colorScheme.primary,
-                      foregroundColor: colorScheme.onPrimary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(context);
-                      widget.onDownload(_selectedSource, _selectedQuality);
-                    },
-                    child: const Text(
-                      'Download',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-          ),
-          const SizedBox(height: 4),
-        ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoButton.filled(
+                borderRadius: BorderRadius.circular(12),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                onPressed: () {
+                  Navigator.pop(context);
+                  widget.onDownload(_selectedSource, _selectedQuality);
+                },
+                child: const Text(
+                  'Download Now',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildSourceOption(
     String value,
     String title,
     String subtitle,
-    ColorScheme cs,
-    bool isIOS,
-    Color selectionColor,
+    bool isDark,
+    Color primaryColor,
+    Color cardBg,
+    Color textColor,
+    Color secondaryTextColor,
   ) {
     final selected = _selectedSource == value;
     return GestureDetector(
       onTap: () => setState(() => _selectedSource = value),
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected
-              ? selectionColor.withValues(alpha: 0.10)
-              : cs.surfaceContainerHighest,
+          color: selected ? primaryColor.withValues(alpha: 0.12) : cardBg,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: selected
-                ? selectionColor.withValues(alpha: 0.4)
-                : Colors.transparent,
+            color: selected ? primaryColor : const Color(0x00000000),
             width: 1.5,
           ),
         ),
         child: Row(
           children: [
             Icon(
-              selected
-                  ? (isIOS
-                        ? CupertinoIcons.checkmark_alt_circle_fill
-                        : Icons.check_circle)
-                  : (isIOS
-                        ? CupertinoIcons.circle
-                        : Icons.radio_button_unchecked),
-              color: selected
-                  ? selectionColor
-                  : cs.onSurfaceVariant.withValues(alpha: 0.5),
+              selected ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
+              color: selected ? primaryColor : secondaryTextColor,
               size: 22,
             ),
             const SizedBox(width: 12),
@@ -250,15 +202,22 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                   Text(
                     title,
                     style: TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
-                      color: selected ? selectionColor : cs.onSurface,
+                      color: selected ? primaryColor : textColor,
+                      decoration: TextDecoration.none,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+                    style: TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      fontSize: 12,
+                      color: secondaryTextColor,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ],
               ),
@@ -275,30 +234,16 @@ Future<void> showDownloadPicker(
   Map song,
   void Function(String source, String quality) onDownload,
 ) {
-  final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
-  if (isIOS) {
-    return showCupertinoModalPopup(
-      context: context,
-      builder: (ctx) => DecoratedBox(
-        decoration: BoxDecoration(
-          color: Theme.of(ctx).colorScheme.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: DownloadPickerSheet(song: song, onDownload: onDownload),
-        ),
-      ),
-    );
-  }
-  return showModalBottomSheet(
+  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+
+  return showCupertinoModalPopup<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Theme.of(context).colorScheme.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    builder: (ctx) => Container(
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: DownloadPickerSheet(song: song, onDownload: onDownload),
     ),
-    builder: (context) =>
-        DownloadPickerSheet(song: song, onDownload: onDownload),
   );
 }

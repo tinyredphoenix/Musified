@@ -1,36 +1,14 @@
-/*
- *     Copyright (C) 2026 Valeri Gokadze
- *
- *     Musify is free software: you can redistribute it and/or modify
- *     it under the terms of the GNU General Public License as published by
- *     the Free Software Foundation, either version 3 of the License, or
- *     (at your option) any later version.
- *
- *     Musify is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- *     You should have received a copy of the GNU General Public License
- *     along with this program.  If not, see <https://www.gnu.org/licenses/>.
- *
- *
- *     For more information about Musify, including how to contribute,
- *     please visit: https://github.com/gokadzev/Musify
- */
-
+import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:material_ui/material_ui.dart';
-import 'package:musify/constants/app_constants.dart';
-import 'package:musify/extensions/l10n.dart';
-import 'package:musify/main.dart';
-import 'package:musify/services/settings_manager.dart';
-import 'package:musify/utilities/flutter_bottom_sheet.dart'
-    show closeCurrentBottomSheet;
-import 'package:musify/widgets/mini_player.dart';
+import 'package:musified/constants/app_constants.dart';
+import 'package:musified/extensions/l10n.dart';
+import 'package:musified/main.dart';
+import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/flutter_bottom_sheet.dart' show closeCurrentBottomSheet;
+import 'package:musified/widgets/mini_player.dart';
 
 class BottomNavigationPage extends StatefulWidget {
   const BottomNavigationPage({required this.child, super.key});
@@ -44,23 +22,24 @@ class BottomNavigationPage extends StatefulWidget {
 class _BottomNavigationPageState extends State<BottomNavigationPage> {
   Stream<bool> get _miniPlayerVisibilityStream {
     if (!isAudioHandlerInitialized) return Stream.value(false);
-    return audioHandler.mediaItem
-        .map((mediaItem) => mediaItem != null)
-        .distinct();
+    return audioHandler.mediaItem.map((mediaItem) => mediaItem != null).distinct();
   }
 
   bool? _previousOfflineMode;
-
-  /// Track the previously selected shell branch to detect reselects.
   int? _previousShellIndex;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final activeColor = const Color(0xFFFF2D55);
+    final inactiveColor = isDark ? const Color(0x80FFFFFF) : const Color(0x80000000);
+    final barBg = isDark ? const Color(0xB3121214) : const Color(0xB3F2F2F7);
+    final border = isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000);
+
     return PopScope(
       canPop: widget.child.currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
-
         final currentIndex = widget.child.currentIndex;
         if (currentIndex != 0) {
           widget.child.goBranch(0);
@@ -71,8 +50,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
       child: ValueListenableBuilder<bool>(
         valueListenable: offlineMode,
         builder: (context, isOfflineMode, _) {
-          if (_previousOfflineMode != null &&
-              _previousOfflineMode != isOfflineMode) {
+          if (_previousOfflineMode != null && _previousOfflineMode != isOfflineMode) {
             SchedulerBinding.instance.addPostFrameCallback((_) {
               _handleOfflineModeChange(isOfflineMode);
             });
@@ -81,76 +59,73 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
           final items = _getNavigationItems(isOfflineMode);
 
-          return Scaffold(
-            extendBody: true,
-            body: SafeArea(
-              child: StreamBuilder<bool>(
-                initialData: false,
-                stream: _miniPlayerVisibilityStream,
-                builder: (context, snapshot) {
-                  final mediaQuery = MediaQuery.of(context);
-                  final isMiniPlayerVisible = snapshot.data ?? false;
-                  final bottomPadding = !isMiniPlayerVisible
-                      ? mediaQuery.padding.bottom
-                      : mediaQuery.padding.bottom +
-                            miniPlayerTotalHeight;
+          return CupertinoPageScaffold(
+            backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: StreamBuilder<bool>(
+                    initialData: false,
+                    stream: _miniPlayerVisibilityStream,
+                    builder: (context, snapshot) {
+                      final mediaQuery = MediaQuery.of(context);
+                      final isMiniPlayerVisible = snapshot.data ?? false;
+                      final bottomPadding = isMiniPlayerVisible
+                          ? mediaQuery.padding.bottom + miniPlayerTotalHeight
+                          : mediaQuery.padding.bottom + 54;
 
-                  return Stack(
-                    alignment: Alignment.bottomCenter,
-                    children: [
-                      MediaQuery(
+                      return MediaQuery(
                         data: mediaQuery.copyWith(
-                          padding: mediaQuery.padding.copyWith(
-                            bottom: bottomPadding,
-                          ),
+                          padding: mediaQuery.padding.copyWith(bottom: bottomPadding),
                         ),
                         child: widget.child,
-                      ),
-                      const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 8,
-                        ),
-                        child: MiniPlayer(),
-                      ),
-                    ],
-                  );
-                },
-              ),
-            ),
-            bottomNavigationBar: CupertinoTheme(
-              data: CupertinoThemeData(
-                brightness: Theme.of(context).brightness,
-                primaryColor: Theme.of(context).colorScheme.primary,
-              ),
-              child: CupertinoTabBar(
-                currentIndex: _getCurrentIndex(items, isOfflineMode),
-                onTap: (index) => _onTabTapped(index, items),
-                activeColor: Theme.of(context).colorScheme.primary,
-                inactiveColor: Theme.of(context)
-                    .colorScheme
-                    .onSurfaceVariant
-                    .withValues(alpha: 0.55),
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                iconSize: 24,
-                border: Border(
-                  top: BorderSide(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .outlineVariant,
-                    width: 0.5,
+                      );
+                    },
                   ),
                 ),
-                items: items
-                    .map(
-                      (item) => BottomNavigationBarItem(
-                        icon: Icon(item.icon),
-                        activeIcon: Icon(item.selectedIcon),
-                        label: item.label,
+
+                // Floating MiniPlayer + TabBar
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const MiniPlayer(),
+                      ClipRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 25, sigmaY: 25),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: barBg,
+                              border: Border(top: BorderSide(color: border, width: 0.5)),
+                            ),
+                            child: CupertinoTabBar(
+                              currentIndex: _getCurrentIndex(items, isOfflineMode),
+                              onTap: (index) => _onTabTapped(index, items),
+                              activeColor: activeColor,
+                              inactiveColor: inactiveColor,
+                              backgroundColor: const Color(0x00000000),
+                              iconSize: 22,
+                              border: null,
+                              items: items
+                                  .map(
+                                    (item) => BottomNavigationBarItem(
+                                      icon: Icon(item.icon),
+                                      activeIcon: Icon(item.selectedIcon),
+                                      label: item.label,
+                                    ),
+                                  )
+                                  .toList(),
+                            ),
+                          ),
+                        ),
                       ),
-                    )
-                    .toList(),
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -168,7 +143,6 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
       ),
     ];
 
-    // Only add search tab in online mode
     if (!isOfflineMode) {
       items.add(
         _NavigationItem(
@@ -200,12 +174,8 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
   void _handleOfflineModeChange(bool isOfflineMode) {
     if (!mounted) return;
-
     final currentRoute = GoRouterState.of(context).matchedLocation;
-
-    // If we're switching to offline mode and currently on search tab
     if (isOfflineMode && currentRoute.startsWith('/search')) {
-      // Navigate to home
       widget.child.goBranch(0);
     }
   }
@@ -214,40 +184,24 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
     if (index < items.length) {
       final item = items[index];
       final isReselect = _previousShellIndex == item.shellIndex;
-
       HapticFeedback.selectionClick();
-
-      // Close any open bottom sheet before switching tabs
       closeCurrentBottomSheet();
 
-      // If user taps the same tab again, reset it to initial state.
-      // Otherwise, preserve the branch state.
       if (isReselect) {
         widget.child.goBranch(item.shellIndex, initialLocation: true);
       } else {
         widget.child.goBranch(item.shellIndex);
       }
-
       _previousShellIndex = item.shellIndex;
     }
   }
 
   int _getCurrentIndex(List<_NavigationItem> items, bool isOfflineMode) {
     final currentShellIndex = widget.child.currentIndex;
-
     if (items.isEmpty) return 0;
-
-    // Try to find the current shell index in the available items
-    final matchedIndex = items.indexWhere(
-      (item) => item.shellIndex == currentShellIndex,
-    );
+    final matchedIndex = items.indexWhere((item) => item.shellIndex == currentShellIndex);
     if (matchedIndex != -1) return matchedIndex;
-
-    // If the Search branch (1) is active but Search is hidden in offline mode,
-    // fall back to the Home tab.
     if (isOfflineMode && currentShellIndex == 1) return 0;
-
-    // Final fallback: return the first tab to keep UI in a valid state.
     return 0;
   }
 }

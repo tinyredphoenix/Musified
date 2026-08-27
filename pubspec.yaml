@@ -1,8 +1,8 @@
-name: musify
-description: Music Streaming app made in Flutter!
-homepage: https://github.com/gokadzev/Musify
-repository: https://github.com/gokadzev/Musify
-issue_tracker: https://github.com/gokadzev/Musify/issues
+name: musified
+description: Premium iOS Streaming App with YouTube Music & JioSaavn Lossless Audio
+homepage: https://github.com/tinyredphoenix/Musified
+repository: https://github.com/tinyredphoenix/Musified
+issue_tracker: https://github.com/tinyredphoenix/Musified/issues
 
 publish_to: 'none'
 version: 20.2.0+22
@@ -32,7 +32,6 @@ dependencies:
   http: ^1.6.0
   intl: ^0.20.2
   just_audio: ^0.10.6
-  material_ui: ^1.0.1
   path_provider: ^2.1.6
   rxdart: ^0.28.0
   share_plus: ^13.3.0
@@ -46,13 +45,10 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  # flutter_lints: ^2.0.0
-
 flutter:
   generate: true
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
   assets:
     - assets/licenses/
     - assets/icons/musify_icon.png
