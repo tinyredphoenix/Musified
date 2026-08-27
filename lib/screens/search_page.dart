@@ -3,8 +3,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:musified/constants/app_constants.dart';
-import 'package:musified/extensions/l10n.dart';
 import 'package:musified/main.dart';
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/data_manager.dart';
@@ -233,9 +231,9 @@ class _SearchPageState extends State<SearchPage> {
                       ),
                       ..._artistsSearchResult.map(
                         (a) => ArtistBar(
-                          artist: a is Map ? a : {},
+                          artist: a,
                           onTap: () {
-                            if (a is Map && a['ytid'] != null) {
+                            if (a['ytid'] != null) {
                               context.push(
                                 NavigationManager.artistPath(context, a['ytid'].toString()),
                                 extra: a,
@@ -252,8 +250,8 @@ class _SearchPageState extends State<SearchPage> {
                       ),
                       ..._playlistsSearchResult.map(
                         (p) => PlaylistBar(
-                          p is Map ? (p['title']?.toString() ?? 'Playlist') : 'Playlist',
-                          playlistData: p is Map ? p : null,
+                          p['title']?.toString() ?? 'Playlist',
+                          playlistData: p,
                         ),
                       ),
                     ],
@@ -263,9 +261,9 @@ class _SearchPageState extends State<SearchPage> {
               ),
             )
           else
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 60),
+                padding: EdgeInsets.symmetric(vertical: 60),
                 child: Center(
                   child: Text(
                     'No results found',

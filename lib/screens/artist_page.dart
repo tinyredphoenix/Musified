@@ -48,7 +48,6 @@ class _ArtistPageState extends State<ArtistPage> {
   Map<String, dynamic>? _catalog;
   Future<Map?>? _catalogFuture;
   List<Map<String, dynamic>> _topSongs = const [];
-  List<String?> _topSongPlayCounts = const [];
   List<Map<String, dynamic>> _albums = const [];
   List<Map<String, dynamic>> _singles = const [];
   List<Map<String, dynamic>> _relatedArtists = const [];
@@ -167,9 +166,6 @@ class _ArtistPageState extends State<ArtistPage> {
     _topSongs = [
       for (final entry in topSongs)
         Map<String, dynamic>.from(entry['song'] as Map),
-    ];
-    _topSongPlayCounts = [
-      for (final entry in topSongs) entry['playCount']?.toString(),
     ];
     _relatedArtists = asMapList(artist['relatedArtists']);
     // Split the discography once per load: the two shelves are rebuilt on every

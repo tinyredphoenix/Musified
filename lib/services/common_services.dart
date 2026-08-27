@@ -113,7 +113,7 @@ void reloadSongLibraryStateFromStorage() {
 }
 
 // Timeouts and durations used across manifest fetching and cache validation.
-const Duration _manifestTimeout = Duration(seconds: 8);
+const Duration _manifestTimeout = Duration(seconds: 3);
 const Duration _cacheValidationDuration = Duration(hours: 1);
 
 String _songStreamCacheKey(String songId, String source) =>
@@ -229,32 +229,6 @@ Future<String?> _getCachedSongUrl(
   }
 
   return cachedUrl;
-}
-
-/// Checks if a cached URL still responds successfully.
-Future<bool> _validateCachedUrl(
-  String cachedUrl, {
-  String? userAgent,
-}) async {
-  try {
-    final response = await http
-        .head(
-          Uri.parse(cachedUrl),
-          headers: {
-            if (userAgent != null && userAgent.isNotEmpty)
-              'User-Agent': userAgent,
-          },
-        )
-        .timeout(const Duration(seconds: 5));
-    final code = response.statusCode;
-    if (code >= 200 && code < 400) return true;
-    // Some CDNs reject HEAD; don't treat that as expiry.
-    if (code == 405 || code == 501) return true;
-    return false;
-  } catch (_) {
-    // Network blip — keep the URL; a later play will invalidate on 403.
-    return true;
-  }
 }
 
 Future<List> fetchSongsList(String searchQuery) async {
@@ -842,24 +816,15 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       if (metadata is Map && metadata['source'] == preference) {
         final isBadHeAac = preference == 'youtube' && _isCachedHeAacYoutube(metadata);
         if (!isBadHeAac) {
-          final stillValid = await _validateCachedUrl(
-            cachedUrl,
-            userAgent: metadata['userAgent']?.toString(),
-          );
-          if (stillValid) {
-            song['resolvedSource'] = preference;
-            song['resolvedBitrate'] = metadata['bitrate'];
-            song['resolvedFormat'] = metadata['format'];
-            song['resolvedUserAgent'] = metadata['userAgent'];
-            if (preference == 'youtube') {
-              await ensureYoutubeCatalogDuration(song);
-            }
-            logger.log(
-              'Using cached $preference URL for $songId',
-              data: {'host': Uri.tryParse(cachedUrl)?.host},
-            );
-            return cachedUrl;
+          song['resolvedSource'] = preference;
+          song['resolvedBitrate'] = metadata['bitrate'];
+          song['resolvedFormat'] = metadata['format'];
+          song['resolvedUserAgent'] = metadata['userAgent'];
+          if (preference == 'youtube') {
+            unawaited(ensureYoutubeCatalogDuration(song));
           }
+          logger.log('Using cached $preference URL for $songId');
+          return cachedUrl;
         }
       }
       await invalidateSongStreamCache(songId);
@@ -921,7 +886,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       'itag': selectedStream.tag,
       'userAgent': userAgent,
     });
-    await ensureYoutubeCatalogDuration(song);
+    unawaited(ensureYoutubeCatalogDuration(song));
     logger.log('Resolved YouTube stream: host=${Uri.tryParse(url)?.host}');
     return url;
   } on TimeoutException catch (_) {

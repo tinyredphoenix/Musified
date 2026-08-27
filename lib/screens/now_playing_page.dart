@@ -1,7 +1,6 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:musified/main.dart';
-import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/flip_card.dart';
 import 'package:musified/widgets/now_playing/bottom_actions_row.dart';
 import 'package:musified/widgets/now_playing/now_playing_artwork.dart';

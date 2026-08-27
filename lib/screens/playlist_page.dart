@@ -12,7 +12,6 @@ import 'package:musified/services/playlist_sharing.dart';
 import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/theme/musified_style.dart';
-import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/playlist_utils.dart';
 import 'package:musified/utilities/song_filtering.dart';
@@ -28,7 +27,6 @@ import 'package:musified/widgets/playlist_page/playlist_action_buttons.dart';
 import 'package:musified/widgets/playlist_page/playlist_header.dart';
 import 'package:musified/widgets/song_tile.dart';
 import 'package:musified/widgets/sort_chips.dart';
-import 'package:musified/widgets/spinner.dart';
 
 enum PlaylistSortType { default_, title, artist, dateAdded }
 
@@ -222,21 +220,25 @@ class _PlaylistPageState extends State<PlaylistPage> {
     );
   }
 
-  String get _playlistTitle => widget.isArtist
-      ? normalizeArtistDisplayTitle(_playlist['title']?.toString() ?? '')
-      : _playlist['title']?.toString() ?? '';
+  String get _playlistTitle {
+    final rawTitle = _playlist?['title']?.toString() ??
+        widget.playlistData?['title']?.toString() ??
+        '';
+    return widget.isArtist ? normalizeArtistDisplayTitle(rawTitle) : rawTitle;
+  }
 
   Widget _buildPlaylistImage() {
     final screenWidth = MediaQuery.sizeOf(context).width;
     final isLandscape = screenWidth > MediaQuery.sizeOf(context).height;
+    final basePlaylist = _playlist ?? widget.playlistData ?? const {};
     final playlist = widget.isArtist
         ? {
-            ..._playlist,
+            ...basePlaylist,
             'image': normalizeArtistThumbnailUrl(
-              _playlist['image']?.toString(),
+              basePlaylist['image']?.toString(),
             ),
           }
-        : _playlist;
+        : basePlaylist;
     return PlaylistCube(
       playlist,
       size: isLandscape ? 250 : screenWidth / commonPlaylistArtworkDivision,
@@ -245,26 +247,10 @@ class _PlaylistPageState extends State<PlaylistPage> {
     );
   }
 
-  Widget _buildPlaylistHeroArtwork() {
-    final image = _buildPlaylistImage();
-    if (widget.isArtist) return ClipOval(child: image);
-
-    return ClipPath(
-      clipper: const ShapeBorderClipper(
-        shape: StarBorder(
-          points: 8,
-          pointRounding: 0.8,
-          valleyRounding: 0.2,
-          innerRadiusRatio: 0.6,
-        ),
-      ),
-      child: image,
-    );
-  }
-
   Widget _buildHeaderSection() {
-    final songsLength = (_playlist['list'] as List? ?? const []).length;
-    final isUserCreated = _playlist['source'] == 'user-created';
+    final playlist = _playlist ?? widget.playlistData ?? const {};
+    final songsLength = (playlist['list'] as List? ?? const []).length;
+    final isUserCreated = playlist['source'] == 'user-created';
     final hasSecondaryActions =
         (widget.playlistId != null && !isUserCreated && !offlineMode.value) ||
         !offlineMode.value ||
@@ -276,7 +262,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
           _buildPlaylistImage(),
           _playlistTitle,
           songsLength: songsLength,
-          isAlbum: _playlist['isAlbum'] == true,
+          isAlbum: playlist['isAlbum'] == true,
           isArtist: widget.isArtist,
           showImage: false,
           showTitle: false,
@@ -284,11 +270,11 @@ class _PlaylistPageState extends State<PlaylistPage> {
         if (songsLength > 0)
           PlaylistActionButtons(
             onPlay: () => audioHandler.playPlaylistSong(
-              playlist: _playlist,
+              playlist: playlist,
               songIndex: 0,
             ),
             onShuffle: () async {
-              final songs = _playlist['list'] as List? ?? [];
+              final songs = playlist['list'] as List? ?? [];
               if (songs.isEmpty) return;
               await audioHandler.addPlaylistToQueue(
                 List<Map>.from(songs.whereType<Map>())..shuffle(),
@@ -629,10 +615,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
     bool isRemovable,
     List sourceList,
   ) {
-    final totalItems = sourceList.length;
-    final borderRadius = getItemBorderRadius(index, totalItems);
-    final isUserCreatedPlaylist = _playlist?['source'] == 'user-created';
-    final playlistId = isUserCreatedPlaylist ? _playlist!['ytid'] : null;
     final isSearching = _searchQueryNotifier.value.isNotEmpty;
     final fullIndex = isSearching
         ? PlaylistUtils.findSongIndexByYtid(_playlist, song['ytid'])

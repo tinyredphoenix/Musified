@@ -65,12 +65,18 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
           final minutes = int.parse(match.group(1)!);
           final seconds = int.parse(match.group(2)!);
           final millisStr = match.group(3)!;
-          final millis = millisStr.length == 2 ? int.parse(millisStr) * 10 : int.parse(millisStr);
+          final millis = millisStr.length == 2
+              ? int.parse(millisStr) * 10
+              : int.parse(millisStr);
           final text = match.group(4)!.trim();
 
           if (text.isNotEmpty) {
             parsed.add((
-              time: Duration(minutes: minutes, seconds: seconds, milliseconds: millis),
+              time: Duration(
+                minutes: minutes,
+                seconds: seconds,
+                milliseconds: millis,
+              ),
               text: text,
             ));
           }
@@ -107,7 +113,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     final lyrics = _parsedLyrics!;
     var idx = -1;
     for (var i = 0; i < lyrics.length; i++) {
-      if (position.inMilliseconds + 200 >= lyrics[i].time.inMilliseconds) {
+      if (position.inMilliseconds + 250 >= lyrics[i].time.inMilliseconds) {
         idx = i;
       } else {
         break;
@@ -134,13 +140,13 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   void _scrollToCurrentLine() {
     if (_scrollController.hasClients && _currentIndex >= 0) {
-      final targetOffset = (_currentIndex * 68.0).clamp(
+      final targetOffset = (_currentIndex * 64.0).clamp(
         0.0,
         _scrollController.position.maxScrollExtent,
       );
       _scrollController.animateTo(
         targetOffset,
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 400),
         curve: Curves.easeOutCubic,
       );
     }
@@ -149,7 +155,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   void _onUserScroll() {
     _userIsScrolling = true;
     _userScrollHoldTimer?.cancel();
-    _userScrollHoldTimer = Timer(const Duration(seconds: 4), () {
+    _userScrollHoldTimer = Timer(const Duration(milliseconds: 4500), () {
       if (mounted) {
         _userIsScrolling = false;
         _scrollToCurrentLine();
@@ -166,25 +172,64 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   @override
   Widget build(BuildContext context) {
-    if (_parsedLyrics == null) {
-      return SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
-        physics: const BouncingScrollPhysics(),
-        child: Text(
-          widget.lyrics,
-          style: const TextStyle(
-            fontFamily: MusifiedStyle.displayFont,
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-            color: CupertinoColors.white,
-            height: 1.6,
-            decoration: TextDecoration.none,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      );
-    }
+    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final activeTextColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+    final pastTextColor = isDark ? const Color(0x99FFFFFF) : const Color(0x99000000);
+    final upcomingTextColor = isDark ? const Color(0x3DFFFFFF) : const Color(0x33000000);
+    final glowColor = isDark ? const Color(0x80FFFFFF) : const Color(0x29000000);
 
+    // Apply Apple Music vertical gradient mask
+    return ShaderMask(
+      shaderCallback: (Rect bounds) {
+        return const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Color(0x00000000),
+            Color(0xFF000000),
+            Color(0xFF000000),
+            Color(0x00000000),
+          ],
+          stops: [0.0, 0.12, 0.88, 1.0],
+        ).createShader(bounds);
+      },
+      blendMode: BlendMode.dstIn,
+      child: _parsedLyrics == null
+          ? _buildPlainLyricsView(activeTextColor)
+          : _buildSyncedLyricsView(
+              activeTextColor,
+              pastTextColor,
+              upcomingTextColor,
+              glowColor,
+            ),
+    );
+  }
+
+  Widget _buildPlainLyricsView(Color textColor) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      physics: const BouncingScrollPhysics(),
+      child: Text(
+        widget.lyrics,
+        style: TextStyle(
+          fontFamily: MusifiedStyle.displayFont,
+          fontSize: 20,
+          fontWeight: FontWeight.w600,
+          color: textColor,
+          height: 1.6,
+          decoration: TextDecoration.none,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _buildSyncedLyricsView(
+    Color activeTextColor,
+    Color pastTextColor,
+    Color upcomingTextColor,
+    Color glowColor,
+  ) {
     final lyrics = _parsedLyrics!;
     final screenHeight = MediaQuery.sizeOf(context).height;
 
@@ -198,8 +243,8 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
       child: ListView.builder(
         controller: _scrollController,
         padding: EdgeInsets.symmetric(
-          vertical: screenHeight * 0.35,
-          horizontal: 24,
+          vertical: screenHeight * 0.32,
+          horizontal: 20,
         ),
         physics: const BouncingScrollPhysics(),
         itemCount: lyrics.length,
@@ -220,30 +265,31 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
               _scrollToCurrentLine();
             },
             child: AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.symmetric(vertical: isCurrent ? 14 : 10),
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.symmetric(
+                vertical: isCurrent ? 14 : 9,
+                horizontal: 8,
+              ),
               alignment: Alignment.center,
               child: AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOut,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
                 style: TextStyle(
                   fontFamily: MusifiedStyle.displayFont,
-                  fontSize: isCurrent ? 24 : 20,
-                  fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w600,
-                  letterSpacing: isCurrent ? -0.2 : -0.1,
+                  fontSize: isCurrent ? 25 : 20,
+                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                  letterSpacing: isCurrent ? -0.3 : -0.1,
                   color: isCurrent
-                      ? CupertinoColors.white
-                      : (isPast
-                          ? const Color(0x99FFFFFF)
-                          : const Color(0x4DFFFFFF)),
-                  height: 1.3,
+                      ? activeTextColor
+                      : (isPast ? pastTextColor : upcomingTextColor),
+                  height: 1.28,
                   decoration: TextDecoration.none,
                   shadows: isCurrent
-                      ? const [
+                      ? [
                           Shadow(
-                            color: Color(0x66FFFFFF),
-                            blurRadius: 12,
+                            color: glowColor,
+                            blurRadius: 16,
                           ),
                         ]
                       : null,

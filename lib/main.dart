@@ -23,7 +23,6 @@ import 'package:musified/services/source_resolver.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
 import 'package:musified/theme/app_themes.dart';
-import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/language_utils.dart';
 import 'package:musified/utilities/playlist_utils.dart';

@@ -4,8 +4,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:musified/constants/app_constants.dart';
-import 'package:musified/extensions/l10n.dart';
-import 'package:musified/main.dart' show logger;
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/playlist_download_service.dart';
 import 'package:musified/services/playlists_manager.dart';
@@ -14,11 +12,8 @@ import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
 import 'package:musified/theme/musified_style.dart';
-import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/flutter_toast.dart';
-import 'package:musified/utilities/offline_playlist_dialogs.dart';
 import 'package:musified/utilities/playlist_dialogs.dart';
-import 'package:musified/utilities/playlist_utils.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
 import 'package:musified/widgets/playlist_bar.dart';
 import 'package:musified/widgets/section_header.dart';
@@ -284,8 +279,8 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
       const SizedBox(height: 8),
       ...custom.map((p) => PlaylistBar(
-        p is Map ? (p['title']?.toString() ?? 'Playlist') : 'Playlist',
-        playlistData: p is Map ? p : null,
+        p['title']?.toString() ?? 'Playlist',
+        playlistData: p,
       )),
     ];
   }

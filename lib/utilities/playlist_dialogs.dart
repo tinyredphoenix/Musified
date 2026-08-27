@@ -131,7 +131,7 @@ void showAddToPlaylistDialog(
           ),
         ),
         ...userCustomPlaylists.value.map((playlist) {
-          final p = playlist is Map ? playlist : const <String, dynamic>{};
+          final p = playlist;
           final name = p['title']?.toString() ?? 'Custom Playlist';
           final id = p['id']?.toString() ?? p['ytid']?.toString() ?? '';
 
