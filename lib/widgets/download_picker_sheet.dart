@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/source_resolver.dart';
 import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/mediaitem.dart';
+import 'package:musified/widgets/song_artwork.dart';
 
 class DownloadPickerSheet extends StatefulWidget {
   const DownloadPickerSheet({
@@ -97,10 +99,10 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
       top: false,
       child: Padding(
         padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
+          left: 18,
+          right: 18,
           top: 14,
-          bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 18,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -116,37 +118,59 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Download Track',
-              style: TextStyle(
-                fontFamily: MusifiedStyle.displayFont,
-                fontSize: 20,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-                letterSpacing: -0.3,
-                decoration: TextDecoration.none,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              artist.isEmpty ? title : '$title • $artist',
-              style: const TextStyle(
-                fontFamily: MusifiedStyle.uiFont,
-                fontSize: 13,
-                color: secondaryTextColor,
-                decoration: TextDecoration.none,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
             const SizedBox(height: 18),
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: SongArtworkWidget(
+                    metadata: mapToMediaItem(widget.song),
+                    size: 54,
+                    errorWidgetIconSize: 24,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontFamily: MusifiedStyle.displayFont,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: textColor,
+                          letterSpacing: -0.3,
+                          decoration: TextDecoration.none,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        artist.isEmpty ? 'Musified' : artist,
+                        style: const TextStyle(
+                          fontFamily: MusifiedStyle.uiFont,
+                          fontSize: 13,
+                          color: secondaryTextColor,
+                          decoration: TextDecoration.none,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
             const Text(
               'AUDIO PROVIDER',
               style: TextStyle(
                 fontFamily: MusifiedStyle.uiFont,
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w700,
                 color: secondaryTextColor,
                 letterSpacing: 0.5,
                 decoration: TextDecoration.none,
@@ -155,12 +179,12 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
             const SizedBox(height: 8),
             _buildSourceOption(
               value: 'saavn',
-              title: 'JioSaavn Lossless',
+              title: 'JioSaavn Studio Master',
               subtitle: _isCheckingSaavn
                   ? 'Checking availability...'
                   : (_isSaavnAvailable
-                      ? 'Studio Master 320 kbps AAC'
-                      : 'Not available on JioSaavn for this track'),
+                      ? 'Lossless 320 kbps AAC stream'
+                      : 'Unavailable on JioSaavn for this track'),
               icon: CupertinoIcons.waveform,
               iconBg: CupertinoColors.systemGreen,
               isEnabled: !_isCheckingSaavn && _isSaavnAvailable,
@@ -172,8 +196,8 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
             ),
             _buildSourceOption(
               value: 'youtube',
-              title: 'YouTube Music',
-              subtitle: 'Original Stream (Max 160 kbps Opus/AAC)',
+              title: 'YouTube Music Original',
+              subtitle: 'Standard Stream (Max 160 kbps Opus/AAC)',
               icon: CupertinoIcons.play_rectangle_fill,
               iconBg: const Color(0xFFFF0033),
               isEnabled: true,
@@ -192,7 +216,7 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                   style: TextStyle(
                     fontFamily: MusifiedStyle.uiFont,
                     fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: secondaryTextColor,
                     letterSpacing: 0.5,
                     decoration: TextDecoration.none,
@@ -200,10 +224,10 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                 ),
                 Text(
                   _selectedSource == 'saavn' ? '320k Lossless' : 'YouTube Max 160k',
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontFamily: MusifiedStyle.uiFont,
                     fontSize: 11,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: primaryColor,
                     decoration: TextDecoration.none,
                   ),
@@ -236,7 +260,7 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontFamily: MusifiedStyle.uiFont,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               fontSize: 13,
                               color: _selectedQuality == q ? CupertinoColors.white : secondaryTextColor,
                               decoration: TextDecoration.none,
@@ -260,14 +284,21 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
                   Navigator.pop(context);
                   widget.onDownload(_selectedSource, _selectedQuality);
                 },
-                child: const Text(
-                  'Download Now',
-                  style: TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
-                    color: CupertinoColors.white,
-                  ),
+                child: const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(CupertinoIcons.arrow_down_circle_fill, color: CupertinoColors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Download Track',
+                      style: TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        color: CupertinoColors.white,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -321,11 +352,11 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
           child: Row(
             children: [
               Container(
-                width: 32,
-                height: 32,
+                width: 34,
+                height: 34,
                 decoration: BoxDecoration(
                   color: iconBg,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: Icon(icon, color: CupertinoColors.white, size: 18),
               ),

@@ -26,7 +26,7 @@ final shouldWeCheckUpdates = ValueNotifier<bool?>(
 );
 
 final playNextSongAutomatically = ValueNotifier<bool>(
-  _safeBoxGet<bool>('playNextSongAutomatically', false),
+  _safeBoxGet<bool>('playNextSongAutomatically', true),
 );
 
 final useSystemColor = ValueNotifier<bool>(
@@ -64,7 +64,7 @@ Locale languageSetting = getLocaleFromLanguageCode(
   _safeBoxGet<String>('languageCode', 'en'),
 );
 
-int themeModeSetting = _safeBoxGet<int>('themeIndex', 0);
+final themeModeSetting = ValueNotifier<int>(_safeBoxGet<int>('themeIndex', 0));
 
 String playlistSortSetting = _safeBoxGet<String>(
   'playlistSortType',
@@ -176,7 +176,7 @@ void reloadSettingsFromStorage() {
   );
   final restoredThemeIndex =
       settings.get('themeIndex') ?? settings.get('themeMode') ?? 0;
-  if (restoredThemeIndex is int) themeModeSetting = restoredThemeIndex;
+  if (restoredThemeIndex is int) themeModeSetting.value = restoredThemeIndex;
 
   final restoredLanguageCode = settings.get('languageCode', defaultValue: 'en');
   if (restoredLanguageCode is String) {
@@ -215,6 +215,7 @@ void reloadSettingsFromStorage() {
     repeatNotifier.value = AudioServiceRepeatMode.values[restoredRepeatIndex];
   }
 
+  themeModeSetting.value = settings.get('themeIndex', defaultValue: 0);
   jiosaavnEnabled.value = settings.get('jiosaavnEnabled', defaultValue: true);
   jiosaavnQuality.value = settings.get('jiosaavnQuality', defaultValue: '320');
   preferredSource.value = settings.get('preferredSource', defaultValue: 'auto');

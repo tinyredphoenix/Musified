@@ -74,7 +74,7 @@ class _MusifiedAppState extends State<MusifiedApp> with WidgetsBindingObserver {
     setState(() {
       if (newThemeMode != null) {
         themeMode = newThemeMode;
-        themeModeSetting = newThemeMode.index;
+        themeModeSetting.value = newThemeMode.index;
         brightness = getBrightnessFromThemeMode(newThemeMode);
       }
       if (newLocale != null) {
@@ -106,6 +106,8 @@ class _MusifiedAppState extends State<MusifiedApp> with WidgetsBindingObserver {
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
     offlineMode.addListener(_onOfflineModeChanged);
+    themeModeSetting.addListener(_onThemeChanged);
+    usePureBlackColor.addListener(_onThemeChanged);
 
     try {
       LicenseRegistry.addLicense(() async* {
@@ -144,11 +146,17 @@ class _MusifiedAppState extends State<MusifiedApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     offlineMode.removeListener(_onOfflineModeChanged);
+    themeModeSetting.removeListener(_onThemeChanged);
+    usePureBlackColor.removeListener(_onThemeChanged);
     super.dispose();
   }
 
   void _onOfflineModeChanged() {
-    // Force rebuild when offline mode changes
+    setState(() {});
+  }
+
+  void _onThemeChanged() {
+    syncThemeFromSettings();
     setState(() {});
   }
 

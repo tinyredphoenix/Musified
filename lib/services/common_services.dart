@@ -113,7 +113,7 @@ void reloadSongLibraryStateFromStorage() {
 }
 
 // Timeouts and durations used across manifest fetching and cache validation.
-const Duration _manifestTimeout = Duration(seconds: 3);
+const Duration _manifestTimeout = Duration(seconds: 8);
 const Duration _cacheValidationDuration = Duration(hours: 1);
 
 String _songStreamCacheKey(String songId, String source) =>
@@ -209,7 +209,7 @@ _fetchStreamManifest(String songId) async {
     return (manifest: manifest, client: null);
   } catch (error) {
     logger.log('Default getManifest failed for $songId: $error');
-    rethrow;
+    return null;
   }
 }
 
@@ -790,7 +790,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       return streamInfo;
     }
 
-    const cacheDuration = Duration(hours: 3);
+    const cacheDuration = Duration(minutes: 45);
     final forceSource = song['forceSource']?.toString();
     final requestedPreference = forceSource ?? preferredSource.value;
     final preference = (requestedPreference == 'saavn' || requestedPreference == 'jiosaavn')

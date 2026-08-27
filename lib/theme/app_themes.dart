@@ -10,7 +10,7 @@ Brightness _brightnessCached = getBrightnessFromThemeMode(_themeModeCached);
 
 int _safeInitialThemeIndex() {
   try {
-    return themeModeSetting;
+    return themeModeSetting.value;
   } catch (_) {
     return 0;
   }
@@ -26,7 +26,7 @@ Brightness get brightness => _brightnessCached;
 set brightness(Brightness v) => _brightnessCached = v;
 
 void syncThemeFromSettings() {
-  final m = getThemeMode(themeModeSetting);
+  final m = getThemeMode(themeModeSetting.value);
   _themeModeCached = m;
   _brightnessCached = getBrightnessFromThemeMode(m);
 }

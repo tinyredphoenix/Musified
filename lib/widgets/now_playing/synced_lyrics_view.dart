@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/main.dart' show logger, audioHandler;
 import 'package:musified/theme/musified_style.dart';
+import 'package:musified/widgets/now_playing/full_page_lyrics_modal.dart';
 
 typedef LrcLine = ({Duration time, String text});
 
@@ -13,11 +14,13 @@ class SyncedLyricsView extends StatefulWidget {
     required this.metadata,
     required this.lyrics,
     required this.isActive,
+    this.isFullScreen = false,
   });
 
   final MediaItem metadata;
   final String lyrics;
   final bool isActive;
+  final bool isFullScreen;
 
   @override
   State<SyncedLyricsView> createState() => _SyncedLyricsViewState();
@@ -96,10 +99,17 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   void _startListening() {
     _positionSub?.cancel();
-    final currentPos = audioHandler.playbackState.value.position;
+    // Read live position from audio player directly
+    final currentPos = audioHandler.audioPlayer.position;
     _syncToPosition(currentPos);
 
     _positionSub = audioHandler.audioPlayer.positionStream.listen(_syncToPosition);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _scrollToCurrentLine(instant: true);
+      }
+    });
   }
 
   void _stopListening() {
@@ -138,17 +148,24 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     }
   }
 
-  void _scrollToCurrentLine() {
+  void _scrollToCurrentLine({bool instant = false}) {
     if (_scrollController.hasClients && _currentIndex >= 0) {
-      final targetOffset = (_currentIndex * 64.0).clamp(
+      const lineHeight = 60.0;
+      final viewportHeight = _scrollController.position.viewportDimension;
+      final targetOffset = ((_currentIndex * lineHeight) - (viewportHeight / 2) + (lineHeight / 2)).clamp(
         0.0,
         _scrollController.position.maxScrollExtent,
       );
-      _scrollController.animateTo(
-        targetOffset,
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeOutCubic,
-      );
+
+      if (instant) {
+        _scrollController.jumpTo(targetOffset);
+      } else {
+        _scrollController.animateTo(
+          targetOffset,
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeOutCubic,
+        );
+      }
     }
   }
 
@@ -178,30 +195,57 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     final upcomingTextColor = isDark ? const Color(0x3DFFFFFF) : const Color(0x33000000);
     final glowColor = isDark ? const Color(0x80FFFFFF) : const Color(0x29000000);
 
-    // Apply Apple Music vertical gradient mask
-    return ShaderMask(
-      shaderCallback: (Rect bounds) {
-        return const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0x00000000),
-            Color(0xFF000000),
-            Color(0xFF000000),
-            Color(0x00000000),
-          ],
-          stops: [0.0, 0.12, 0.88, 1.0],
-        ).createShader(bounds);
-      },
-      blendMode: BlendMode.dstIn,
-      child: _parsedLyrics == null
-          ? _buildPlainLyricsView(activeTextColor)
-          : _buildSyncedLyricsView(
-              activeTextColor,
-              pastTextColor,
-              upcomingTextColor,
-              glowColor,
+    return Stack(
+      children: [
+        ShaderMask(
+          shaderCallback: (Rect bounds) {
+            return const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Color(0x00000000),
+                Color(0xFF000000),
+                Color(0xFF000000),
+                Color(0x00000000),
+              ],
+              stops: [0.0, 0.12, 0.88, 1.0],
+            ).createShader(bounds);
+          },
+          blendMode: BlendMode.dstIn,
+          child: _parsedLyrics == null
+              ? _buildPlainLyricsView(activeTextColor)
+              : _buildSyncedLyricsView(
+                  activeTextColor,
+                  pastTextColor,
+                  upcomingTextColor,
+                  glowColor,
+                ),
+        ),
+        if (!widget.isFullScreen)
+          Positioned(
+            top: 10,
+            right: 12,
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                showFullPageLyrics(context, widget.metadata);
+              },
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0x4DFFFFFF) : const Color(0x29000000),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  CupertinoIcons.fullscreen,
+                  color: activeTextColor,
+                  size: 16,
+                ),
+              ),
             ),
+          ),
+      ],
     );
   }
 
@@ -243,7 +287,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
       child: ListView.builder(
         controller: _scrollController,
         padding: EdgeInsets.symmetric(
-          vertical: screenHeight * 0.32,
+          vertical: screenHeight * 0.35,
           horizontal: 20,
         ),
         physics: const BouncingScrollPhysics(),
@@ -277,7 +321,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                 curve: Curves.easeOutCubic,
                 style: TextStyle(
                   fontFamily: MusifiedStyle.displayFont,
-                  fontSize: isCurrent ? 25 : 20,
+                  fontSize: isCurrent ? (widget.isFullScreen ? 28 : 24) : (widget.isFullScreen ? 22 : 19),
                   fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
                   letterSpacing: isCurrent ? -0.3 : -0.1,
                   color: isCurrent

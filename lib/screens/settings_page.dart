@@ -32,7 +32,7 @@ class SettingsPage extends StatelessWidget {
               'Settings',
               style: TextStyle(
                 fontFamily: MusifiedStyle.displayFont,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
               ),
             ),
@@ -46,13 +46,20 @@ class SettingsPage extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildYouTubeAccountSection(context, isDark),
-                  _buildAudioSettingsSection(context, isDark),
+                  _buildThemeSelector(context, isDark),
+                  const SizedBox(height: 20),
+                  _buildYouTubeAccountCard(context, isDark),
+                  const SizedBox(height: 20),
+                  _buildAudioEngineSection(context, isDark),
+                  const SizedBox(height: 20),
                   _buildStorageSection(context, isDark),
+                  const SizedBox(height: 20),
                   _buildAboutSection(context, isDark),
+                  const SizedBox(height: 12),
                   const MiniPlayerBottomSpace(),
                 ],
               ),
@@ -63,424 +70,756 @@ class SettingsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 6),
-      child: Text(
-        title,
-        style: const TextStyle(
-          fontFamily: MusifiedStyle.uiFont,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: CupertinoColors.systemGrey,
-          letterSpacing: -0.1,
+  // ---------------------------------------------------------------------------
+  // THEME SELECTOR CARD
+  // ---------------------------------------------------------------------------
+  Widget _buildThemeSelector(BuildContext context, bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('APPEARANCE'),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? const Color(0x1FFFFFFF) : const Color(0x0A000000),
+              width: 0.8,
+            ),
+          ),
+          child: Column(
+            children: [
+              ValueListenableBuilder<int>(
+                valueListenable: themeModeSetting,
+                builder: (context, currentThemeIndex, _) {
+                  return Row(
+                    children: [
+                      _buildThemeOption(
+                        title: 'System',
+                        icon: CupertinoIcons.device_phone_portrait,
+                        isSelected: currentThemeIndex == 0,
+                        onTap: () => _updateTheme(context, 0),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildThemeOption(
+                        title: 'Light',
+                        icon: CupertinoIcons.sun_max_fill,
+                        isSelected: currentThemeIndex == 1,
+                        onTap: () => _updateTheme(context, 1),
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 8),
+                      _buildThemeOption(
+                        title: 'Dark',
+                        icon: CupertinoIcons.moon_fill,
+                        isSelected: currentThemeIndex == 2,
+                        onTap: () => _updateTheme(context, 2),
+                        isDark: isDark,
+                      ),
+                    ],
+                  );
+                },
+              ),
+              if (isDark) ...[
+                const SizedBox(height: 12),
+                Container(
+                  height: 0.5,
+                  color: const Color(0x26FFFFFF),
+                ),
+                const SizedBox(height: 10),
+                ValueListenableBuilder<bool>(
+                  valueListenable: usePureBlackColor,
+                  builder: (context, pureBlack, _) {
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(
+                              CupertinoIcons.circle_fill,
+                              color: CupertinoColors.systemGrey,
+                              size: 16,
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Pure OLED Black',
+                              style: TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        CupertinoSwitch(
+                          value: pureBlack,
+                          activeTrackColor: const Color(0xFFFF2D55),
+                          onChanged: (val) {
+                            HapticFeedback.selectionClick();
+                            usePureBlackColor.value = val;
+                            unawaited(addOrUpdateData('settings', 'usePureBlackColor', val));
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThemeOption({
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+    required bool isDark,
+  }) {
+    const primaryColor = Color(0xFFFF2D55);
+    final buttonBg = isSelected
+        ? primaryColor
+        : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7));
+    final textColor = isSelected
+        ? CupertinoColors.white
+        : (isDark ? CupertinoColors.white : CupertinoColors.black);
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: buttonBg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: textColor, size: 20),
+              const SizedBox(height: 6),
+              Text(
+                title,
+                style: TextStyle(
+                  fontFamily: MusifiedStyle.uiFont,
+                  fontSize: 13,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildIconTile({
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(7.5),
-      ),
-      child: Icon(icon, color: CupertinoColors.white, size: 18),
-    );
+  void _updateTheme(BuildContext context, int index) {
+    HapticFeedback.selectionClick();
+    themeModeSetting.value = index;
+    unawaited(addOrUpdateData('settings', 'themeIndex', index));
   }
 
-  Widget _buildYouTubeAccountSection(BuildContext context, bool isDark) {
+  // ---------------------------------------------------------------------------
+  // YOUTUBE MUSIC ACCOUNT SECTION
+  // ---------------------------------------------------------------------------
+  Widget _buildYouTubeAccountCard(BuildContext context, bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+
     return ValueListenableBuilder<bool>(
       valueListenable: YouTubeAuthService().isSignedIn,
       builder: (context, isSignedIn, _) {
-        return CupertinoListSection.insetGrouped(
-          header: _buildSectionHeader('YOUTUBE MUSIC ACCOUNT'),
-          backgroundColor: const Color(0x00000000),
-          decoration: BoxDecoration(
-            color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-            borderRadius: BorderRadius.circular(12),
-          ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (!isSignedIn)
-              CupertinoListTile(
-                leading: _buildIconTile(
-                  icon: CupertinoIcons.play_circle_fill,
-                  color: const Color(0xFFFF0033),
-                ),
-                title: const Text(
-                  'Sign In to YouTube Music',
-                  style: TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-                subtitle: const Text(
-                  'Sync liked songs, mixes & your custom playlists',
-                  style: TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontSize: 13,
-                    color: CupertinoColors.systemGrey,
-                  ),
-                ),
-                trailing: const CupertinoListTileChevron(),
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  Navigator.push(
-                    context,
-                    CupertinoPageRoute(builder: (context) => const YouTubeAuthWebView()),
-                  );
-                },
-              )
-            else ...[
-              CupertinoListTile(
-                leading: _buildIconTile(
-                  icon: CupertinoIcons.person_crop_circle_fill,
-                  color: CupertinoColors.activeBlue,
-                ),
-                title: Text(
-                  YouTubeAuthService().userName.value ?? 'YouTube User',
-                  style: const TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16,
-                  ),
-                ),
-                subtitle: Text(
-                  YouTubeAuthService().userEmail.value ?? 'Connected & Synced',
-                  style: const TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontSize: 13,
-                    color: CupertinoColors.systemGrey,
-                  ),
-                ),
-                trailing: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  child: const Text(
-                    'Sign Out',
-                    style: TextStyle(
-                      fontFamily: MusifiedStyle.uiFont,
-                      color: CupertinoColors.destructiveRed,
-                      fontWeight: FontWeight.w500,
-                      fontSize: 14,
-                    ),
-                  ),
-                  onPressed: () {
-                    HapticFeedback.mediumImpact();
-                    YouTubeAuthService().signOut();
-                    showToast(context, 'Signed out of YouTube Music');
-                  },
+            _buildSectionTitle('YOUTUBE MUSIC SYNC'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: isDark ? const Color(0x1FFFFFFF) : const Color(0x0A000000),
+                  width: 0.8,
                 ),
               ),
-              CupertinoListTile(
-                leading: _buildIconTile(
-                  icon: CupertinoIcons.arrow_2_circlepath,
-                  color: CupertinoColors.systemGreen,
-                ),
-                title: const Text(
-                  'Sync Library Now',
-                  style: TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 16,
-                  ),
-                ),
-                subtitle: const Text(
-                  'Fetches latest likes and mixes from YouTube',
-                  style: TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontSize: 13,
-                    color: CupertinoColors.systemGrey,
-                  ),
-                ),
-                trailing: const CupertinoListTileChevron(),
-                onTap: () {
-                  HapticFeedback.selectionClick();
-                  unawaited(YouTubeMusicSyncService().fullSync());
-                  showToast(context, 'Syncing YouTube library...');
-                },
-              ),
-            ],
+              child: isSignedIn
+                  ? _buildSignedInContent(context, isDark)
+                  : _buildSignedOutContent(context, isDark),
+            ),
           ],
         );
       },
     );
   }
 
-  Widget _buildAudioSettingsSection(BuildContext context, bool isDark) {
-    return CupertinoListSection.insetGrouped(
-      header: _buildSectionHeader('PLAYBACK & QUALITY'),
-      backgroundColor: const Color(0x00000000),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
+  Widget _buildSignedOutContent(BuildContext context, bool isDark) {
+    return Row(
       children: [
-        ValueListenableBuilder<String>(
-          valueListenable: preferredSource,
-          builder: (context, source, _) {
-            final isJio = source == 'saavn' || source == 'jiosaavn';
-            return CupertinoListTile(
-              leading: _buildIconTile(
-                icon: CupertinoIcons.music_note_2,
-                color: const Color(0xFFFF2D55),
-              ),
-              title: const Text(
-                'Default Audio Provider',
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF0033),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: const Icon(
+            CupertinoIcons.play_rectangle_fill,
+            color: CupertinoColors.white,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 14),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Connect YouTube Music',
                 style: TextStyle(
-                  fontFamily: MusifiedStyle.uiFont,
-                  fontWeight: FontWeight.w500,
+                  fontFamily: MusifiedStyle.displayFont,
                   fontSize: 16,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              subtitle: const Text(
-                'Priority provider for track streaming',
+              SizedBox(height: 3),
+              Text(
+                'Sync your liked tracks, playlists & mixes',
                 style: TextStyle(
                   fontFamily: MusifiedStyle.uiFont,
                   fontSize: 13,
                   color: CupertinoColors.systemGrey,
                 ),
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          color: const Color(0xFFFF0033),
+          borderRadius: BorderRadius.circular(20),
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            Navigator.push(
+              context,
+              CupertinoPageRoute(builder: (context) => const YouTubeAuthWebView()),
+            );
+          },
+          child: const Text(
+            'Sign In',
+            style: TextStyle(
+              fontFamily: MusifiedStyle.uiFont,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: CupertinoColors.white,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSignedInContent(BuildContext context, bool isDark) {
+    final name = YouTubeAuthService().userName.value ?? 'YouTube User';
+    final email = YouTubeAuthService().userEmail.value ?? 'Connected';
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: CupertinoColors.activeBlue,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(
+                  name.isNotEmpty ? name[0].toUpperCase() : 'Y',
+                  style: const TextStyle(
+                    fontFamily: MusifiedStyle.displayFont,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: CupertinoColors.white,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    isJio ? 'JioSaavn 320k' : 'YouTube Music',
+                    name,
                     style: const TextStyle(
-                      fontFamily: MusifiedStyle.uiFont,
-                      color: CupertinoColors.systemGrey,
-                      fontSize: 15,
+                      fontFamily: MusifiedStyle.displayFont,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                  const SizedBox(width: 6),
-                  const CupertinoListTileChevron(),
+                  const SizedBox(height: 2),
+                  Text(
+                    email,
+                    style: const TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      fontSize: 13,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
                 ],
               ),
-              onTap: () {
-                HapticFeedback.selectionClick();
-                final next = isJio ? 'youtube' : 'jiosaavn';
-                preferredSource.value = next;
-                addOrUpdateData('settings', 'preferredSource', next);
-                showToast(
-                  context,
-                  'Default provider: ${next == 'youtube' ? 'YouTube Music' : 'JioSaavn 320k Lossless'}',
-                );
+            ),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              child: const Text(
+                'Sign Out',
+                style: TextStyle(
+                  fontFamily: MusifiedStyle.uiFont,
+                  color: CupertinoColors.destructiveRed,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              onPressed: () {
+                HapticFeedback.mediumImpact();
+                YouTubeAuthService().signOut();
+                showToast(context, 'Signed out of YouTube Music');
               },
-            );
-          },
+            ),
+          ],
         ),
-        ValueListenableBuilder<bool>(
-          valueListenable: jiosaavnEnabled,
-          builder: (context, enabled, _) {
-            return CupertinoListTile(
-              leading: _buildIconTile(
-                icon: CupertinoIcons.waveform,
-                color: CupertinoColors.systemIndigo,
-              ),
-              title: const Text(
-                'JioSaavn 320k Lossless',
-                style: TextStyle(
-                  fontFamily: MusifiedStyle.uiFont,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-              ),
-              subtitle: const Text(
-                'Studio master 320 kbps high-definition audio',
-                style: TextStyle(
-                  fontFamily: MusifiedStyle.uiFont,
-                  fontSize: 13,
-                  color: CupertinoColors.systemGrey,
-                ),
-              ),
-              trailing: CupertinoSwitch(
-                value: enabled,
-                activeTrackColor: const Color(0xFFFF2D55),
-                onChanged: (val) {
-                  HapticFeedback.selectionClick();
-                  jiosaavnEnabled.value = val;
-                  addOrUpdateData('settings', 'jiosaavnEnabled', val);
-                },
-              ),
-            );
-          },
+        const SizedBox(height: 14),
+        Container(
+          height: 0.5,
+          color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
         ),
-        ValueListenableBuilder<bool>(
-          valueListenable: offlineMode,
-          builder: (context, offline, _) {
-            return CupertinoListTile(
-              leading: _buildIconTile(
-                icon: CupertinoIcons.airplane,
-                color: CupertinoColors.systemOrange,
-              ),
-              title: const Text(
-                'Offline Mode Only',
-                style: TextStyle(
-                  fontFamily: MusifiedStyle.uiFont,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 16,
-                ),
-              ),
-              subtitle: const Text(
-                'Strictly play downloaded songs without network calls',
-                style: TextStyle(
-                  fontFamily: MusifiedStyle.uiFont,
-                  fontSize: 13,
-                  color: CupertinoColors.systemGrey,
-                ),
-              ),
-              trailing: CupertinoSwitch(
-                value: offline,
-                activeTrackColor: const Color(0xFFFF2D55),
-                onChanged: (val) {
-                  HapticFeedback.selectionClick();
-                  offlineMode.value = val;
-                  addOrUpdateData('settings', 'offlineMode', val);
-                },
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStorageSection(BuildContext context, bool isDark) {
-    return CupertinoListSection.insetGrouped(
-      header: _buildSectionHeader('STORAGE & CACHE'),
-      backgroundColor: const Color(0x00000000),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      children: [
-        CupertinoListTile(
-          leading: _buildIconTile(
-            icon: CupertinoIcons.trash_fill,
-            color: CupertinoColors.systemRed,
-          ),
-          title: const Text(
-            'Clear Audio & Manifest Cache',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontWeight: FontWeight.w500,
-              fontSize: 16,
-            ),
-          ),
-          subtitle: const Text(
-            'Frees temporary stream files and resolved tokens',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontSize: 13,
-              color: CupertinoColors.systemGrey,
-            ),
-          ),
-          trailing: const CupertinoListTileChevron(),
-          onTap: () async {
-            HapticFeedback.mediumImpact();
-            await clearAllCache();
-            if (context.mounted) showToast(context, 'Audio cache cleared');
-          },
-        ),
-        CupertinoListTile(
-          leading: _buildIconTile(
-            icon: CupertinoIcons.clock_fill,
-            color: CupertinoColors.systemPurple,
-          ),
-          title: const Text(
-            'Clear Search History & Recents',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontWeight: FontWeight.w500,
-              fontSize: 16,
-            ),
-          ),
-          subtitle: const Text(
-            'Resets search queries and recently played songs',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontSize: 13,
-              color: CupertinoColors.systemGrey,
-            ),
-          ),
-          trailing: const CupertinoListTileChevron(),
-          onTap: () async {
-            HapticFeedback.mediumImpact();
-            await deleteData('user', 'searchHistory');
-            await deleteData('user', 'recentlyPlayed');
-            userRecentlyPlayed.value = [];
-            if (context.mounted) showToast(context, 'Search & recent history cleared');
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAboutSection(BuildContext context, bool isDark) {
-    return CupertinoListSection.insetGrouped(
-      header: _buildSectionHeader('ABOUT MUSIFIED'),
-      backgroundColor: const Color(0x00000000),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      children: [
-        CupertinoListTile(
-          leading: _buildIconTile(
-            icon: CupertinoIcons.info_circle_fill,
-            color: CupertinoColors.activeBlue,
-          ),
-          title: const Text(
-            'Version',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontWeight: FontWeight.w500,
-              fontSize: 16,
-            ),
-          ),
-          trailing: Text(
-            appVersion,
-            style: const TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontWeight: FontWeight.w600,
-              color: CupertinoColors.systemGrey,
-              fontSize: 15,
-            ),
-          ),
-        ),
-        CupertinoListTile(
-          leading: _buildIconTile(
-            icon: CupertinoIcons.doc_plaintext,
-            color: const Color(0xFF64D2FF),
-          ),
-          title: const Text(
-            'Diagnostic Logs',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontWeight: FontWeight.w500,
-              fontSize: 16,
-            ),
-          ),
-          subtitle: const Text(
-            'Inspect network, stream & playback logs',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.uiFont,
-              fontSize: 13,
-              color: CupertinoColors.systemGrey,
-            ),
-          ),
-          trailing: const CupertinoListTileChevron(),
+        const SizedBox(height: 12),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onTap: () {
             HapticFeedback.selectionClick();
-            context.push('/settings/logs');
+            unawaited(YouTubeMusicSyncService().fullSync());
+            showToast(context, 'Syncing YouTube Music library...');
           },
+          child: const Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    CupertinoIcons.arrow_2_circlepath,
+                    color: CupertinoColors.systemGreen,
+                    size: 18,
+                  ),
+                  SizedBox(width: 10),
+                  Text(
+                    'Sync Library Now',
+                    style: TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: CupertinoColors.systemGreen,
+                    ),
+                  ),
+                ],
+              ),
+              Icon(
+                CupertinoIcons.chevron_right,
+                color: CupertinoColors.systemGrey3,
+                size: 16,
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // AUDIO & PLAYBACK ENGINE
+  // ---------------------------------------------------------------------------
+  Widget _buildAudioEngineSection(BuildContext context, bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('PLAYBACK & AUDIO QUALITY'),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? const Color(0x1FFFFFFF) : const Color(0x0A000000),
+              width: 0.8,
+            ),
+          ),
+          child: Column(
+            children: [
+              ValueListenableBuilder<String>(
+                valueListenable: preferredSource,
+                builder: (context, source, _) {
+                  final isJio = source == 'saavn' || source == 'jiosaavn';
+                  return _buildSettingRow(
+                    icon: CupertinoIcons.music_note_2,
+                    iconBg: const Color(0xFFFF2D55),
+                    title: 'Default Audio Provider',
+                    subtitle: 'Priority stream source for playback',
+                    trailingText: isJio ? 'JioSaavn 320k' : 'YouTube Music',
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      final next = isJio ? 'youtube' : 'jiosaavn';
+                      preferredSource.value = next;
+                      unawaited(addOrUpdateData('settings', 'preferredSource', next));
+                      showToast(
+                        context,
+                        'Default provider: ${next == 'youtube' ? 'YouTube Music' : 'JioSaavn 320k Lossless'}',
+                      );
+                    },
+                    isDark: isDark,
+                  );
+                },
+              ),
+              _buildDivider(isDark),
+              ValueListenableBuilder<bool>(
+                valueListenable: jiosaavnEnabled,
+                builder: (context, enabled, _) {
+                  return _buildSwitchRow(
+                    icon: CupertinoIcons.waveform,
+                    iconBg: CupertinoColors.systemIndigo,
+                    title: 'JioSaavn 320k Lossless',
+                    subtitle: 'Studio master high-definition AAC streams',
+                    value: enabled,
+                    onChanged: (val) {
+                      HapticFeedback.selectionClick();
+                      jiosaavnEnabled.value = val;
+                      unawaited(addOrUpdateData('settings', 'jiosaavnEnabled', val));
+                    },
+                    isDark: isDark,
+                  );
+                },
+              ),
+              _buildDivider(isDark),
+              ValueListenableBuilder<bool>(
+                valueListenable: playNextSongAutomatically,
+                builder: (context, autoPlay, _) {
+                  return _buildSwitchRow(
+                    icon: CupertinoIcons.infinite,
+                    iconBg: CupertinoColors.systemTeal,
+                    title: 'Infinite Recommendations',
+                    subtitle: 'Auto-play similar music when queue ends',
+                    value: autoPlay,
+                    onChanged: (val) {
+                      HapticFeedback.selectionClick();
+                      playNextSongAutomatically.value = val;
+                      unawaited(addOrUpdateData('settings', 'playNextSongAutomatically', val));
+                    },
+                    isDark: isDark,
+                  );
+                },
+              ),
+              _buildDivider(isDark),
+              ValueListenableBuilder<bool>(
+                valueListenable: offlineMode,
+                builder: (context, offline, _) {
+                  return _buildSwitchRow(
+                    icon: CupertinoIcons.airplane,
+                    iconBg: CupertinoColors.systemOrange,
+                    title: 'Offline Mode Only',
+                    subtitle: 'Play exclusively from downloaded local tracks',
+                    value: offline,
+                    onChanged: (val) {
+                      HapticFeedback.selectionClick();
+                      offlineMode.value = val;
+                      unawaited(addOrUpdateData('settings', 'offlineMode', val));
+                    },
+                    isDark: isDark,
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // STORAGE & CACHE
+  // ---------------------------------------------------------------------------
+  Widget _buildStorageSection(BuildContext context, bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('STORAGE & CACHE'),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? const Color(0x1FFFFFFF) : const Color(0x0A000000),
+              width: 0.8,
+            ),
+          ),
+          child: Column(
+            children: [
+              _buildSettingRow(
+                icon: CupertinoIcons.trash_fill,
+                iconBg: CupertinoColors.systemRed,
+                title: 'Clear Audio Cache',
+                subtitle: 'Frees temporary streams & token manifests',
+                onTap: () async {
+                  HapticFeedback.mediumImpact();
+                  await clearAllCache();
+                  if (context.mounted) showToast(context, 'Audio cache cleared');
+                },
+                isDark: isDark,
+              ),
+              _buildDivider(isDark),
+              _buildSettingRow(
+                icon: CupertinoIcons.clock_fill,
+                iconBg: CupertinoColors.systemPurple,
+                title: 'Clear History & Recents',
+                subtitle: 'Resets search keywords and recently played',
+                onTap: () async {
+                  HapticFeedback.mediumImpact();
+                  await deleteData('user', 'searchHistory');
+                  await deleteData('user', 'recentlyPlayed');
+                  userRecentlyPlayed.value = [];
+                  if (context.mounted) showToast(context, 'Search & recent history cleared');
+                },
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // ABOUT MUSIFIED
+  // ---------------------------------------------------------------------------
+  Widget _buildAboutSection(BuildContext context, bool isDark) {
+    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('ABOUT MUSIFIED'),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark ? const Color(0x1FFFFFFF) : const Color(0x0A000000),
+              width: 0.8,
+            ),
+          ),
+          child: Column(
+            children: [
+              _buildSettingRow(
+                icon: CupertinoIcons.info_circle_fill,
+                iconBg: CupertinoColors.activeBlue,
+                title: 'Version',
+                subtitle: 'Musified Native iOS Edition',
+                trailingText: 'v$appVersion',
+                onTap: null,
+                isDark: isDark,
+              ),
+              _buildDivider(isDark),
+              _buildSettingRow(
+                icon: CupertinoIcons.doc_plaintext,
+                iconBg: const Color(0xFF64D2FF),
+                title: 'Diagnostic Logs',
+                subtitle: 'Inspect live network & audio pipeline logs',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  context.push('/settings/logs');
+                },
+                isDark: isDark,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // REUSABLE ROW BUILDERS
+  // ---------------------------------------------------------------------------
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontFamily: MusifiedStyle.uiFont,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          color: CupertinoColors.systemGrey,
+          letterSpacing: 0.5,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingRow({
+    required IconData icon,
+    required Color iconBg,
+    required String title,
+    required String subtitle,
+    String? trailingText,
+    VoidCallback? onTap,
+    required bool isDark,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: CupertinoColors.white, size: 20),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: MusifiedStyle.uiFont,
+                      fontSize: 13,
+                      color: CupertinoColors.systemGrey,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (trailingText != null) ...[
+              Text(
+                trailingText,
+                style: const TextStyle(
+                  fontFamily: MusifiedStyle.uiFont,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: CupertinoColors.systemGrey,
+                ),
+              ),
+              const SizedBox(width: 6),
+            ],
+            if (onTap != null)
+              const Icon(
+                CupertinoIcons.chevron_right,
+                color: CupertinoColors.systemGrey3,
+                size: 16,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSwitchRow({
+    required IconData icon,
+    required Color iconBg,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+    required bool isDark,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: iconBg,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: CupertinoColors.white, size: 20),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontFamily: MusifiedStyle.uiFont,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontFamily: MusifiedStyle.uiFont,
+                    fontSize: 13,
+                    color: CupertinoColors.systemGrey,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          CupertinoSwitch(
+            value: value,
+            activeTrackColor: const Color(0xFFFF2D55),
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDivider(bool isDark) {
+    return Container(
+      height: 0.5,
+      margin: const EdgeInsets.only(left: 68),
+      color: isDark ? const Color(0x1FFFFFFF) : const Color(0x14000000),
     );
   }
 }
