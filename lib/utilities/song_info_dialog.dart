@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:musified/services/common_services.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 void showSongInfoDialog(BuildContext context, Map song) async {
@@ -20,32 +21,33 @@ void showSongInfoDialog(BuildContext context, Map song) async {
     source = song['resolvedSource'] == 'jiosaavn' ? 'JioSaavn 320k' : 'YouTube Music';
   }
 
-  String bitrate = '160 kbps';
-  if (isOffline && offlineSong['audioBitrateKbps'] != null) {
-    bitrate = '${offlineSong['audioBitrateKbps']} kbps';
+  String bitrate = 'Dynamic / Adaptive';
+  if (isOffline) {
+    bitrate = offlineSong['bitrate'] != null ? '${offlineSong['bitrate']} kbps' : 'Unknown';
   } else if (song['resolvedBitrate'] != null) {
     bitrate = '${song['resolvedBitrate']} kbps';
-  } else if (source.contains('JioSaavn')) {
-    bitrate = '320 kbps (Lossless)';
   }
 
-  String format = 'AAC';
-  if (isOffline && offlineSong['audioCodec'] != null) {
-    format = offlineSong['audioCodec'].toString();
+  String format = 'AAC / Opus';
+  if (isOffline) {
+    format = offlineSong['format']?.toString() ?? 'M4A / AAC';
   } else if (song['resolvedFormat'] != null) {
     format = song['resolvedFormat'].toString();
   }
 
   String fileSize = 'Streaming';
   if (isOffline) {
-    final audioPath = offlineSong['audioPath']?.toString();
-    if (audioPath != null) {
-      final file = File(audioPath);
-      if (await file.exists()) {
-        final bytes = await file.length();
-        fileSize = '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+    try {
+      final audioPath = offlineSong['audioPath']?.toString();
+      if (audioPath != null) {
+        final f = File(audioPath);
+        if (await f.exists()) {
+          final bytes = await f.length();
+          final mb = (bytes / (1024 * 1024)).toStringAsFixed(1);
+          fileSize = '$mb MB';
+        }
       }
-    }
+    } catch (_) {}
   }
 
   String dateAdded = 'Unknown';
@@ -60,7 +62,7 @@ void showSongInfoDialog(BuildContext context, Map song) async {
 
   if (!context.mounted) return;
 
-  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final isDark = isAppDarkMode(context);
   final cardBg = isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white;
   const secondaryColor = CupertinoColors.systemGrey;
   final labelColor = isDark ? CupertinoColors.white : CupertinoColors.black;

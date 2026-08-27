@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:musified/main.dart';
 import 'package:musified/models/full_player_state.dart';
 import 'package:musified/screens/now_playing_page.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 /// Clean, high-performance iOS floating mini player.
@@ -73,7 +74,7 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
             final state = stateSnapshot.data;
             if (state == null) return const SizedBox.shrink();
 
-            final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+            final isDark = isAppDarkMode(context);
             final bg = isDark ? const Color(0xE61C1C1E) : const Color(0xE6FFFFFF);
             final border = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
             final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;

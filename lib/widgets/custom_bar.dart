@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 class CustomBar extends StatelessWidget {
@@ -29,7 +30,7 @@ class CustomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final defaultBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
     final iconContainerBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
     final effectiveIconColor = iconColor ?? const Color(0xFFFF2D55);

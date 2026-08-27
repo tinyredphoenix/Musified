@@ -2059,10 +2059,13 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       songData['isOffline'] = playback.isOffline;
 
       if (songData['resolvedSource'] == 'youtube') {
-        await ensureYoutubeCatalogDuration(songData);
-        if (queueSong != null && songData['duration'] != null) {
-          queueSong['duration'] = songData['duration'];
-        }
+        unawaited(
+          ensureYoutubeCatalogDuration(songData).then((_) {
+            if (queueSong != null && songData['duration'] != null) {
+              queueSong['duration'] = songData['duration'];
+            }
+          }),
+        );
       }
 
       // Re-emit mediaItem with the resolved source info so the UI
@@ -2419,7 +2422,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       );
 
       await audioPlayer
-          .setAudioSources([audioSource], preload: false)
+          .setAudioSources([audioSource], preload: true)
           .timeout(_songTransitionTimeout);
 
       _logPlayer(

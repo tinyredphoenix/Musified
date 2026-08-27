@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/source_resolver.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/mediaitem.dart';
 import 'package:musified/widgets/song_artwork.dart';
@@ -84,7 +85,7 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
   Widget build(BuildContext context) {
     final title = widget.song['title']?.toString() ?? 'Track';
     final artist = widget.song['artist']?.toString() ?? '';
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     const primaryColor = Color(0xFFFF2D55);
     final cardBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
     final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
@@ -406,7 +407,7 @@ Future<void> showDownloadPicker(
   Map song,
   void Function(String source, String quality) onDownload,
 ) {
-  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final isDark = isAppDarkMode(context);
 
   return showCupertinoModalPopup<void>(
     context: context,

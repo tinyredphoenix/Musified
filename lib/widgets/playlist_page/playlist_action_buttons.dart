@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 class PlaylistActionButtons extends StatelessWidget {
@@ -16,7 +17,7 @@ class PlaylistActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final secondaryBtnBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
     final secondaryTextColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 

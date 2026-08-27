@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:musified/main.dart';
+import 'package:musified/theme/app_themes.dart';
 
 class ShufflePlayButton extends StatelessWidget {
   const ShufflePlayButton({super.key, required this.songs});
@@ -8,7 +9,7 @@ class ShufflePlayButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
 
     return CupertinoButton(
       padding: const EdgeInsets.all(10),

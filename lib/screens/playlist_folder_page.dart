@@ -3,6 +3,7 @@ import 'package:musified/constants/app_constants.dart';
 import 'package:musified/extensions/l10n.dart';
 import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/flutter_toast.dart';
@@ -96,7 +97,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return ValueListenableBuilder<List>(

@@ -113,7 +113,6 @@ void reloadSongLibraryStateFromStorage() {
 }
 
 // Timeouts and durations used across manifest fetching and cache validation.
-const Duration _manifestTimeout = Duration(seconds: 8);
 const Duration _cacheValidationDuration = Duration(hours: 1);
 
 String _songStreamCacheKey(String songId, String source) =>
@@ -180,37 +179,35 @@ _fetchStreamManifest(String songId) async {
   if (useProxy.value) {
     final manifest = await ProxyManager()
         .getSongManifest(songId)
-        .timeout(_manifestTimeout);
+        .timeout(const Duration(seconds: 4));
     if (manifest == null) return null;
     return (manifest: manifest, client: null);
   }
 
-  // Try one client at a time so the User-Agent we send later matches the
-  // client that actually minted the googlevideo URL (mixed manifests 403).
-  for (final client in customClients) {
-    try {
-      final manifest = await ytClient.videos.streams
-          .getManifest(songId, ytClients: [client])
-          .timeout(_manifestTimeout);
-      if (manifest.audioOnly.isNotEmpty) {
-        return (manifest: manifest, client: client);
-      }
-    } catch (error) {
-      logger.log(
-        'Manifest client ${client.payload['context']?['client']?['clientName']} failed for $songId: $error',
-      );
+  // Fast multi-client manifest fetch
+  try {
+    final manifest = await ytClient.videos.streams
+        .getManifest(songId, ytClients: customClients)
+        .timeout(const Duration(seconds: 4));
+    if (manifest.audioOnly.isNotEmpty) {
+      return (manifest: manifest, client: customClients.first);
     }
+  } catch (error) {
+    logger.log('Multi-client manifest failed for $songId: $error');
   }
 
+  // Fallback to default client resolution
   try {
     final manifest = await ytClient.videos.streams
         .getManifest(songId)
-        .timeout(_manifestTimeout);
-    return (manifest: manifest, client: null);
+        .timeout(const Duration(seconds: 4));
+    if (manifest.audioOnly.isNotEmpty) {
+      return (manifest: manifest, client: null);
+    }
   } catch (error) {
     logger.log('Default getManifest failed for $songId: $error');
-    return null;
   }
+  return null;
 }
 
 /// Returns a cached song URL if present and still valid.
@@ -830,16 +827,12 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       await invalidateSongStreamCache(songId);
     }
 
-    // Strict single-source resolution
-    if (preference == 'jiosaavn') {
-      if (!jiosaavnEnabled.value) {
-        logger.log('JioSaavn is disabled in settings');
-        return null;
-      }
+    // JioSaavn priority resolution with automatic YouTube fallback
+    if (preference == 'jiosaavn' && jiosaavnEnabled.value) {
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
-            .timeout(const Duration(seconds: 4), onTimeout: () => null);
+            .timeout(const Duration(seconds: 3), onTimeout: () => null);
         if (saavnSource != null && saavnSource['url'] != null) {
           final url = saavnSource['url'] as String;
           if (url.isNotEmpty) {
@@ -854,15 +847,13 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
             return url;
           }
         }
-        logger.log('JioSaavn search result not found for $songId');
-        return null;
+        logger.log('JioSaavn match not found for $songId, falling back to YouTube');
       } catch (e) {
-        logger.log('JioSaavn resolution failed: $e');
-        return null;
+        logger.log('JioSaavn resolution error: $e, falling back to YouTube');
       }
     }
 
-    // Preference is YouTube
+    // YouTube Music resolution
     final selectedStream = await fetchBestAudioStream(songId);
     if (selectedStream == null) {
       logger.log('fetchSongStreamUrl: no YouTube audio streams for $songId');

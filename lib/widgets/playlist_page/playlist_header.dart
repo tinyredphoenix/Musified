@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 class PlaylistHeader extends StatelessWidget {
@@ -27,7 +28,7 @@ class PlaylistHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Padding(

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_bottom_sheet.dart';
 
@@ -22,7 +23,7 @@ Future<void> showMusifiedPickerSheet(
   required List<PickerSheetAction> actions,
   String? emptyMessage,
 }) {
-  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final isDark = isAppDarkMode(context);
 
   if (actions.isEmpty) {
     return showCupertinoDialog<void>(

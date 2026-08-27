@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/song_tile.dart';
 
@@ -18,7 +19,7 @@ class ListeningRecapCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final cardBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
 
     return Container(

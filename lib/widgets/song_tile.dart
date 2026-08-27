@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/main.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/song_actions_sheet.dart';
 
@@ -34,7 +35,7 @@ class SongTile extends StatelessWidget {
         song['thumbnail']?.toString() ??
         'https://i.ytimg.com/vi/$ytid/hqdefault.jpg';
 
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final primaryColor = isDark ? CupertinoColors.white : CupertinoColors.black;
     final secondaryColor = CupertinoColors.systemGrey;
 

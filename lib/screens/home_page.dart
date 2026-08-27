@@ -10,6 +10,7 @@ import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
 import 'package:musified/widgets/playlist_cube.dart';
@@ -38,7 +39,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return CupertinoPageScaffold(

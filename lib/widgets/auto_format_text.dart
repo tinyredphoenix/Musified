@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 class AutoFormatText extends StatelessWidget {
@@ -7,7 +8,7 @@ class AutoFormatText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final spans = <TextSpan>[];
 
     final boldExp = RegExp(r'\*\*(.*?)\*\*');

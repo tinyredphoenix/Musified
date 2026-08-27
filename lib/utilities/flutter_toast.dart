@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:musified/main.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/mini_player.dart';
 
@@ -18,7 +19,7 @@ void showToast(
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
 
-  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final isDark = isAppDarkMode(context);
   final isMiniPlayerVisible =
       isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
   final bottom =
@@ -98,7 +99,7 @@ void showToastWithButton(
   final overlay = Overlay.maybeOf(context, rootOverlay: true);
   if (overlay == null) return;
 
-  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final isDark = isAppDarkMode(context);
   final isMiniPlayerVisible =
       isAudioHandlerInitialized && audioHandler.mediaItem.valueOrNull != null;
   final bottom =

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/playlist_download_service.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/offline_playlist_dialogs.dart';
 
@@ -48,7 +49,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
   Widget build(BuildContext context) {
     if (playlistId.isEmpty) return const SizedBox.shrink();
 
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
 
     return ValueListenableBuilder<List>(
       valueListenable: userOfflineSongs,

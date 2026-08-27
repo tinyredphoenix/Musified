@@ -6,6 +6,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/main.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/confirmation_dialog.dart';
 import 'package:musified/widgets/no_artwork_cube.dart';
@@ -77,7 +78,7 @@ class _QueueWidgetState extends State<QueueWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final currentIndex = audioHandler.currentQueueIndex;
 
     if (widget.isBottomSheet) {

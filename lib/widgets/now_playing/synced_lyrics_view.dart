@@ -3,6 +3,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/main.dart' show logger, audioHandler;
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/now_playing/full_page_lyrics_modal.dart';
 
@@ -189,7 +190,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final activeTextColor = isDark ? CupertinoColors.white : CupertinoColors.black;
     final pastTextColor = isDark ? const Color(0x99FFFFFF) : const Color(0x99000000);
     final upcomingTextColor = isDark ? const Color(0x3DFFFFFF) : const Color(0x33000000);

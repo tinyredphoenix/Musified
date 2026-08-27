@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 class OfflineSearchPlaceholder extends StatelessWidget {
@@ -6,7 +7,7 @@ class OfflineSearchPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return CupertinoPageScaffold(

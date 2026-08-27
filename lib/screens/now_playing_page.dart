@@ -1,6 +1,7 @@
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:musified/main.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/widgets/flip_card.dart';
 import 'package:musified/widgets/now_playing/bottom_actions_row.dart';
 import 'package:musified/widgets/now_playing/now_playing_artwork.dart';
@@ -27,7 +28,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
     final isLargeScreen = size.width > 800 && size.height > 600;
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final bg = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
     final screenWidth = size.width;
     final baseIconSize = screenWidth < 360 ? 36.0 : (screenWidth < 400 ? 40.0 : 44.0);

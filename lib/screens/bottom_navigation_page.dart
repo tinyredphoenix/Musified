@@ -7,6 +7,7 @@ import 'package:musified/constants/app_constants.dart';
 import 'package:musified/extensions/l10n.dart';
 import 'package:musified/main.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/flutter_bottom_sheet.dart' show closeCurrentBottomSheet;
 import 'package:musified/widgets/mini_player.dart';
 
@@ -30,7 +31,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final activeColor = const Color(0xFFFF2D55);
     final inactiveColor = isDark ? const Color(0x80FFFFFF) : const Color(0x80000000);
     final barBg = isDark ? const Color(0xB3121214) : const Color(0xB3F2F2F7);

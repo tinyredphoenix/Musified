@@ -6,6 +6,7 @@ import 'package:musified/extensions/l10n.dart';
 import 'package:musified/main.dart';
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/async_loader.dart';
 import 'package:musified/utilities/flutter_toast.dart';
@@ -26,7 +27,7 @@ class NowPlayingArtwork extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final screenWidth = size.width;
     final screenHeight = size.height;
     final isLandscape = screenWidth > screenHeight;
@@ -74,8 +75,17 @@ class NowPlayingArtwork extends StatelessWidget {
         width: imageSize,
         height: imageSize,
         decoration: BoxDecoration(
-          color: isDark ? MusifiedStyle.surface : const Color(0xFFE5E5EA),
+          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
           borderRadius: BorderRadius.circular(borderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: CupertinoColors.black.withValues(
+                alpha: isDark ? 0.45 : 0.12,
+              ),
+              blurRadius: 28,
+              offset: const Offset(0, 14),
+            ),
+          ],
         ),
         child: AsyncLoader<String?>(
           future: getSongLyrics(metadata.artist, metadata.title),

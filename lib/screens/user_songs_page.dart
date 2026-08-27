@@ -5,6 +5,7 @@ import 'package:musified/main.dart' show audioHandler;
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/song_filtering.dart';
@@ -58,7 +59,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
     final title = getTitle(widget.page, context);
     final icon = getIcon(widget.page);
     final isOfflineSongs = widget.page == 'offline';
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return CupertinoPageScaffold(

@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 
 class PlaylistLikeButton extends StatefulWidget {
   const PlaylistLikeButton({
@@ -63,7 +64,7 @@ class _PlaylistLikeButtonState extends State<PlaylistLikeButton> {
   Widget build(BuildContext context) {
     if (widget.playlistId.isEmpty) return const SizedBox.shrink();
 
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
 
     return ValueListenableBuilder<bool>(
       valueListenable: _isLiked,

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:musified/services/artist_service.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/artwork_provider.dart';
 
@@ -17,7 +18,7 @@ class ArtistBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final title = normalizeArtistDisplayTitle(
       artist['title']?.toString() ?? 'Artist',
     );

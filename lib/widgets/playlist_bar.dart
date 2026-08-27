@@ -6,6 +6,7 @@ import 'package:musified/services/artist_service.dart';
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/router_service.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/artwork_provider.dart';
 import 'package:musified/utilities/flutter_toast.dart';
@@ -139,7 +140,7 @@ class PlaylistBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final displayTitle = isArtist
         ? normalizeArtistDisplayTitle(playlistTitle)
         : playlistTitle;

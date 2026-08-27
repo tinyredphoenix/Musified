@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 class BottomSheetBar extends StatelessWidget {
@@ -16,7 +17,7 @@ class BottomSheetBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final primary = const Color(0xFFFF2D55);
     final bgColor = isSelected
         ? primary.withValues(alpha: isDark ? 0.18 : 0.12)

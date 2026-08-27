@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 typedef SortTypeToStringConverter<T> = String Function(T type);
@@ -20,7 +21,7 @@ class SortChips<T extends Enum> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final activeBg = const Color(0xFFFF2D55);
     final inactiveBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
 

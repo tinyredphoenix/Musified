@@ -50,6 +50,10 @@ ThemeMode getThemeMode(int themeModeIndex) {
   return ThemeMode.system;
 }
 
+bool isAppDarkMode(BuildContext context) {
+  return CupertinoTheme.brightnessOf(context) == Brightness.dark;
+}
+
 CupertinoThemeData buildCupertinoTheme({
   required Brightness brightness,
   Color primaryColor = const Color(0xFFFF2D55),

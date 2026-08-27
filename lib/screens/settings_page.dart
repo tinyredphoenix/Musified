@@ -9,6 +9,7 @@ import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
@@ -18,7 +19,7 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
     final scaffoldBg = isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7);
 
@@ -227,6 +228,7 @@ class SettingsPage extends StatelessWidget {
   void _updateTheme(BuildContext context, int index) {
     HapticFeedback.selectionClick();
     themeModeSetting.value = index;
+    syncThemeFromSettings();
     unawaited(addOrUpdateData('settings', 'themeIndex', index));
   }
 

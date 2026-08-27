@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/playlist_dialogs.dart';
 
@@ -28,7 +29,7 @@ class _PlaylistAddToPlaylistButtonState
       );
     }
 
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
 
     return CupertinoButton(
       padding: const EdgeInsets.all(10),

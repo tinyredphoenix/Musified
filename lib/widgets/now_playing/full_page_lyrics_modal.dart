@@ -2,6 +2,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/services/common_services.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/async_loader.dart';
 import 'package:musified/widgets/now_playing/synced_lyrics_view.dart';
@@ -18,7 +19,7 @@ class FullPageLyricsModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final bg = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
     final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
     final title = metadata.title;

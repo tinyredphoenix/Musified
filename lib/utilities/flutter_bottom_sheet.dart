@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 bool _isIOSSheetOpen = false;
@@ -8,7 +9,7 @@ bool isBottomSheetOpen() => _isIOSSheetOpen;
 /// Shows a bottom sheet using the Musified pure iOS presentation style.
 dynamic showCustomBottomSheet(BuildContext context, Widget content) {
   final size = MediaQuery.sizeOf(context);
-  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final isDark = isAppDarkMode(context);
   final sheetColor = isDark ? MusifiedStyle.elevated : MusifiedStyle.lightElevated;
 
   _isIOSSheetOpen = true;

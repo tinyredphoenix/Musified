@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/playlist_cube.dart';
 import 'package:musified/widgets/section_header.dart';
@@ -67,7 +68,7 @@ class ArtistShelf extends StatelessWidget {
     Map<String, dynamic> item,
     double cubeSize,
   ) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
     final subtitle = subtitleOf?.call(item);
     final artwork = PlaylistCube(

@@ -4,6 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/main.dart';
 import 'package:musified/services/common_services.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 
@@ -23,7 +24,7 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
   showCupertinoModalPopup<void>(
     context: context,
     builder: (ctx) {
-      final isDark = MediaQuery.platformBrightnessOf(ctx) == Brightness.dark;
+      final isDark = isAppDarkMode(ctx);
       final sheetBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
       final rowBg = isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white;
       final label = isDark ? CupertinoColors.white : CupertinoColors.black;

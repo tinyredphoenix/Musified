@@ -11,6 +11,7 @@ import 'package:musified/services/playlist_download_service.dart';
 import 'package:musified/services/playlist_sharing.dart';
 import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/playlist_utils.dart';
@@ -153,7 +154,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return CupertinoPageScaffold(
@@ -239,11 +240,24 @@ class _PlaylistPageState extends State<PlaylistPage> {
             ),
           }
         : basePlaylist;
-    return PlaylistCube(
-      playlist,
-      size: isLandscape ? 250 : screenWidth / commonPlaylistArtworkDivision,
-      cubeIcon: widget.cubeIcon,
-      showTypeLabel: false,
+    return GestureDetector(
+      onTap: () {
+        final currentPlaylist = _playlist ?? widget.playlistData;
+        final songs = currentPlaylist?['list'] as List? ?? [];
+        if (songs.isNotEmpty) {
+          HapticFeedback.selectionClick();
+          audioHandler.playPlaylistSong(
+            playlist: currentPlaylist,
+            songIndex: 0,
+          );
+        }
+      },
+      child: PlaylistCube(
+        playlist,
+        size: isLandscape ? 250 : screenWidth / commonPlaylistArtworkDivision,
+        cubeIcon: widget.cubeIcon,
+        showTypeLabel: false,
+      ),
     );
   }
 
@@ -346,7 +360,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Widget _buildShareButton() {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     return CupertinoButton(
       padding: const EdgeInsets.all(10),
       color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
@@ -377,7 +391,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Widget _buildSyncButton() {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     return CupertinoButton(
       padding: const EdgeInsets.all(10),
       color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
@@ -388,7 +402,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   Widget _buildEditButton() {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     return CupertinoButton(
       padding: const EdgeInsets.all(10),
       color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),

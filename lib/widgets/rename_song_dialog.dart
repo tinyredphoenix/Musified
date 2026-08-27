@@ -4,6 +4,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:musified/extensions/l10n.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 
 class RenameSongDialog extends StatefulWidget {
@@ -55,7 +56,7 @@ class _RenameSongDialogState extends State<RenameSongDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
 
     return CupertinoAlertDialog(
       title: Text(context.l10n.renameSong),

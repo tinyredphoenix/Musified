@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 
 Future<String?> pickImage() async {
   final file = await FilePicker.pickFile(type: FileType.image);
@@ -92,7 +93,7 @@ Widget buildImagePickerRow(
   Function() onPickImage,
   bool isImagePicked,
 ) {
-  final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+  final isDark = isAppDarkMode(context);
 
   return SizedBox(
     width: double.infinity,

@@ -11,6 +11,7 @@ import 'package:musified/services/artist_service.dart';
 import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/router_service.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/async_loader.dart';
 import 'package:musified/utilities/flutter_toast.dart';
@@ -180,7 +181,7 @@ class _ArtistPageState extends State<ArtistPage> {
   Widget build(BuildContext context) {
     if (offlineMode.value) return _buildAllSongsPage();
 
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return AsyncLoader<Map<String, dynamic>?>(
@@ -284,7 +285,7 @@ class _ArtistPageState extends State<ArtistPage> {
   Widget _buildHeaderSection() {
     final screenSize = MediaQuery.sizeOf(context);
     final isLandscape = screenSize.width > screenSize.height;
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final artistMap = _artist ?? widget.artistData ?? const <String, dynamic>{};
 
     return Column(

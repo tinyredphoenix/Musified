@@ -8,6 +8,7 @@ import 'package:musified/services/common_services.dart';
 import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/router_service.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/artist_bar.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
@@ -129,7 +130,7 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
     final hasResults = _songsSearchResult.isNotEmpty ||
         _artistsSearchResult.isNotEmpty ||

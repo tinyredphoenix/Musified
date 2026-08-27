@@ -3,6 +3,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:musified/main.dart';
 import 'package:musified/models/position_data.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/formatter.dart';
 
 class PositionSlider extends StatefulWidget {
@@ -69,7 +70,7 @@ class _PositionSliderState extends State<PositionSlider> {
                 ? _dragValue
                 : displayPositionData.position.inMilliseconds.toDouble();
 
-            final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+            final isDark = isAppDarkMode(context);
 
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,

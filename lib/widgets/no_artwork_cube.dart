@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 
 class NullArtworkWidget extends StatelessWidget {
@@ -19,7 +20,7 @@ class NullArtworkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = MediaQuery.platformBrightnessOf(context) == Brightness.dark;
+    final isDark = isAppDarkMode(context);
     final badgeSize = size * 0.4;
     final calculatedIconSize = iconSize ?? (badgeSize * 0.5);
 
