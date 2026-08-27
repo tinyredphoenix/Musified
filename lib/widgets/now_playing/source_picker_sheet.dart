@@ -158,10 +158,10 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
                               iconColor: CupertinoColors.systemGreen,
                               title: 'JioSaavn',
                               subtitle: isOffline
-                                  ? 'Unavailable while playing offline'
-                                  : '320k AAC Lossless',
+                                  ? 'Stream instead of the download'
+                                  : '320k AAC',
                               selected: !isOffline && currentSource == 'jiosaavn',
-                              enabled: !isOffline,
+                              enabled: true,
                               onTap: () => select('jiosaavn'),
                             ),
                             Container(height: 0.5, color: separator),
@@ -170,10 +170,10 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
                               iconColor: const Color(0xFFFF0033),
                               title: 'YouTube Music',
                               subtitle: isOffline
-                                  ? 'Unavailable while playing offline'
-                                  : '160k AAC',
+                                  ? 'Stream instead of the download'
+                                  : 'AAC',
                               selected: !isOffline && currentSource == 'youtube',
-                              enabled: !isOffline,
+                              enabled: true,
                               onTap: () => select('youtube'),
                             ),
                             Container(height: 0.5, color: separator),

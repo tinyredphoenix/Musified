@@ -20,17 +20,25 @@ import 'package:material_ui/material_ui.dart';
 import 'package:musify/extensions/l10n.dart';
 
 class Logger extends ChangeNotifier {
-  static const int _maxLogChars = 80000;
+  static const int _maxLogChars = 200000;
   String _logs = '';
   int _logCount = 0;
 
-  void log(String message, {Object? error, StackTrace? stackTrace}) {
+  void log(
+    String message, {
+    Object? error,
+    StackTrace? stackTrace,
+    Map<String, Object?>? data,
+  }) {
     final timestamp = DateTime.now().toIso8601String();
     final errorMessage = error != null ? ' $error' : '';
+    final dataMessage = data == null || data.isEmpty
+        ? ''
+        : ' ${data.entries.map((e) => '${e.key}=${e.value}').join(' ')}';
     final stackTraceMessage =
         stackTrace != null ? '\n$stackTrace' : '';
     final logMessage =
-        '[$timestamp] $message$errorMessage$stackTraceMessage';
+        '[$timestamp] $message$dataMessage$errorMessage$stackTraceMessage';
 
     debugPrint(logMessage);
     _logs += '$logMessage\n';

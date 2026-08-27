@@ -374,6 +374,25 @@ class MusifyAudioHandler extends BaseAudioHandler {
     return parseSongDuration(extras?['catalogDurationSeconds']);
   }
 
+  void _logPlayer(String message, {Map<String, Object?>? extra}) {
+    logger.log(
+      message,
+      data: {
+        'playing': audioPlayer.playing,
+        'state': audioPlayer.processingState.name,
+        'seq': '${audioPlayer.currentIndex ?? '-'}/${audioPlayer.sequence.length}',
+        'pos': '${audioPlayer.position.inSeconds}s',
+        'dur': '${audioPlayer.duration?.inSeconds ?? '-'}s',
+        'q': '$_currentQueueIndex/${_queueList.length}',
+        'load': _currentLoadingTransitionId,
+        'done': _completionEventPending,
+        'nativeNext': _nativeHasSuccessor,
+        if (_lastError != null) 'err': _lastError,
+        ...?extra,
+      },
+    );
+  }
+
   bool _isCurrentMediaItemMatchingSong(
     MediaItem? currentItem,
     MediaItem currentQueueMediaItem,
@@ -452,14 +471,21 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
       _subscriptions.add(
         session.interruptionEventStream.listen((event) {
+          _logPlayer(
+            'Audio interruption ${event.begin ? 'begin' : 'end'}',
+            extra: {'type': event.type.name},
+          );
           if (event.begin) {
             if (event.type == AudioInterruptionType.duck) {
               unawaited(audioPlayer.setVolume(0.5));
-            } else {
+            } else if (event.type == AudioInterruptionType.pause) {
+              // Phone call / Siri — not lock screen. Locking must not pause.
               _wasPlayingBeforeInterruption = audioPlayer.playing;
               if (_wasPlayingBeforeInterruption) {
                 unawaited(pause());
               }
+            } else {
+              _wasPlayingBeforeInterruption = audioPlayer.playing;
             }
           } else {
             if (event.type == AudioInterruptionType.duck) {
@@ -589,6 +615,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
   void _handleProcessingStateChange(ProcessingState state) {
     try {
       if (state == ProcessingState.completed) {
+        if (_currentLoadingTransitionId >= 0 || _sourceSwitchInFlight) {
+          _logPlayer('Ignoring completed — source replace in progress');
+          return;
+        }
+        _logPlayer('processingState=completed');
         if (sleepTimerEndOfSong) {
           sleepTimerExpired = true;
           sleepTimerEndOfSong = false;
@@ -629,6 +660,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
   void _handleNearEndSkip(Duration position) {
     if (_completionEventPending || sleepTimerExpired) return;
+    if (_currentLoadingTransitionId >= 0 || _sourceSwitchInFlight) return;
     if (_nativeHasSuccessor || _handlingNativeAdvance) return;
     if (!audioPlayer.playing) return;
     if (audioPlayer.processingState == ProcessingState.completed) return;
@@ -693,8 +725,13 @@ class MusifyAudioHandler extends BaseAudioHandler {
       }
       _currentQueueIndex = newIndex;
       final song = _queueList[newIndex];
-      mediaItem.add(_getMediaItemForQueue(song));
-      logger.log('Native AV queue advanced → ${song['title']}');
+      logger.log(
+        'Native AV queue advanced → ${song['title']}',
+        data: {'nativeIndex': nativeIndex, 'q': newIndex},
+      );
+      scheduleMicrotask(() {
+        mediaItem.add(_getMediaItemForQueue(song));
+      });
       try {
         while (audioPlayer.sequence.length > 1 &&
             (audioPlayer.currentIndex ?? 0) > 0) {
@@ -718,15 +755,59 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> _armNativeSuccessor() async {
-    // Disabled: arming a native successor in the ConcatenatingAudioSource
-    // causes broken transitions when playing from YouTube. When Song A ends,
-    // just_audio auto-advances to the armed Song B, but _onNativeQueueAdvanced
-    // hits a race condition ("Cannot fire new event") and crashes — leaving
-    // Song B's audio playing under Song A's UI/artwork/slider.
-    //
-    // The Dart-side _handleNearEndSkip and _handleProcessingStateChange already
-    // handle track advancement correctly without needing a native successor.
-    return;
+    try {
+      if (repeatNotifier.value == AudioServiceRepeatMode.one) return;
+      if (_nativeHasSuccessor) {
+        logger.log(
+          'Native successor already armed',
+          data: {'seq': audioPlayer.sequence.length},
+        );
+        return;
+      }
+
+      Map? nextSong;
+      if (_currentQueueIndex >= 0 &&
+          _currentQueueIndex < _queueList.length - 1) {
+        nextSong = _queueList[_currentQueueIndex + 1];
+      } else if (repeatNotifier.value == AudioServiceRepeatMode.all &&
+          _queueList.isNotEmpty) {
+        nextSong = _queueList[0];
+      }
+      if (nextSong == null) {
+        logger.log('No native successor to arm');
+        return;
+      }
+
+      final armedForIndex = _currentQueueIndex;
+      final title = nextSong['title'];
+      logger.log('Arming native successor: $title');
+      final prepared = cloneMap(nextSong);
+      final playback = await _resolvePlaybackSource(prepared);
+      if (playback == null) {
+        logger.log('Native successor resolve failed for $title');
+        return;
+      }
+      if (armedForIndex != _currentQueueIndex || _nativeHasSuccessor) return;
+
+      final source = await buildAudioSource(
+        prepared,
+        playback.songUrl,
+        playback.isOffline,
+      );
+      if (source == null) return;
+      if (armedForIndex != _currentQueueIndex || _nativeHasSuccessor) return;
+
+      await audioPlayer.addAudioSource(source);
+      logger.log(
+        'Armed native successor: $title',
+        data: {
+          'source': nextSong['resolvedSource'] ?? (playback.isOffline ? 'offline' : '-'),
+          'seq': audioPlayer.sequence.length,
+        },
+      );
+    } catch (e, st) {
+      logger.log('Failed to arm native successor', error: e, stackTrace: st);
+    }
   }
 
   bool _canRetryPlayback() =>
@@ -1288,6 +1369,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
     // If already loading any song, skip the request
     // UNLESS we're in the middle of handling a completion event (allow one load attempt)
     if (_currentLoadingIndex == index && !_completionEventPending) {
+      _logPlayer('playFromQueue skipped — already loading this index');
       return;
     }
 
@@ -1298,6 +1380,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
     } else if (_currentLoadingIndex >= 0 &&
         _completionEventPending &&
         _completionHandlerLoadStarted) {
+      _logPlayer(
+        'playFromQueue skipped — completion load already started',
+        extra: {'loadingIndex': _currentLoadingIndex, 'requested': index},
+      );
       return;
     }
 
@@ -1313,6 +1399,14 @@ class MusifyAudioHandler extends BaseAudioHandler {
       _currentQueueIndex = index;
 
       final currentSong = _queueList[_currentQueueIndex];
+      _logPlayer(
+        'playFromQueue → ${currentSong['title']}',
+        extra: {
+          'ytid': currentSong['ytid'],
+          'offline': currentSong['isOffline'] == true,
+          'source': currentSong['resolvedSource'] ?? currentSong['source'] ?? '-',
+        },
+      );
       final currentMediaItem = _getMediaItemForQueue(currentSong);
       final uniqueId = currentMediaItem.id;
 
@@ -1784,7 +1878,13 @@ class MusifyAudioHandler extends BaseAudioHandler {
   /// iOS suspends AVPlayer / deactivates the session when the app is
   /// backgrounded. UI can still show playing=true with a drifting position.
   Future<void> resyncAfterForeground() async {
-    logger.log('App resumed — restoring audio session');
+    _logPlayer(
+      'App resumed — restoring audio session',
+      extra: {
+        'uiPlaying': playbackState.valueOrNull?.playing,
+        'wasInterrupted': _wasPlayingBeforeInterruption,
+      },
+    );
     try {
       final session = await AudioSession.instance;
       await session.setActive(true);
@@ -1792,18 +1892,41 @@ class MusifyAudioHandler extends BaseAudioHandler {
       logger.log('Failed to reactivate audio session', error: e, stackTrace: st);
     }
 
+    // A song load is already swapping sources — don't fight it.
+    if (_currentLoadingTransitionId >= 0) {
+      _logPlayer('Resume: load in progress, not kicking player');
+      return;
+    }
+
+    if (audioPlayer.processingState == ProcessingState.completed) {
+      _logPlayer('Resume: player completed — advancing queue');
+      _handleProcessingStateChange(ProcessingState.completed);
+      return;
+    }
+
     final uiThinksPlaying = playbackState.valueOrNull?.playing == true;
-    if (!uiThinksPlaying && !audioPlayer.playing) {
+    final shouldPlay =
+        uiThinksPlaying ||
+        audioPlayer.playing ||
+        _wasPlayingBeforeInterruption;
+    if (!shouldPlay || audioPlayer.audioSource == null) {
       _updatePlaybackState();
       return;
     }
 
     try {
-      if (!audioPlayer.playing && audioPlayer.audioSource != null) {
+      // iOS often reports playing=true with no output after unlock until
+      // play() is issued again against an active session.
+      if (!audioPlayer.playing) {
         logger.log('UI said playing but AVPlayer was paused — resuming');
         await play();
-      } else if (audioPlayer.playing) {
-        unawaited(audioPlayer.play());
+      } else {
+        logger.log('Resume: kicking AVPlayer play() so audio actually resumes');
+        unawaited(
+          audioPlayer.play().catchError((Object e, StackTrace st) {
+            logger.log('Resume play() failed', error: e, stackTrace: st);
+          }),
+        );
       }
     } catch (e, st) {
       logger.log('Resume playback failed', error: e, stackTrace: st);
@@ -1814,6 +1937,7 @@ class MusifyAudioHandler extends BaseAudioHandler {
   Future<void> _ensureActuallyPlaying(int? transitionId) async {
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (_isStaleTransition(transitionId)) return;
+    _logPlayer('ensurePlaying check');
     if (audioPlayer.playing) return;
     logger.log('Playback did not start after source change; retrying');
     try {
@@ -1829,6 +1953,11 @@ class MusifyAudioHandler extends BaseAudioHandler {
         logger.log('Retry play() failed', error: e, stackTrace: st);
       }),
     );
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    if (_isStaleTransition(transitionId)) return;
+    if (!audioPlayer.playing) {
+      _logPlayer('Playback still not running after retry');
+    }
   }
 
   @override
@@ -1956,13 +2085,30 @@ class MusifyAudioHandler extends BaseAudioHandler {
           final audioPath = offlineSong['audioPath']?.toString();
           if (audioPath != null && audioPath.isNotEmpty) {
             final f = File(audioPath);
-            if (await f.exists()) {
+            if (await f.exists() && await f.length() > 8192) {
               songData['audioPath'] = audioPath;
               if (offlineSong['artworkPath'] != null) {
                 songData['artworkPath'] = offlineSong['artworkPath'];
               }
+              logger.log(
+                'Offline file OK',
+                data: {
+                  'ytid': ytid,
+                  'bytes': await f.length(),
+                  'path': audioPath,
+                },
+              );
               return true;
             }
+            logger.log(
+              'Offline file unusable',
+              data: {
+                'ytid': ytid,
+                'exists': await f.exists(),
+                'bytes': await f.exists() ? await f.length() : 0,
+                'path': audioPath,
+              },
+            );
           }
         }
       }
@@ -2129,34 +2275,50 @@ class MusifyAudioHandler extends BaseAudioHandler {
   }
 
   Future<_PlaybackSource?> _resolvePlaybackSource(Map songData) async {
-    // Fully downloaded tracks always use the local file — overrides forceSource
-    // and preferred online provider.
-    final isOffline = await _resolveOfflineAndSetPaths(songData);
-    if (isOffline) {
-      songData['isOffline'] = true;
-      songData['resolvedSource'] = 'offline';
-      final songUrl = await _getOfflineSongUrl(songData);
-      if (songUrl != null && songUrl.isNotEmpty) {
-        return _PlaybackSource(songUrl: songUrl, isOffline: true);
-      }
-      // Listed as offline but file missing — fall through only if not in
-      // explicit offline-only mode.
-      if (offlineMode.value) {
+    final forceSource = songData['forceSource']?.toString();
+    final skipOffline = forceSource == 'youtube' || forceSource == 'jiosaavn';
+
+    if (skipOffline) {
+      logger.log(
+        'Skipping local file — explicit source=$forceSource',
+        data: {'ytid': songData['ytid'], 'title': songData['title']},
+      );
+      songData
+        ..remove('isOffline')
+        ..remove('audioPath');
+    } else {
+      final isOffline = await _resolveOfflineAndSetPaths(songData);
+      if (isOffline) {
+        songData['isOffline'] = true;
+        songData['resolvedSource'] = 'offline';
+        final songUrl = await _getOfflineSongUrl(songData);
+        if (songUrl != null && songUrl.isNotEmpty) {
+          logger.log(
+            'Playing from local file',
+            data: {
+              'ytid': songData['ytid'],
+              'path': songUrl,
+            },
+          );
+          return _PlaybackSource(songUrl: songUrl, isOffline: true);
+        }
+        if (offlineMode.value) {
+          logger.log(
+            'Offline file missing for ${songData['ytid']} while offline mode on',
+          );
+          return null;
+        }
         logger.log(
-          'Offline file missing for ${songData['ytid']} while offline mode on',
+          'Offline file missing for ${songData['ytid']}, falling back to online',
+        );
+      }
+
+      if (!isOffline && offlineMode.value) {
+        logger.log(
+          'Offline mode enabled and no local file found for ${songData['ytid']}',
         );
         return null;
       }
-      logger.log(
-        'Offline file missing for ${songData['ytid']}, falling back to online',
-      );
-    }
-
-    if (!isOffline && offlineMode.value) {
-      logger.log(
-        'Offline mode enabled and no local file found for ${songData['ytid']}',
-      );
-      return null;
     }
 
     final songUrl = await _getPlaybackUrl(
@@ -2165,7 +2327,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
     ).timeout(const Duration(seconds: 14));
 
     if (songUrl == null || songUrl.isEmpty) {
-      logger.log('Failed to get song URL for ${songData['ytid']}');
+      logger.log(
+        'Failed to get song URL for ${songData['ytid']}',
+        data: {'force': forceSource ?? '-', 'title': songData['title']},
+      );
       return null;
     }
 
@@ -2176,31 +2341,29 @@ class MusifyAudioHandler extends BaseAudioHandler {
   /// queue entry stay unchanged, so switching between YouTube and JioSaavn
   /// cannot create a duplicate track or attach the wrong artwork/history.
   ///
-  /// Fully downloaded tracks refuse online switches (offline always wins).
+  /// Downloaded tracks can still be switched to a stream — the local file
+  /// is the default, not a lock.
   Future<bool> switchSource(String source) async {
     if (source != 'youtube' && source != 'jiosaavn') return false;
     final song = currentSong;
     if (song == null || _songYtid(song) == null) return false;
 
     final ytid = _songYtid(song)!;
-    if (hasPlayableOfflineFile(ytid) || song['isOffline'] == true) {
-      final stillOffline = await _resolveOfflineAndSetPaths(cloneMap(song));
-      if (stillOffline) {
-        logger.log(
-          'Source switch ignored — fully downloaded track stays offline: $ytid',
-        );
-        return false;
-      }
-    }
-
     final previousSource = song['resolvedSource']?.toString() ?? 'youtube';
-    if (previousSource == source) return true;
+    if (previousSource == source) {
+      logger.log('Source switch no-op, already $source');
+      return true;
+    }
 
     if (_sourceSwitchInFlight) {
       logger.log('Source switch already in progress, ignoring');
       return true;
     }
     _sourceSwitchInFlight = true;
+    logger.log(
+      'Source switch $previousSource → $source',
+      data: {'ytid': ytid, 'title': song['title']},
+    );
 
     final resumePosition = audioPlayer.position;
     final shouldResume = audioPlayer.playing ||
@@ -2241,8 +2404,14 @@ class MusifyAudioHandler extends BaseAudioHandler {
       }
 
       if (!success) {
-        logger.log('Source $source not available for ${song['title']}');
-        if (shouldResume && audioPlayer.audioSource != null) {
+        logger.log(
+          'Source $source not available for ${song['title']}',
+          data: {'hasSource': audioPlayer.audioSource != null},
+        );
+        if (audioPlayer.audioSource == null) {
+          logger.log('Player empty after failed switch — reloading current track');
+          unawaited(_playFromQueue(_currentQueueIndex));
+        } else if (shouldResume) {
           unawaited(
             audioPlayer.play().catchError((Object e, StackTrace st) {
               logger.log(
@@ -2292,7 +2461,12 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
     final file = File(audioPath);
     if (await file.exists()) {
-      return audioPath;
+      final bytes = await file.length();
+      if (bytes > 8192) return audioPath;
+      logger.log(
+        'Offline audio file too small',
+        data: {'ytid': song['ytid'], 'bytes': bytes, 'path': audioPath},
+      );
     }
 
     logger.log('Offline audio file not found: $audioPath');
@@ -2326,7 +2500,9 @@ class MusifyAudioHandler extends BaseAudioHandler {
     Duration? resumeAt,
   }) async {
     try {
-      final urlHost = Uri.tryParse(songUrl)?.host ?? 'invalid-url';
+      final urlHost = isOffline
+          ? 'file:${songUrl.split('/').last}'
+          : (Uri.tryParse(songUrl)?.host ?? 'invalid-url');
       logger.log(
         'Playing [${song['title']}] source=${song['resolvedSource']} host=$urlHost',
       );
@@ -2337,19 +2513,38 @@ class MusifyAudioHandler extends BaseAudioHandler {
         return false;
       }
 
-      // Soft-stop before installing a new URI. Swapping sources while AVPlayer
-      // is still decoding the previous stream is a common iOS hang.
+      // Stop before installing a new item. Mixing AudioSource.file with
+      // clipped URI sources leaves iOS AVPlayer in a silent/error state
+      // where later songs cannot start until pause+play.
       try {
-        if (audioPlayer.playing ||
-            audioPlayer.processingState == ProcessingState.buffering ||
-            audioPlayer.processingState == ProcessingState.loading) {
-          await audioPlayer.pause();
-        }
-      } catch (_) {}
+        await audioPlayer.stop().timeout(const Duration(seconds: 2));
+      } catch (e) {
+        logger.log('stop() before source change failed: $e');
+      }
+
+      _logPlayer(
+        'setAudioSources',
+        extra: {
+          'title': song['title'],
+          'source': song['resolvedSource'],
+          'offline': isOffline,
+          'host': urlHost,
+          'clip': audioSource is ClippingAudioSource,
+        },
+      );
 
       await audioPlayer
           .setAudioSources([audioSource], preload: false)
           .timeout(_songTransitionTimeout);
+
+      _logPlayer(
+        'Source installed',
+        extra: {
+          'title': song['title'],
+          'source': song['resolvedSource'],
+          'playerDur': audioPlayer.duration?.inSeconds,
+        },
+      );
 
       // Check once more after the async setAudioSource: a fast offline song
       // could have loaded and started playing while we were buffering/setting up.
@@ -2402,6 +2597,10 @@ class MusifyAudioHandler extends BaseAudioHandler {
 
       return true;
     } catch (e, stackTrace) {
+      _logPlayer(
+        'Error setting audio source',
+        extra: {'title': song['title'], 'offline': isOffline},
+      );
       logger.log(
         'Error setting audio source',
         error: e,
@@ -2528,7 +2727,32 @@ class MusifyAudioHandler extends BaseAudioHandler {
       final tag = mapToMediaItem(song);
 
       if (isOffline) {
-        return AudioSource.file(songUrl, tag: tag);
+        final file = File(songUrl);
+        final bytes = await file.exists() ? await file.length() : 0;
+        logger.log(
+          'Building file source',
+          data: {'path': songUrl, 'bytes': bytes, 'title': song['title']},
+        );
+        // Use Uri.file so iOS stays on the same AVPlayer item type as streams.
+        // AudioSource.file() after a clipped YouTube URI wedges playback.
+        final fileSource = AudioSource.uri(Uri.file(songUrl), tag: tag);
+        final catalogDuration = parseSongDuration(song['duration']);
+        final codec = song['audioCodec']?.toString() ??
+            getOfflineSongByYtid(song['ytid']?.toString() ?? '')['audioCodec']
+                ?.toString();
+        if (catalogDuration != null &&
+            catalogDuration > const Duration(seconds: 5) &&
+            isHeAacFormatLabel(codec)) {
+          logger.log(
+            'Clipping offline HE-AAC "${song['title']}" to ${catalogDuration.inSeconds}s',
+          );
+          return ClippingAudioSource(
+            child: fileSource,
+            end: catalogDuration,
+            tag: tag,
+          );
+        }
+        return fileSource;
       }
 
       final uri = Uri.parse(songUrl);

@@ -623,15 +623,15 @@ Map<String, dynamic> getOfflineSongByYtid(String ytid) {
   }
 }
 
-/// True when a fully downloaded copy exists on disk.
-/// Fully downloaded tracks always play from disk — online source switches
-/// must not override this.
+/// True when a fully downloaded copy exists on disk and is large enough
+/// to be a real audio file (not a 0-byte failed download).
 bool hasPlayableOfflineFile(String? ytid) {
   if (ytid == null || ytid.isEmpty) return false;
   final path = getOfflineSongByYtid(ytid)['audioPath']?.toString();
   if (path == null || path.isEmpty) return false;
   try {
-    return File(path).existsSync();
+    final file = File(path);
+    return file.existsSync() && file.lengthSync() > 8192;
   } catch (_) {
     return false;
   }
@@ -807,7 +807,6 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
 /// Resolves a playable stream URL for a song (cached when possible).
 Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
   final songId = song['ytid']?.toString() ?? '';
-  logger.log('Resolution start for songId=$songId');
   try {
     if (songId.isEmpty) {
       logger.log('fetchSongStreamUrl: songId is empty');
@@ -822,18 +821,29 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     const cacheDuration = Duration(hours: 3);
     final forceSource = song['forceSource']?.toString();
     // The UI uses `jiosaavn`, while older settings/download records use
-    // `saavn`. Normalize both spellings before selecting a provider so an
-    // explicit source switch can never silently fall back to auto mode.
+    // `saavn`. Normalize both spellings before selecting a provider.
     final requestedPreference = forceSource ?? preferredSource.value;
     final preference = requestedPreference == 'saavn'
         ? 'jiosaavn'
         : requestedPreference;
-    final isExplicitForce = forceSource != null;
+    // Always keep the other provider as fallback. An explicit source switch
+    // still tries the requested service first; if that song isn't listed
+    // there we stream the alternative instead of failing the whole play.
     final sources = switch (preference) {
-      'youtube' => isExplicitForce ? ['youtube'] : ['youtube', 'jiosaavn'],
-      'jiosaavn' => isExplicitForce ? ['jiosaavn'] : ['jiosaavn', 'youtube'],
+      'youtube' => ['youtube', 'jiosaavn'],
+      'jiosaavn' => ['jiosaavn', 'youtube'],
       _ => ['jiosaavn', 'youtube'],
     };
+    logger.log(
+      'Resolution start for songId=$songId',
+      data: {
+        'title': song['title'],
+        'force': forceSource ?? '-',
+        'pref': preference,
+        'try': sources.join('>'),
+        'offlineMode': offlineMode.value,
+      },
+    );
 
     // Cache entries are source-specific. This prevents a JioSaavn URL from
     // being replayed after switching to YouTube (and vice versa).
@@ -867,6 +877,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       if (source == 'youtube') {
         await ensureYoutubeCatalogDuration(song);
       }
+      logger.log(
+        'Using cached $source URL for $songId',
+        data: {'host': Uri.tryParse(cachedUrl)?.host, 'fallback': source != preference},
+      );
       return cachedUrl;
     }
 
@@ -887,7 +901,8 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
           final url = saavnSource['url'] as String;
           if (url.isNotEmpty) {
             logger.log(
-              'JioSaavn stream result found: host=${Uri.tryParse(url)?.host}',
+              'JioSaavn stream result found: host=${Uri.tryParse(url)?.host}'
+              '${forceSource == 'youtube' ? ' (fallback; YouTube was requested)' : ''}',
             );
             song['resolvedSource'] = 'jiosaavn';
             song['resolvedBitrate'] = saavnSource['bitrate'];
@@ -909,7 +924,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
         final selectedStream = await parallelYtFuture;
         if (selectedStream != null) {
           final url = selectedStream.url.toString();
-          logger.log('YouTube stream result found: host=${Uri.tryParse(url)?.host}');
+          logger.log(
+            'YouTube stream result found: host=${Uri.tryParse(url)?.host}'
+            '${preference == 'jiosaavn' ? ' (fallback; JioSaavn had no match)' : ''}',
+          );
           final selectedClient = _getSelectedAudioStream(songId)?.client;
           final userAgent = selectedClient == null
               ? null
