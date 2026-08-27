@@ -88,8 +88,30 @@ class YouTubeMusicSyncService {
     if (headers.isEmpty) {
       throw Exception('Not authenticated');
     }
+    return _post(endpoint, body, headers);
+  }
 
-    headers['Content-Type'] = 'application/json';
+  /// Charts / explore work without a signed-in session.
+  Future<Map<String, dynamic>> _publicPost(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) {
+    return _post(endpoint, body, {
+      'User-Agent':
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+          'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148',
+      'Origin': 'https://music.youtube.com',
+      'Referer': 'https://music.youtube.com/',
+    });
+  }
+
+  Future<Map<String, dynamic>> _post(
+    String endpoint,
+    Map<String, dynamic> body,
+    Map<String, String> extraHeaders,
+  ) async {
+    final headers = Map<String, String>.from(extraHeaders)
+      ..['Content-Type'] = 'application/json';
 
     final fullBody = {
       'context': _remixContext,
@@ -169,15 +191,23 @@ class YouTubeMusicSyncService {
   String? _extractVideoId(Map<String, dynamic> renderer) {
     try {
       final overlay = renderer['overlay'] as Map?;
-      final overlayRenderer = overlay?['musicItemThumbnailOverlayRenderer'] as Map?;
+      final overlayRenderer =
+          overlay?['musicItemThumbnailOverlayRenderer'] as Map?;
       final content = overlayRenderer?['content'] as Map?;
       final playBtn = content?['musicPlayButtonRenderer'] as Map?;
       final nav = playBtn?['playNavigationEndpoint'] as Map?;
       final watch = nav?['watchEndpoint'] as Map?;
-      return watch?['videoId']?.toString();
-    } catch (e) {
-      return null;
+      final fromOverlay = watch?['videoId']?.toString();
+      if (fromOverlay != null && fromOverlay.isNotEmpty) return fromOverlay;
+    } catch (_) {
+      // Fall through to other videoId locations used by charts/explore.
     }
+    final playlistItemData = renderer['playlistItemData'] as Map?;
+    final fromPlaylist = playlistItemData?['videoId']?.toString();
+    if (fromPlaylist != null && fromPlaylist.isNotEmpty) return fromPlaylist;
+    final nav = renderer['navigationEndpoint'] as Map?;
+    final watch = nav?['watchEndpoint'] as Map?;
+    return watch?['videoId']?.toString();
   }
 
   List<Map<String, dynamic>> _parseTrackRenderers(Map<String, dynamic> response) {
@@ -223,6 +253,75 @@ class YouTubeMusicSyncService {
         'image': imageUrl ?? '',
         'source': 'youtube',
         if (durationSeconds != null) 'duration': durationSeconds,
+      });
+    }
+    return tracks;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchTrendingTracks() async {
+    try {
+      var tracks = await _browseChartTracks('FEmusic_charts');
+      if (tracks.isEmpty) {
+        tracks = await _browseChartTracks('FEmusic_explore');
+      }
+      if (tracks.length > 20) {
+        tracks = tracks.take(20).toList();
+      }
+      if (tracks.isNotEmpty) {
+        trendingSongs.value = tracks;
+      }
+      return tracks;
+    } catch (e) {
+      logger.log('Error fetching trending tracks: $e');
+      return [];
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _browseChartTracks(String browseId) async {
+    Map<String, dynamic> response;
+    try {
+      response = await _authenticatedPost('/browse', {'browseId': browseId});
+    } catch (_) {
+      response = await _publicPost('/browse', {'browseId': browseId});
+    }
+    final tracks = <Map<String, dynamic>>[];
+    final seen = <String>{};
+    _appendUniqueTracks(tracks, seen, _parseTrackRenderers(response));
+    if (tracks.length < 20) {
+      _appendUniqueTracks(tracks, seen, _parseTwoRowSongRenderers(response));
+    }
+    return tracks.take(20).toList();
+  }
+
+  List<Map<String, dynamic>> _parseTwoRowSongRenderers(
+    Map<String, dynamic> response,
+  ) {
+    final tracks = <Map<String, dynamic>>[];
+    for (final item in _findRenderers(response, 'musicTwoRowItemRenderer')) {
+      final videoId = _extractVideoId(item);
+      if (videoId == null || !_isValidYouTubeVideoId(videoId)) continue;
+
+      final title = _runsText(item['title'] as Map<String, dynamic>?) ?? '';
+      final subtitle =
+          _runsText(item['subtitle'] as Map<String, dynamic>?) ?? '';
+
+      String? imageUrl;
+      final thumbnailRenderer = item['thumbnailRenderer'] as Map?;
+      final musicThumbnailRenderer =
+          thumbnailRenderer?['musicThumbnailRenderer'] as Map?;
+      final thumbnail = musicThumbnailRenderer?['thumbnail'] as Map?;
+      final thumbnails = thumbnail?['thumbnails'];
+      if (thumbnails is List && thumbnails.isNotEmpty) {
+        final lastThumb = thumbnails.last as Map?;
+        imageUrl = lastThumb?['url']?.toString();
+      }
+
+      tracks.add({
+        'ytid': videoId,
+        'title': title,
+        'artist': subtitle,
+        'image': imageUrl ?? '',
+        'source': 'youtube',
       });
     }
     return tracks;

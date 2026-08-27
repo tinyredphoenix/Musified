@@ -54,6 +54,16 @@ bool isAppDarkMode(BuildContext context) {
   return CupertinoTheme.brightnessOf(context) == Brightness.dark;
 }
 
+/// Scaffold / page canvas. OLED on = `#000000`, OLED off = elevated `#121214`.
+Color musifiedCanvas(bool isDark) => isDark
+    ? (usePureBlackColor.value ? MusifiedStyle.oledBlack : MusifiedStyle.elevated)
+    : MusifiedStyle.lightCanvas;
+
+/// Card / grouped-row fill that still contrasts with [musifiedCanvas].
+Color musifiedCard(bool isDark) => isDark
+    ? (usePureBlackColor.value ? const Color(0xFF0A0A0A) : MusifiedStyle.surface)
+    : MusifiedStyle.lightSurface;
+
 CupertinoThemeData buildCupertinoTheme({
   required Brightness brightness,
   Color primaryColor = const Color(0xFFFF2D55),

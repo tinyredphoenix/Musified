@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:musified/utilities/mediaitem.dart' show upgradeArtworkUrl;
 import 'package:musified/widgets/no_artwork_cube.dart';
 import 'package:musified/widgets/spinner.dart';
@@ -22,24 +22,20 @@ class SongArtworkWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Artwork always comes from the source's largest thumbnail (e.g.
-    // YouTube's ~1280x720 maxresdefault.jpg / offline art saved at download
-    // resolution), no matter how small this widget is actually drawn - the
-    // mini player shows it at ~52dp. Without a cache size hint, both
-    // CachedNetworkImage and Image.file decode the artwork at full
-    // resolution on every rebuild, which is exactly the stutter and
-    // "loading" delay on every song change. Bound the decode target to
-    // roughly what will actually be painted (in physical pixels).
+    // Decode target is the painted square (physical pixels), not full
+    // remote resolution. YouTube ytimg art stays at hqdefault so the
+    // square BoxFit.cover crop is closer to 1:1 than 16:9 maxresdefault.
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final cacheDimension = (size * devicePixelRatio).round().clamp(64, 800);
 
     final rawArtUri = metadata.artUri?.toString();
-    final isValidUri = rawArtUri != null && rawArtUri.isNotEmpty && rawArtUri != 'null';
-    
+    final isValidUri =
+        rawArtUri != null && rawArtUri.isNotEmpty && rawArtUri != 'null';
+
     final fallbackUrl = metadata.extras?['highResImage']?.toString() ??
         metadata.extras?['image']?.toString() ??
-        'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/maxresdefault.jpg';
-        
+        'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/hqdefault.jpg';
+
     final imageUrl = upgradeArtworkUrl(isValidUri ? rawArtUri : fallbackUrl);
 
     return metadata.artUri?.scheme == 'file'

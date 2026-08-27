@@ -42,11 +42,12 @@ class _LibraryPageState extends State<LibraryPage> {
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      backgroundColor: musifiedCanvas(isDark),
       child: AnimatedBuilder(
         animation: Listenable.merge([
           pinnedPlaylistIds,
           offlineMode,
+          usePureBlackColor,
           userCustomPlaylists,
           userPlaylistFolders,
           offlinePlaylistService.offlinePlaylists,

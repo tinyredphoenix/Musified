@@ -75,7 +75,7 @@ class NowPlayingArtwork extends StatelessWidget {
         width: imageSize,
         height: imageSize,
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+          color: musifiedCanvas(isDark),
           borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
             BoxShadow(

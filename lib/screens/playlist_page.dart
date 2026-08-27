@@ -158,7 +158,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      backgroundColor: musifiedCanvas(isDark),
       navigationBar: CupertinoNavigationBar(
         middle: Text(
           _playlistTitle,

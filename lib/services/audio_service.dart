@@ -518,13 +518,22 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
     try {
       final now = DateTime.now();
-      final currentPosition = audioPlayer.position;
+      // Fresh-track load: the player still holds the previous song's
+      // position until the new source is installed. Reporting that to
+      // MPNowPlayingInfoCenter makes the lock-screen scrubber jump.
+      final loadingFreshTrack =
+          _currentLoadingTransitionId >= 0 &&
+          _installedSourceTransitionId != _currentLoadingTransitionId &&
+          !_sourceSwitchInFlight;
+      final currentPosition =
+          loadingFreshTrack ? Duration.zero : audioPlayer.position;
       final isPlaying = audioPlayer.playing;
       final currentState = playbackState.valueOrNull;
       final newProcessingState =
           _processingStateMap[audioPlayer.processingState] ??
           AudioProcessingState.idle;
-      final bufferedPosition = audioPlayer.bufferedPosition;
+      final bufferedPosition =
+          loadingFreshTrack ? Duration.zero : audioPlayer.bufferedPosition;
 
       final shouldEmitProgressTick =
           currentState != null &&
@@ -1251,6 +1260,9 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       return;
     }
 
+    // Drop in-flight YouTube preloads so a skip does not compete with them.
+    _resetPreloadingState();
+
     // Start new transition
     _songTransitionCounter++;
     final currentTransitionId = _songTransitionCounter;
@@ -1277,11 +1289,6 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       await Future.microtask(() {
         mediaItem.add(currentMediaItem);
       });
-
-      _emitOptimisticLoadingState(
-        queueIndex: _currentQueueIndex,
-        mediaId: uniqueId,
-      );
 
       final success = await playSong(
         _queueList[index],
@@ -1397,6 +1404,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
                 return null;
               },
             );
+        if (_currentLoadingTransitionId != -1) {
+          logger.log('Preload aborted after fetch for $ytid');
+          preloadUrl = null;
+          return;
+        }
       }
     } catch (e, stackTrace) {
       logger.log(
@@ -2002,6 +2014,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         return false;
       }
 
+      _resetPreloadingState();
       _lastError = null;
       // INSTANT UI FEEDBACK: emit loading state before any await
       _emitOptimisticLoadingState(
@@ -2013,7 +2026,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       );
 
       final playback = await _resolvePlaybackSource(songData).timeout(
-        const Duration(seconds: 14),
+        const Duration(seconds: 36),
         onTimeout: () {
           logger.log(
             'Playback source resolution timed out for ${songData['ytid']}',
@@ -2120,7 +2133,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
   Future<_PlaybackSource?> _resolvePlaybackSource(Map songData) async {
     final forceSource = songData['forceSource']?.toString();
-    final skipOffline = forceSource == 'youtube' || forceSource == 'jiosaavn';
+    // Stale forceSource on a downloaded library song must not strip the
+    // local file. Only an in-flight source switch goes online on purpose.
+    final skipOffline =
+        (forceSource == 'youtube' || forceSource == 'jiosaavn') &&
+        _sourceSwitchInFlight;
 
     if (skipOffline) {
       logger.log(
@@ -2168,7 +2185,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     final songUrl = await _getPlaybackUrl(
       songData,
       false,
-    ).timeout(const Duration(seconds: 14));
+    ).timeout(const Duration(seconds: 36));
 
     if (songUrl == null || songUrl.isEmpty) {
       logger.log(
@@ -2422,7 +2439,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       );
 
       await audioPlayer
-          .setAudioSources([audioSource], preload: true)
+          .setAudioSources([audioSource], preload: false)
           .timeout(_songTransitionTimeout);
 
       _logPlayer(

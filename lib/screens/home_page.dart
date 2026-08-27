@@ -28,63 +28,88 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     announcementURL.value = null;
+    unawaited(_loadTrending());
+  }
+
+  Future<void> _loadTrending() async {
+    try {
+      await YouTubeMusicSyncService().fetchTrendingTracks();
+    } catch (e) {
+      logger.log('Error loading trending tracks: $e');
+    }
   }
 
   Future<void> _handleRefresh() async {
     unawaited(HapticFeedback.mediumImpact());
+    final futures = <Future<void>>[
+      YouTubeMusicSyncService().fetchTrendingTracks(),
+    ];
     if (YouTubeAuthService().isSignedIn.value) {
-      await YouTubeMusicSyncService().fullSync();
+      futures.add(YouTubeMusicSyncService().fullSync());
     }
+    await Future.wait(futures);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = isAppDarkMode(context);
-    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+    return ValueListenableBuilder<bool>(
+      valueListenable: usePureBlackColor,
+      builder: (context, _, __) {
+        final isDark = isAppDarkMode(context);
+        final navBarColor =
+            isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
 
-    return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text(
-              'Musified',
-              style: TextStyle(
-                fontFamily: MusifiedStyle.displayFont,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.5,
-              ),
+        return CupertinoPageScaffold(
+          backgroundColor: musifiedCanvas(isDark),
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
             ),
-            backgroundColor: navBarColor,
-            border: Border(
-              bottom: BorderSide(
-                color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
-                width: 0.5,
+            slivers: [
+              CupertinoSliverNavigationBar(
+                largeTitle: const Text(
+                  'Musified',
+                  style: TextStyle(
+                    fontFamily: MusifiedStyle.displayFont,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                backgroundColor: navBarColor,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark
+                        ? const Color(0x26FFFFFF)
+                        : const Color(0x1F000000),
+                    width: 0.5,
+                  ),
+                ),
               ),
-            ),
-          ),
-          CupertinoSliverRefreshControl(
-            onRefresh: _handleRefresh,
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: commonSingleChildScrollViewPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 12),
-                  _buildLikedSongsSection(isDark),
-                  _buildMostPlayedSection(isDark),
-                  _buildPlaylistsSection(isDark),
-                  _buildEmptyStateIfNeeded(isDark),
-                  const MiniPlayerBottomSpace(),
-                ],
+              CupertinoSliverRefreshControl(
+                onRefresh: _handleRefresh,
               ),
-            ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: commonSingleChildScrollViewPadding,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+                      _buildLikedSongsSection(isDark),
+                      _buildTopPlayedSection(isDark),
+                      _buildTrendingSection(isDark),
+                      _buildPlaylistsSection(),
+                      _buildMostPlayedSection(isDark),
+                      _buildEmptyStateIfNeeded(isDark),
+                      const MiniPlayerBottomSpace(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -133,72 +158,119 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildMostPlayedSection(bool isDark) {
+  Widget _buildTopPlayedSection(bool isDark) {
     return ValueListenableBuilder<List>(
       valueListenable: userRecentlyPlayed,
       builder: (context, rawSongs, _) {
         final songs = rawSongs.whereType<Map>().toList();
         if (songs.isEmpty) return const SizedBox.shrink();
 
-        final displayCount = songs.length.clamp(0, 25);
-        final displayList = songs.take(displayCount).toList();
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SectionHeader(
-              title: 'Heavy Rotation',
-              icon: CupertinoIcons.flame_fill,
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 205,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                itemCount: displayList.length,
-                itemBuilder: (context, index) {
-                  final song = displayList[index];
-                  return _HomeSongCard(
-                    song: song,
-                    isDark: isDark,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      audioHandler.playPlaylistSong(
-                        playlist: {
-                          'title': 'Heavy Rotation',
-                          'list': displayList,
-                        },
-                        songIndex: index,
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
+        final displayList = songs.take(25).toList();
+        return _buildHorizontalSongSection(
+          isDark: isDark,
+          title: 'Top Played',
+          icon: CupertinoIcons.clock_fill,
+          songs: displayList,
         );
       },
     );
   }
 
-  Widget _buildPlaylistsSection(bool isDark) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([
-        userCustomPlaylists,
-        userLikedPlaylists,
-        YouTubeMusicSyncService().ytMusicPlaylists,
-      ]),
-      builder: (context, _) {
-        final allPlaylists = <Map>[
-          ...userCustomPlaylists.value,
-          ...userLikedPlaylists.value,
-          ...YouTubeMusicSyncService().ytMusicPlaylists.value,
-        ];
+  Widget _buildTrendingSection(bool isDark) {
+    return ValueListenableBuilder<List>(
+      valueListenable: trendingSongs,
+      builder: (context, rawSongs, _) {
+        final songs = rawSongs.whereType<Map>().toList();
+        if (songs.isEmpty) return const SizedBox.shrink();
 
-        if (allPlaylists.isEmpty) return const SizedBox.shrink();
+        final displayList = songs.take(20).toList();
+        return _buildHorizontalSongSection(
+          isDark: isDark,
+          title: 'Trending',
+          icon: CupertinoIcons.flame_fill,
+          songs: displayList,
+        );
+      },
+    );
+  }
+
+  Widget _buildMostPlayedSection(bool isDark) {
+    return ValueListenableBuilder<List>(
+      valueListenable: userRecentlyPlayed,
+      builder: (context, rawSongs, _) {
+        final songs = rawSongs.whereType<Map>().toList();
+        final ranked = songs.where((song) {
+          final count = song['listeningCount'];
+          return count is num && count > 0;
+        }).toList()
+          ..sort((a, b) {
+            final aCount = (a['listeningCount'] as num?)?.toInt() ?? 0;
+            final bCount = (b['listeningCount'] as num?)?.toInt() ?? 0;
+            return bCount.compareTo(aCount);
+          });
+        if (ranked.isEmpty) return const SizedBox.shrink();
+
+        final displayList = ranked.take(25).toList();
+        return _buildHorizontalSongSection(
+          isDark: isDark,
+          title: 'My Most Played',
+          icon: CupertinoIcons.chart_bar_fill,
+          songs: displayList,
+        );
+      },
+    );
+  }
+
+  Widget _buildHorizontalSongSection({
+    required bool isDark,
+    required String title,
+    required IconData icon,
+    required List<Map> songs,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: title,
+          icon: icon,
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 205,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: songs.length,
+            itemBuilder: (context, index) {
+              final song = songs[index];
+              return _HomeSongCard(
+                song: song,
+                isDark: isDark,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  audioHandler.playPlaylistSong(
+                    playlist: {
+                      'title': title,
+                      'list': songs,
+                    },
+                    songIndex: index,
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  Widget _buildPlaylistsSection() {
+    return ValueListenableBuilder<List<Map>>(
+      valueListenable: userCustomPlaylists,
+      builder: (context, customPlaylists, _) {
+        if (customPlaylists.isEmpty) return const SizedBox.shrink();
 
         final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
 
@@ -206,7 +278,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SectionHeader(
-              title: 'Playlists & Mixes',
+              title: 'My Playlists',
               icon: CupertinoIcons.music_albums_fill,
             ),
             const SizedBox(height: 10),
@@ -216,10 +288,11 @@ class _HomePageState extends State<HomePage> {
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                itemCount: allPlaylists.length,
+                itemCount: customPlaylists.length,
                 itemBuilder: (context, index) {
-                  final playlist = allPlaylists[index];
-                  final id = playlist['playlistId'] ?? playlist['ytid'] ?? playlist['id'];
+                  final playlist = customPlaylists[index];
+                  final id =
+                      playlist['playlistId'] ?? playlist['ytid'] ?? playlist['id'];
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
                     child: GestureDetector(
@@ -254,15 +327,13 @@ class _HomePageState extends State<HomePage> {
         userLikedSongsList,
         userRecentlyPlayed,
         userCustomPlaylists,
-        userLikedPlaylists,
-        YouTubeMusicSyncService().ytMusicPlaylists,
+        trendingSongs,
       ]),
       builder: (context, _) {
         final hasAny = userLikedSongsList.value.isNotEmpty ||
             userRecentlyPlayed.value.isNotEmpty ||
             userCustomPlaylists.value.isNotEmpty ||
-            userLikedPlaylists.value.isNotEmpty ||
-            YouTubeMusicSyncService().ytMusicPlaylists.value.isNotEmpty;
+            trendingSongs.value.isNotEmpty;
 
         if (hasAny) return const SizedBox.shrink();
 

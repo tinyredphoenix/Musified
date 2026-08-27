@@ -29,7 +29,7 @@ class _NowPlayingPageState extends State<NowPlayingPage> {
     final size = MediaQuery.sizeOf(context);
     final isLargeScreen = size.width > 800 && size.height > 600;
     final isDark = isAppDarkMode(context);
-    final bg = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+    final bg = musifiedCanvas(isDark);
     final screenWidth = size.width;
     final baseIconSize = screenWidth < 360 ? 36.0 : (screenWidth < 400 ? 40.0 : 44.0);
     final miniIconSize = screenWidth < 360 ? 18.0 : 22.0;

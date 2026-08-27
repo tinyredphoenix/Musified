@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
+import 'package:musified/extensions/l10n.dart';
 import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 
@@ -12,99 +14,230 @@ void showCreatePlaylistDialog(
   final linkController = TextEditingController();
   var isCustom = true;
 
-  showCupertinoDialog<void>(
+  showCupertinoModalPopup<void>(
     context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (context, setDialogState) {
-        return CupertinoAlertDialog(
-          title: const Text(
-            'New Playlist',
-            style: TextStyle(
-              fontFamily: MusifiedStyle.displayFont,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          content: Padding(
-            padding: const EdgeInsets.only(top: 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CupertinoSegmentedControl<bool>(
-                  children: const {
-                    true: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      child: Text('Custom', style: TextStyle(fontSize: 13)),
-                    ),
-                    false: Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      child: Text('YouTube Link', style: TextStyle(fontSize: 13)),
-                    ),
-                  },
-                  groupValue: isCustom,
-                  selectedColor: const Color(0xFFFF2D55),
-                  onValueChanged: (val) {
-                    setDialogState(() {
-                      isCustom = val;
-                    });
-                  },
+    builder: (ctx) {
+      final isDark = isAppDarkMode(ctx);
+      final sheetColor =
+          isDark ? MusifiedStyle.elevated : MusifiedStyle.lightElevated;
+      final hairline =
+          isDark ? MusifiedStyle.hairline : MusifiedStyle.lightHairline;
+      final primary = CupertinoTheme.of(ctx).primaryColor;
+      final labelColor =
+          isDark ? CupertinoColors.white : CupertinoColors.black;
+      final fieldFill =
+          isDark ? MusifiedStyle.surface : MusifiedStyle.lightSurfaceHigh;
+      final placeholderColor = isDark
+          ? MusifiedStyle.tertiaryLabel
+          : MusifiedStyle.lightTertiaryLabel;
+      final unselectedLabel = isDark
+          ? MusifiedStyle.secondaryLabel
+          : MusifiedStyle.lightSecondaryLabel;
+
+      return Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(ctx).bottom),
+        child: StatefulBuilder(
+          builder: (context, setDialogState) {
+            return Container(
+              decoration: BoxDecoration(
+                color: sheetColor,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(MusifiedStyle.radiusXl),
                 ),
-                const SizedBox(height: 14),
-                if (isCustom)
-                  CupertinoTextField(
-                    controller: nameController,
-                    placeholder: 'Playlist Name',
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 14),
-                  )
-                else
-                  CupertinoTextField(
-                    controller: linkController,
-                    placeholder: 'https://youtube.com/playlist?list=...',
-                    autofocus: true,
-                    style: const TextStyle(fontSize: 14),
-                  ),
-              ],
-            ),
-          ),
-          actions: [
-            CupertinoDialogAction(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            CupertinoDialogAction(
-              isDefaultAction: true,
-              onPressed: () async {
-                Navigator.pop(ctx);
-                if (isCustom) {
-                  final name = nameController.text.trim();
-                  if (name.isNotEmpty) {
-                    final res = createCustomPlaylist(name, null, context);
-                    if (songToAdd != null && songToAdd is Map) {
-                      addSongInCustomPlaylist(context, res.$2, songToAdd);
-                    } else if (songsToAdd != null && songsToAdd.isNotEmpty) {
-                      addSongsInCustomPlaylist(
-                        context,
-                        res.$2,
-                        songsToAdd.whereType<Map>().toList(),
-                      );
-                    }
-                    if (context.mounted) showToast(context, res.$1);
-                  }
-                } else {
-                  final link = linkController.text.trim();
-                  if (link.isNotEmpty) {
-                    final result = await addUserPlaylist(link, context);
-                    if (context.mounted) showToast(context, result);
-                  }
-                }
-              },
-              child: const Text('Create'),
-            ),
-          ],
-        );
-      },
-    ),
-  );
+                border: Border(top: BorderSide(color: hairline)),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 10, bottom: 8),
+                      child: Container(
+                        width: 36,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? const Color(0x66FFFFFF)
+                              : const Color(0x33000000),
+                          borderRadius: BorderRadius.circular(2.5),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      'New Playlist',
+                      style: MusifiedStyle.largeTitle(labelColor),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: CupertinoSlidingSegmentedControl<bool>(
+                        groupValue: isCustom,
+                        thumbColor: primary,
+                        backgroundColor: fieldFill,
+                        onValueChanged: (val) {
+                          if (val == null) return;
+                          setDialogState(() => isCustom = val);
+                        },
+                        children: {
+                          true: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            child: Text(
+                              'Custom',
+                              style: TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: isCustom
+                                    ? CupertinoColors.white
+                                    : unselectedLabel,
+                              ),
+                            ),
+                          ),
+                          false: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 8,
+                            ),
+                            child: Text(
+                              'YouTube Link',
+                              style: TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: !isCustom
+                                    ? CupertinoColors.white
+                                    : unselectedLabel,
+                              ),
+                            ),
+                          ),
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    CupertinoTextField(
+                      key: ValueKey(isCustom),
+                      controller:
+                          isCustom ? nameController : linkController,
+                      placeholder: isCustom
+                          ? ctx.l10n.customPlaylistName
+                          : ctx.l10n.youtubePlaylistLinkOrId,
+                      autofocus: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
+                      style: TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
+                        fontSize: 16,
+                        color: labelColor,
+                      ),
+                      placeholderStyle: TextStyle(
+                        fontFamily: MusifiedStyle.uiFont,
+                        fontSize: 16,
+                        color: placeholderColor,
+                      ),
+                      cursorColor: primary,
+                      decoration: BoxDecoration(
+                        color: fieldFill,
+                        borderRadius: BorderRadius.circular(
+                          MusifiedStyle.radiusMd,
+                        ),
+                        border: Border.all(color: hairline),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: CupertinoButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: Text(
+                              ctx.l10n.cancel,
+                              style: TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                color: unselectedLabel,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: CupertinoButton.filled(
+                            borderRadius: BorderRadius.circular(
+                              MusifiedStyle.radiusMd,
+                            ),
+                            onPressed: () async {
+                              Navigator.pop(ctx);
+                              if (isCustom) {
+                                final name = nameController.text.trim();
+                                if (name.isNotEmpty) {
+                                  final res = createCustomPlaylist(
+                                    name,
+                                    null,
+                                    context,
+                                  );
+                                  if (songToAdd != null && songToAdd is Map) {
+                                    addSongInCustomPlaylist(
+                                      context,
+                                      res.$2,
+                                      songToAdd,
+                                    );
+                                  } else if (songsToAdd != null &&
+                                      songsToAdd.isNotEmpty) {
+                                    addSongsInCustomPlaylist(
+                                      context,
+                                      res.$2,
+                                      songsToAdd.whereType<Map>().toList(),
+                                    );
+                                  }
+                                  if (context.mounted) {
+                                    showToast(context, res.$1);
+                                  }
+                                }
+                              } else {
+                                final link = linkController.text.trim();
+                                if (link.isNotEmpty) {
+                                  final result = await addUserPlaylist(
+                                    link,
+                                    context,
+                                  );
+                                  if (context.mounted) {
+                                    showToast(context, result);
+                                  }
+                                }
+                              }
+                            },
+                            child: Text(
+                              ctx.l10n.create,
+                              style: const TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                color: CupertinoColors.white,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    },
+  ).whenComplete(() {
+    nameController.dispose();
+    linkController.dispose();
+  });
 }
 
 void showAddToPlaylistDialog(

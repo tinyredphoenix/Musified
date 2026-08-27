@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
-import 'package:musified/constants/clients.dart';
 import 'package:musified/main.dart' show logger;
 import 'package:musified/services/artist_service.dart' show ytMusicClient;
 import 'package:musified/services/data_manager.dart';
@@ -49,6 +48,9 @@ ValueNotifier<List> userLikedSongsList = ValueNotifier<List>(
 ValueNotifier<List> userRecentlyPlayed = ValueNotifier<List>(
   _safeUserGet<List>('recentlyPlayedSongs', []),
 );
+
+final trendingSongs = ValueNotifier<List>([]);
+
 ValueNotifier<List> userOfflineSongs = ValueNotifier<List>(
   _safeUserNoBackupGet<List>('offlineSongs', []),
 );
@@ -175,39 +177,69 @@ String? _youtubeClientUserAgent(YoutubeApiClient client) {
 }
 
 Future<({StreamManifest manifest, YoutubeApiClient? client})?>
-_fetchStreamManifest(String songId) async {
-  if (useProxy.value) {
-    final manifest = await ProxyManager()
-        .getSongManifest(songId)
-        .timeout(const Duration(seconds: 4));
-    if (manifest == null) return null;
-    return (manifest: manifest, client: null);
-  }
-
-  // Fast multi-client manifest fetch
+_tryGetManifest(
+  String songId, {
+  required String attempt,
+  required Duration timeout,
+  List<YoutubeApiClient>? ytClients,
+}) async {
   try {
     final manifest = await ytClient.videos.streams
-        .getManifest(songId, ytClients: customClients)
-        .timeout(const Duration(seconds: 4));
+        .getManifest(songId, ytClients: ytClients)
+        .timeout(timeout);
     if (manifest.audioOnly.isNotEmpty) {
-      return (manifest: manifest, client: customClients.first);
+      logger.log('YouTube manifest via $attempt for $songId');
+      return (
+        manifest: manifest,
+        client: ytClients == null || ytClients.isEmpty ? null : ytClients.first,
+      );
     }
+    logger.log('YouTube manifest via $attempt for $songId had no audio streams');
   } catch (error) {
-    logger.log('Multi-client manifest failed for $songId: $error');
-  }
-
-  // Fallback to default client resolution
-  try {
-    final manifest = await ytClient.videos.streams
-        .getManifest(songId)
-        .timeout(const Duration(seconds: 4));
-    if (manifest.audioOnly.isNotEmpty) {
-      return (manifest: manifest, client: null);
-    }
-  } catch (error) {
-    logger.log('Default getManifest failed for $songId: $error');
+    logger.log('$attempt getManifest failed for $songId: $error');
   }
   return null;
+}
+
+Future<({StreamManifest manifest, YoutubeApiClient? client})?>
+_fetchStreamManifest(String songId) async {
+  if (useProxy.value) {
+    try {
+      final manifest = await ProxyManager()
+          .getSongManifest(songId)
+          .timeout(const Duration(seconds: 12));
+      if (manifest != null && manifest.audioOnly.isNotEmpty) {
+        logger.log('YouTube manifest via proxy for $songId');
+        return (manifest: manifest, client: null);
+      }
+    } catch (error) {
+      logger.log('Proxy getManifest failed for $songId: $error');
+    }
+    return null;
+  }
+
+  // Do not pass ytClients on the first attempt: that disables the library's
+  // automatic TV fallback, and wrapping a sequential multi-client loop in a
+  // short timeout always fails.
+  final resolved =
+      await _tryGetManifest(
+        songId,
+        attempt: 'default clients',
+        timeout: const Duration(seconds: 12),
+      ) ??
+      await _tryGetManifest(
+        songId,
+        attempt: 'iOS client',
+        timeout: const Duration(seconds: 10),
+        ytClients: [YoutubeApiClient.ios],
+      ) ??
+      await _tryGetManifest(
+        songId,
+        attempt: 'TV client',
+        timeout: const Duration(seconds: 10),
+        ytClients: [YoutubeApiClient.tv],
+      );
+  return resolved;
 }
 
 /// Returns a cached song URL if present and still valid.
@@ -561,14 +593,26 @@ bool isPlaylistFullyOffline(List songs) {
   return songs.every((s) => _offlineSongIdsSet.contains(s['ytid']?.toString() ?? ''));
 }
 
+bool _isPlayableAudioFile(String? path) {
+  if (path == null || path.isEmpty) return false;
+  try {
+    final file = File(path);
+    return file.existsSync() && file.lengthSync() > 8192;
+  } catch (_) {
+    return false;
+  }
+}
+
 Map<String, dynamic> getOfflineSongByYtid(String ytid) {
   try {
+    if (ytid.isEmpty) return <String, dynamic>{};
+
     final song = userOfflineSongs.value.firstWhere(
       (s) => s['ytid'] == ytid,
       orElse: () => <String, dynamic>{},
     );
     final result = Map<String, dynamic>.from(song);
-    if (result.isEmpty || ytid.isEmpty || applicationDirPath.isEmpty) {
+    if (applicationDirPath.isEmpty) {
       return result;
     }
     // iOS moves the app container (its UUID changes) on every reinstall or
@@ -576,15 +620,16 @@ Map<String, dynamic> getOfflineSongByYtid(String ytid) {
     // file "disappears". Downloads are named deterministically by ytid, so
     // always resolve against the CURRENT container instead of trusting the
     // stored path. This keeps offline playback working across app updates.
+    // A Hive miss still counts as playable if the file is on disk.
     final currentAudioPath = FilePaths.getAudioPath(ytid);
-    if (File(currentAudioPath).existsSync()) {
-      result['audioPath'] = currentAudioPath;
+    if (_isPlayableAudioFile(currentAudioPath)) {
+      result
+        ..['audioPath'] = currentAudioPath
+        ..['ytid'] = ytid;
     }
-    if (result['artworkPath'] != null) {
-      final currentArtworkPath = FilePaths.getArtworkPath(ytid);
-      if (File(currentArtworkPath).existsSync()) {
-        result['artworkPath'] = currentArtworkPath;
-      }
+    final currentArtworkPath = FilePaths.getArtworkPath(ytid);
+    if (File(currentArtworkPath).existsSync()) {
+      result['artworkPath'] = currentArtworkPath;
     }
     return result;
   } catch (_) {
@@ -596,14 +641,10 @@ Map<String, dynamic> getOfflineSongByYtid(String ytid) {
 /// to be a real audio file (not a 0-byte failed download).
 bool hasPlayableOfflineFile(String? ytid) {
   if (ytid == null || ytid.isEmpty) return false;
-  final path = getOfflineSongByYtid(ytid)['audioPath']?.toString();
-  if (path == null || path.isEmpty) return false;
-  try {
-    final file = File(path);
-    return file.existsSync() && file.lengthSync() > 8192;
-  } catch (_) {
-    return false;
-  }
+  final hivePath = getOfflineSongByYtid(ytid)['audioPath']?.toString();
+  if (_isPlayableAudioFile(hivePath)) return true;
+  if (applicationDirPath.isEmpty) return false;
+  return _isPlayableAudioFile(FilePaths.getAudioPath(ytid));
 }
 
 Future<List<String>> getSearchSuggestions(String query) async {
@@ -827,8 +868,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       await invalidateSongStreamCache(songId);
     }
 
-    // JioSaavn priority resolution with automatic YouTube fallback
-    if (preference == 'jiosaavn' && jiosaavnEnabled.value) {
+    // Explicit YouTube source switch: skip the JioSaavn 3s wait.
+    if (forceSource != 'youtube' &&
+        preference == 'jiosaavn' &&
+        jiosaavnEnabled.value) {
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
@@ -951,7 +994,12 @@ Future<bool> makeSongOffline(
       }
     }
 
-    final offlineSong = Map<String, dynamic>.from(song as Map);
+    final offlineSong = Map<String, dynamic>.from(song as Map)
+      ..remove('forceSource')
+      ..remove('resolvedSource')
+      ..remove('resolvedBitrate')
+      ..remove('resolvedFormat')
+      ..remove('resolvedUserAgent');
     var downloadedSource = normalizedSource == 'saavn'
         ? 'jiosaavn'
         : normalizedSource == 'youtube'

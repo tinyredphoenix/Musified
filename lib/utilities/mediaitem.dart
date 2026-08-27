@@ -24,6 +24,48 @@ Map mediaItemToMap(MediaItem mediaItem) {
   };
 }
 
+bool _isSquareArtworkCdn(String url) {
+  return url.contains('googleusercontent.com') ||
+      url.contains('ggpht.com') ||
+      url.contains('saavncdn.com');
+}
+
+String? _nonEmptyUrl(dynamic value) {
+  final url = value?.toString();
+  if (url == null || url.isEmpty || url == 'null') return null;
+  return url;
+}
+
+/// Square-friendly artwork URL for lock-screen / in-app art.
+/// Prefers googleusercontent, ggpht, and saavncdn over 16:9 ytimg maxres.
+String? resolveMediaArtworkUrl(Map song, {String? ytid}) {
+  final candidates = <String>[
+    for (final key in [
+      'highResImage',
+      'image',
+      'lowResImage',
+      'thumbnail',
+      'artwork',
+    ])
+      if (_nonEmptyUrl(song[key]) != null) _nonEmptyUrl(song[key])!,
+  ];
+
+  String? chosen;
+  for (final url in candidates) {
+    if (_isSquareArtworkCdn(url)) {
+      chosen = url;
+      break;
+    }
+  }
+  chosen ??= candidates.isNotEmpty ? candidates.first : null;
+
+  if (chosen != null) return upgradeArtworkUrl(chosen);
+  if (ytid != null && ytid.isNotEmpty) {
+    return 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg';
+  }
+  return null;
+}
+
 String upgradeArtworkUrl(String url, {int targetSize = 800}) {
   if (url.isEmpty || url == 'null') return url;
 
@@ -32,7 +74,10 @@ String upgradeArtworkUrl(String url, {int targetSize = 800}) {
   if (upgraded.contains('googleusercontent.com') ||
       upgraded.contains('ggpht.com')) {
     upgraded = upgraded
-        .replaceAll(RegExp(r'=w\d+-h\d+(?:-[a-zA-Z0-9]+)*'), '=w$targetSize-h$targetSize-l90-rj')
+        .replaceAll(
+          RegExp(r'=w\d+-h\d+(?:-[a-zA-Z0-9]+)*'),
+          '=w$targetSize-h$targetSize-l90-rj',
+        )
         .replaceAll(RegExp(r'=s\d+(?:-[a-zA-Z0-9]+)*'), '=s$targetSize');
   }
 
@@ -43,13 +88,16 @@ String upgradeArtworkUrl(String url, {int targetSize = 800}) {
         .replaceAll('150x150.jpg', '500x500.jpg');
   }
 
-  // 3. YouTube standard thumbnails: upgrade hqdefault (480x360) / default (120x90) / sddefault (640x480)
-  if (upgraded.contains('ytimg.com/vi/')) {
-    upgraded = upgraded
-        .replaceAll('/default.jpg', '/maxresdefault.jpg')
-        .replaceAll('/mqdefault.jpg', '/maxresdefault.jpg')
-        .replaceAll('/hqdefault.jpg', '/maxresdefault.jpg')
-        .replaceAll('/sddefault.jpg', '/maxresdefault.jpg');
+  // 3. YouTube standard thumbnails: keep hqdefault (center-crop to square).
+  // Do not upgrade to maxresdefault (1280×720 16:9).
+  if (upgraded.contains('ytimg.com/vi/') ||
+      upgraded.contains('youtube.com/vi/')) {
+    upgraded = upgraded.replaceAllMapped(
+      RegExp(
+        r'/(maxresdefault|sddefault|mqdefault|hq720|default)\.(jpg|webp|jpeg)',
+      ),
+      (match) => '/hqdefault.${match[2]}',
+    );
   }
 
   return upgraded;
@@ -75,18 +123,7 @@ MediaItem mapToMediaItem(Map song) {
   final downloadSource =
       song['downloadSource'] ?? offlineSong['downloadSource'];
 
-  final rawImageUrl = song['highResImage']?.toString() ??
-      song['image']?.toString() ??
-      song['lowResImage']?.toString() ??
-      song['thumbnail']?.toString() ??
-      song['artwork']?.toString() ??
-      (ytid != null && ytid.isNotEmpty
-          ? 'https://i.ytimg.com/vi/$ytid/maxresdefault.jpg'
-          : null);
-
-  final highQualityImageUrl = rawImageUrl != null
-      ? upgradeArtworkUrl(rawImageUrl)
-      : null;
+  final highQualityImageUrl = resolveMediaArtworkUrl(song, ytid: ytid);
 
   final artUri = isOffline && offlineSong['artworkPath'] != null
       ? Uri.file(offlineSong['artworkPath'].toString())
@@ -94,7 +131,7 @@ MediaItem mapToMediaItem(Map song) {
               highQualityImageUrl.isNotEmpty &&
               highQualityImageUrl != 'null'
           ? Uri.parse(highQualityImageUrl)
-          : Uri.parse('https://i.ytimg.com/vi/${ytid ?? ''}/maxresdefault.jpg'));
+          : Uri.parse('https://i.ytimg.com/vi/${ytid ?? ''}/hqdefault.jpg'));
   // ytid is the canonical track identity shared by YouTube and JioSaavn.
   // Provider URLs, source labels, and queue-entry ids must never change it.
   final stableId = (ytid == null || ytid.isEmpty)

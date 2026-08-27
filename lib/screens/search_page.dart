@@ -137,7 +137,7 @@ class _SearchPageState extends State<SearchPage> {
         _playlistsSearchResult.isNotEmpty;
 
     return CupertinoPageScaffold(
-      backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+      backgroundColor: musifiedCanvas(isDark),
       child: CustomScrollView(
         physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         slivers: [

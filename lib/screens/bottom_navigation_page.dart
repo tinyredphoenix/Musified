@@ -31,12 +31,6 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = isAppDarkMode(context);
-    final activeColor = const Color(0xFFFF2D55);
-    final inactiveColor = isDark ? const Color(0x80FFFFFF) : const Color(0x80000000);
-    final barBg = isDark ? const Color(0xB3121214) : const Color(0xB3F2F2F7);
-    final border = isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000);
-
     return PopScope(
       canPop: widget.child.currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
@@ -48,9 +42,15 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
           SystemNavigator.pop();
         }
       },
-      child: ValueListenableBuilder<bool>(
-        valueListenable: offlineMode,
-        builder: (context, isOfflineMode, _) {
+      child: AnimatedBuilder(
+        animation: Listenable.merge([offlineMode, usePureBlackColor]),
+        builder: (context, _) {
+          final isOfflineMode = offlineMode.value;
+          final isDark = isAppDarkMode(context);
+          const activeColor = Color(0xFFFF2D55);
+          final inactiveColor = isDark ? const Color(0x80FFFFFF) : const Color(0x80000000);
+          final barBg = isDark ? const Color(0xB3121214) : const Color(0xB3F2F2F7);
+          final border = isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000);
           if (_previousOfflineMode != null && _previousOfflineMode != isOfflineMode) {
             SchedulerBinding.instance.addPostFrameCallback((_) {
               _handleOfflineModeChange(isOfflineMode);
@@ -61,7 +61,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
           final items = _getNavigationItems(isOfflineMode);
 
           return CupertinoPageScaffold(
-            backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
+            backgroundColor: musifiedCanvas(isDark),
             child: Stack(
               children: [
                 Positioned.fill(

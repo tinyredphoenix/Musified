@@ -19,55 +19,66 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = isAppDarkMode(context);
-    final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
-    final scaffoldBg = isDark ? const Color(0xFF000000) : const Color(0xFFF2F2F7);
+    return ValueListenableBuilder<bool>(
+      valueListenable: usePureBlackColor,
+      builder: (context, _, __) {
+        final isDark = isAppDarkMode(context);
+        final navBarColor =
+            isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+        final scaffoldBg = musifiedCanvas(isDark);
 
-    return CupertinoPageScaffold(
-      backgroundColor: scaffoldBg,
-      child: CustomScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: const Text(
-              'Settings',
-              style: TextStyle(
-                fontFamily: MusifiedStyle.displayFont,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-              ),
+        return CupertinoPageScaffold(
+          backgroundColor: scaffoldBg,
+          child: CustomScrollView(
+            physics: const BouncingScrollPhysics(
+              parent: AlwaysScrollableScrollPhysics(),
             ),
-            backgroundColor: navBarColor,
-            border: Border(
-              bottom: BorderSide(
-                color: isDark ? const Color(0x26FFFFFF) : const Color(0x1F000000),
-                width: 0.5,
+            slivers: [
+              CupertinoSliverNavigationBar(
+                largeTitle: const Text(
+                  'Settings',
+                  style: TextStyle(
+                    fontFamily: MusifiedStyle.displayFont,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                backgroundColor: navBarColor,
+                border: Border(
+                  bottom: BorderSide(
+                    color: isDark
+                        ? const Color(0x26FFFFFF)
+                        : const Color(0x1F000000),
+                    width: 0.5,
+                  ),
+                ),
               ),
-            ),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildThemeSelector(context, isDark),
+                      const SizedBox(height: 20),
+                      _buildYouTubeAccountCard(context, isDark),
+                      const SizedBox(height: 20),
+                      _buildAudioEngineSection(context, isDark),
+                      const SizedBox(height: 20),
+                      _buildStorageSection(context, isDark),
+                      const SizedBox(height: 20),
+                      _buildAboutSection(context, isDark),
+                      const SizedBox(height: 12),
+                      const MiniPlayerBottomSpace(),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildThemeSelector(context, isDark),
-                  const SizedBox(height: 20),
-                  _buildYouTubeAccountCard(context, isDark),
-                  const SizedBox(height: 20),
-                  _buildAudioEngineSection(context, isDark),
-                  const SizedBox(height: 20),
-                  _buildStorageSection(context, isDark),
-                  const SizedBox(height: 20),
-                  _buildAboutSection(context, isDark),
-                  const SizedBox(height: 12),
-                  const MiniPlayerBottomSpace(),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
