@@ -119,6 +119,39 @@ class YouTubeMusicSyncService {
     return runs.map((run) => (run as Map)['text']?.toString() ?? '').join();
   }
 
+  int? _parseTrackDurationSeconds(Map<String, dynamic> item) {
+    final fixedColumns = item['fixedColumns'];
+    if (fixedColumns is List) {
+      for (final col in fixedColumns) {
+        if (col is! Map) continue;
+        final renderer =
+            col['musicResponsiveListItemFixedColumnRenderer'] as Map?;
+        final text = _runsText(renderer?['text'] as Map<String, dynamic>?);
+        final seconds = _clockTextToSeconds(text);
+        if (seconds != null) return seconds;
+      }
+    }
+    final lengthText = item['lengthText'];
+    if (lengthText is Map) {
+      return _clockTextToSeconds(
+        _runsText(Map<String, dynamic>.from(lengthText)),
+      );
+    }
+    if (lengthText is String) return _clockTextToSeconds(lengthText);
+    return null;
+  }
+
+  int? _clockTextToSeconds(String? text) {
+    if (text == null || text.isEmpty) return null;
+    final parts = text.trim().split(':');
+    if (parts.length < 2 || parts.length > 3) return null;
+    final nums = parts.map(int.tryParse).toList();
+    if (nums.any((n) => n == null)) return null;
+    final ints = nums.cast<int>();
+    if (ints.length == 2) return ints[0] * 60 + ints[1];
+    return ints[0] * 3600 + ints[1] * 60 + ints[2];
+  }
+
   Iterable<Map<String, dynamic>> _findRenderers(dynamic node, String key) sync* {
     if (node is Map) {
       final match = node[key];
@@ -181,12 +214,15 @@ class YouTubeMusicSyncService {
         imageUrl = lastThumb?['url']?.toString();
       }
 
+      final durationSeconds = _parseTrackDurationSeconds(item);
+
       tracks.add({
         'ytid': videoId,
         'title': title,
         'artist': artist,
         'image': imageUrl ?? '',
         'source': 'youtube',
+        if (durationSeconds != null) 'duration': durationSeconds,
       });
     }
     return tracks;

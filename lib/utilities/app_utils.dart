@@ -118,12 +118,66 @@ String formatMonthPeriodLabel(Locale locale, String monthKey) {
       : '${label[0].toUpperCase()}${label.substring(1)}';
 }
 
+/// YouTube HE-AAC itags. iOS CoreAudio/AVPlayer reports these as ~2× duration.
+const Set<int> kHeAacItags = {139, 599, 600};
+
+bool isHeAacStream(AudioOnlyStreamInfo stream) {
+  if (kHeAacItags.contains(stream.tag)) return true;
+  return isHeAacFormatLabel('${stream.codec} ${stream.audioCodec}');
+}
+
+bool isHeAacFormatLabel(String? format) {
+  if (format == null || format.isEmpty) return false;
+  final f = format.toLowerCase();
+  return f.contains('mp4a.40.5') ||
+      f.contains('he-aac') ||
+      f.contains('heaac') ||
+      f.contains('sbr');
+}
+
+/// Parses catalog duration from song maps. YouTube/Innertube values may be
+/// seconds, milliseconds, or a clock string (`3:24` / `1:02:03`).
+Duration? parseSongDuration(dynamic value) {
+  if (value == null) return null;
+  if (value is Duration) {
+    return value > Duration.zero ? value : null;
+  }
+  if (value is num) {
+    return _durationFromNumber(value.toInt());
+  }
+  final text = value.toString().trim();
+  if (text.isEmpty) return null;
+  if (text.contains(':')) {
+    final parts = text.split(':');
+    if (parts.length < 2 || parts.length > 3) return null;
+    final nums = parts.map(int.tryParse).toList();
+    if (nums.any((n) => n == null)) return null;
+    final ints = nums.cast<int>();
+    final seconds = ints.length == 2
+        ? ints[0] * 60 + ints[1]
+        : ints[0] * 3600 + ints[1] * 60 + ints[2];
+    return seconds > 0 ? Duration(seconds: seconds) : null;
+  }
+  final parsed = int.tryParse(text);
+  if (parsed == null) return null;
+  return _durationFromNumber(parsed);
+}
+
+Duration? _durationFromNumber(int n) {
+  if (n <= 0) return null;
+  // Values larger than 24h-as-seconds are almost always milliseconds
+  // (e.g. a 3:00 track stored as 180000).
+  if (n > 86400) return Duration(milliseconds: n);
+  return Duration(seconds: n);
+}
+
 AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   List<AudioOnlyStreamInfo> availableSources,
 ) {
-  // CRITICAL FOR IOS: Apple AVPlayer does not support WebM container (AVError -11828 Cannot Open).
-  // Strictly prioritize standard AAC-LC / M4A (itag 140) streams.
-  // Exclude HE-AAC (mp4a.40.5 / SBR streams) which cause iOS CoreAudio to double the reported duration.
+  // CRITICAL FOR IOS: Apple AVPlayer does not support WebM (AVError -11828).
+  // Never select HE-AAC (mp4a.40.5 / itags 139, 599, 600): CoreAudio reports
+  // ~2× duration, so the next queue item starts at the real EOF with no
+  // artwork/title change, or the remaining half plays silence.
   bool isMp4Family(AudioOnlyStreamInfo stream) {
     final codec = stream.codec.toString().toLowerCase();
     final container = stream.container.name.toLowerCase();
@@ -134,19 +188,19 @@ AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
         (codec.contains('mp4a') || codec.contains('aac'));
   }
 
-  // Prefer AAC-LC (excludes HE-AAC / mp4a.40.5 which doubles duration on iOS).
-  final aacLcSources = availableSources.where((stream) {
-    final codec = stream.codec.toString().toLowerCase();
-    if (codec.contains('mp4a.40.5')) return false;
-    return isMp4Family(stream);
-  }).toList();
+  final aacLcSources = availableSources
+      .where((stream) => isMp4Family(stream) && !isHeAacStream(stream))
+      .toList();
 
-  // Fallback: HE-AAC in MP4 is still playable on iOS; WebM is not (AVError -11828).
-  final mp4Fallback = availableSources.where(isMp4Family).toList();
+  // Last resort only: HE-AAC is playable but MUST be clipped to catalog
+  // duration by the player. Never fall through to WebM on iOS.
+  final heAacFallback = availableSources
+      .where((stream) => isMp4Family(stream) && isHeAacStream(stream))
+      .toList();
 
   final selectionPool = aacLcSources.isNotEmpty
       ? aacLcSources
-      : (mp4Fallback.isNotEmpty ? mp4Fallback : availableSources);
+      : (heAacFallback.isNotEmpty ? heAacFallback : availableSources);
   final sortedPool = selectionPool.sortByBitrate();
 
   final qualitySetting = audioQualitySetting.value;

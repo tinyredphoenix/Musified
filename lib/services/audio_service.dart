@@ -34,6 +34,7 @@ import 'package:musify/models/position_data.dart';
 import 'package:musify/services/common_services.dart';
 
 import 'package:musify/services/settings_manager.dart';
+import 'package:musify/utilities/app_utils.dart';
 import 'package:musify/utilities/map_utils.dart';
 import 'package:musify/utilities/mediaitem.dart';
 import 'package:musify/utilities/queue_entry_utils.dart';
@@ -343,6 +344,36 @@ class MusifyAudioHandler extends BaseAudioHandler {
         !durationEquals(currentDuration, nextDuration);
   }
 
+  /// iOS AVPlayer reports ~2× for HE-AAC/SBR. Prefer catalog length; if the
+  /// catalog is missing and the stream is HE-AAC, halve the player duration.
+  Duration _canonicalPlaybackDuration(
+    Map song,
+    MediaItem? currentItem,
+    Duration playerDuration,
+  ) {
+    final catalog =
+        parseSongDuration(song['duration']) ??
+        _catalogDurationFromExtras(currentItem?.extras);
+    if (catalog != null &&
+        playerDuration > catalog + const Duration(seconds: 5)) {
+      return catalog;
+    }
+    if (catalog == null &&
+        isHeAacFormatLabel(song['resolvedFormat']?.toString()) &&
+        playerDuration > const Duration(seconds: 10)) {
+      return Duration(milliseconds: playerDuration.inMilliseconds ~/ 2);
+    }
+    return playerDuration;
+  }
+
+  Duration? _catalogDurationFromExtras(Map<String, dynamic>? extras) {
+    final catalogSec = extras?['catalogDurationSeconds'];
+    if (catalogSec is int && catalogSec > 0) {
+      return Duration(seconds: catalogSec);
+    }
+    return parseSongDuration(extras?['catalogDurationSeconds']);
+  }
+
   bool _isCurrentMediaItemMatchingSong(
     MediaItem? currentItem,
     MediaItem currentQueueMediaItem,
@@ -374,24 +405,15 @@ class MusifyAudioHandler extends BaseAudioHandler {
         currentSongYtid,
       );
 
-      // Cap the reported duration using the immutable catalog duration.
-      // This prevents the lock screen / slider from showing the full
-      // YouTube stream length when it exceeds the actual song length.
-      final catalogSec = (currentItem ?? currentMediaItem)
-          .extras?['catalogDurationSeconds'];
-      if (catalogSec is int && catalogSec > 0) {
-        final catalogDuration = Duration(seconds: catalogSec);
-        if (duration > catalogDuration + const Duration(seconds: 5)) {
-          duration = catalogDuration;
-        }
-      }
+      // A duration event from the previous AVPlayer item must never restore
+      // that item's title/artwork over the song we just skipped to.
+      if (!isMatchingCurrentItem) return;
+
+      duration = _canonicalPlaybackDuration(currentSong, currentItem, duration);
 
       if (currentItem != null &&
-          isMatchingCurrentItem &&
           _shouldUpdateDuration(currentItem.duration, duration)) {
         mediaItem.add(currentItem.copyWith(duration: duration));
-      } else if (!isMatchingCurrentItem) {
-        mediaItem.add(currentMediaItem.copyWith(duration: duration));
       }
 
       final existingQueue = queue.valueOrNull;
@@ -611,31 +633,21 @@ class MusifyAudioHandler extends BaseAudioHandler {
     if (!audioPlayer.playing) return;
     if (audioPlayer.processingState == ProcessingState.completed) return;
 
-    // Use the immutable catalog duration from extras (set by mapToMediaItem
-    // and never overwritten by the stream's durationStream).
-    // This is the JioSaavn/metadata duration — the actual song length.
     final currentItem = mediaItem.value;
-    final catalogSec = currentItem?.extras?['catalogDurationSeconds'];
-    final catalogDuration = catalogSec is int && catalogSec > 0
-        ? Duration(seconds: catalogSec)
-        : null;
-
-    // Default to the physical audio stream duration
+    final song = currentSong;
     var duration = audioPlayer.duration;
-
-    // If we have a catalog duration and the stream is significantly longer,
-    // cap playback to the catalog duration so YouTube compilations/intros
-    // don't bleed into the next song.
-    if (catalogDuration != null && duration != null) {
-      if (duration > catalogDuration + const Duration(seconds: 5)) {
-        logger.log(
-          'Duration cap: stream=${duration.inSeconds}s, catalog=${catalogDuration.inSeconds}s — using catalog',
-        );
-        duration = catalogDuration;
+    if (duration == null) return;
+    if (song != null) {
+      duration = _canonicalPlaybackDuration(song, currentItem, duration);
+    } else {
+      final catalog = _catalogDurationFromExtras(currentItem?.extras);
+      if (catalog != null &&
+          duration > catalog + const Duration(seconds: 5)) {
+        duration = catalog;
       }
     }
 
-    if (duration == null || duration < const Duration(seconds: 5)) return;
+    if (duration < const Duration(seconds: 5)) return;
     final remaining = duration - position;
     if (remaining > const Duration(milliseconds: 450) || remaining.isNegative) {
       return;
@@ -759,7 +771,12 @@ class MusifyAudioHandler extends BaseAudioHandler {
         await playAgain();
       } else {
         // For all other cases (next song, repeat all, auto-play), skipToNext handles it
+        final indexBefore = _currentQueueIndex;
         await skipToNext();
+        if (_currentQueueIndex == indexBefore) {
+          logger.log('Queue ended — stopping instead of playing trailing silence');
+          await stop();
+        }
       }
     } catch (e, stackTrace) {
       logger.log(
@@ -2048,10 +2065,18 @@ class MusifyAudioHandler extends BaseAudioHandler {
           ..['isOffline'] = playback.isOffline
           ..['resolvedSource'] = songData['resolvedSource']
           ..['resolvedBitrate'] = songData['resolvedBitrate']
-          ..['resolvedFormat'] = songData['resolvedFormat'];
+          ..['resolvedFormat'] = songData['resolvedFormat']
+          ..['duration'] = songData['duration'] ?? queueSong['duration'];
         _updateQueueMediaItems();
       }
       songData['isOffline'] = playback.isOffline;
+
+      if (songData['resolvedSource'] == 'youtube') {
+        await ensureYoutubeCatalogDuration(songData);
+        if (queueSong != null && songData['duration'] != null) {
+          queueSong['duration'] = songData['duration'];
+        }
+      }
 
       // Re-emit mediaItem with the resolved source info so the UI
       // (source icon, download button) reflects the actual playback source.
@@ -2524,7 +2549,25 @@ class MusifyAudioHandler extends BaseAudioHandler {
           };
         }
       }
-      return AudioSource.uri(uri, headers: headers, tag: tag);
+      final uriSource = AudioSource.uri(uri, headers: headers, tag: tag);
+      final isYoutube =
+          song['resolvedSource'] == 'youtube' ||
+          uri.host.contains('googlevideo.com') ||
+          uri.host.contains('youtube.com');
+      final catalogDuration = parseSongDuration(song['duration']);
+      if (isYoutube &&
+          catalogDuration != null &&
+          catalogDuration > const Duration(seconds: 5)) {
+        logger.log(
+          'Clipping YouTube source "${song['title']}" to ${catalogDuration.inSeconds}s catalog duration',
+        );
+        return ClippingAudioSource(
+          child: uriSource,
+          end: catalogDuration,
+          tag: tag,
+        );
+      }
+      return uriSource;
     } catch (e, stackTrace) {
       logger.log(
         'Error building audio source',

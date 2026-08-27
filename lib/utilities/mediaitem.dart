@@ -21,6 +21,7 @@
 
 import 'package:audio_service/audio_service.dart';
 import 'package:musify/services/common_services.dart';
+import 'package:musify/utilities/app_utils.dart';
 
 Map mediaItemToMap(MediaItem mediaItem) {
   final extras = mediaItem.extras;
@@ -129,7 +130,7 @@ MediaItem mapToMediaItem(Map song) {
     album: album,
     title: song['title'].toString(),
     artUri: artUri,
-    duration: _songDuration(song['duration']),
+    duration: parseSongDuration(song['duration']),
     extras: {
       'lowResImage': song['lowResImage'],
       'ytid': song['ytid'],
@@ -144,18 +145,9 @@ MediaItem mapToMediaItem(Map song) {
       'resolvedSource': song['resolvedSource'],
       'resolvedBitrate': song['resolvedBitrate'],
       'resolvedFormat': song['resolvedFormat'],
-      'catalogDurationSeconds': _songDuration(song['duration'])?.inSeconds,
+      'catalogDurationSeconds': parseSongDuration(song['duration'])?.inSeconds,
     },
   );
-}
-
-Duration? _songDuration(dynamic value) {
-  if (value == null) return null;
-  if (value is Duration) return value;
-  if (value is int) return Duration(seconds: value);
-  final parsed = int.tryParse(value.toString());
-  if (parsed == null) return null;
-  return Duration(seconds: parsed);
 }
 
 /// Compares two Duration objects with tolerance for minor differences.

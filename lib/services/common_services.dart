@@ -160,6 +160,36 @@ Future<void> _cacheResolvedStream(
   );
 }
 
+bool _isCachedHeAacYoutube(Map metadata) {
+  final itag = metadata['itag'];
+  if (itag is int && kHeAacItags.contains(itag)) return true;
+  final parsedItag = int.tryParse(itag?.toString() ?? '');
+  if (parsedItag != null && kHeAacItags.contains(parsedItag)) return true;
+  return isHeAacFormatLabel(metadata['format']?.toString());
+}
+
+/// Fills `song['duration']` from YouTube catalog when Innertube/search omitted it.
+/// Needed so iOS can clip HE-AAC/SBR streams to the real track length.
+Future<void> ensureYoutubeCatalogDuration(Map song) async {
+  if (parseSongDuration(song['duration']) != null) return;
+  final source = song['resolvedSource']?.toString() ?? song['source']?.toString();
+  if (source == 'jiosaavn' || source == 'saavn') return;
+  final songId = song['ytid']?.toString();
+  if (songId == null || songId.isEmpty) return;
+  try {
+    final video = await ytClient.videos
+        .get(songId)
+        .timeout(const Duration(seconds: 4));
+    final seconds = video.duration?.inSeconds;
+    if (seconds != null && seconds > 0) {
+      song['duration'] = seconds;
+      logger.log('Fetched YouTube catalog duration for $songId: ${seconds}s');
+    }
+  } catch (e) {
+    logger.log('Could not fetch catalog duration for $songId: $e');
+  }
+}
+
 /// Fetches a stream manifest for a song, honoring proxy settings.
 String? _youtubeClientUserAgent(YoutubeApiClient client) {
   final clientContext = client.payload['context']?['client'];
@@ -693,6 +723,11 @@ _getSelectedAudioStream(String songId) {
     return null;
   }
 
+  if (isHeAacStream(entry.stream)) {
+    _selectedAudioStreams.remove(key);
+    return null;
+  }
+
   return (stream: entry.stream, client: entry.client);
 }
 
@@ -747,6 +782,12 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
 
     final selectedStream = selectAudioOnlyStreamForQuality(
       audioStream.sortByBitrate(),
+    );
+    logger.log(
+      'Selected YT stream itag=${selectedStream.tag} '
+      'codec=${selectedStream.audioCodec} '
+      'bitrate=${selectedStream.bitrate.kiloBitsPerSecond.round()}kbps'
+      '${isHeAacStream(selectedStream) ? ' (HE-AAC — will clip duration)' : ''}',
     );
     _cacheSelectedAudioStream(songId, selectedStream, resolvedManifest!.client);
     return selectedStream;
@@ -806,6 +847,11 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
         await deleteData('cache', sourceKey);
         continue;
       }
+      if (source == 'youtube' && _isCachedHeAacYoutube(metadata)) {
+        logger.log('Dropping cached HE-AAC YouTube URL for $songId');
+        await invalidateSongStreamCache(songId);
+        continue;
+      }
       final stillValid = await _validateCachedUrl(
         cachedUrl,
         userAgent: metadata['userAgent']?.toString(),
@@ -818,6 +864,9 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       song['resolvedBitrate'] = metadata['bitrate'];
       song['resolvedFormat'] = metadata['format'];
       song['resolvedUserAgent'] = metadata['userAgent'];
+      if (source == 'youtube') {
+        await ensureYoutubeCatalogDuration(song);
+      }
       return cachedUrl;
     }
 
@@ -872,8 +921,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
           await _cacheResolvedStream(songId, 'youtube', url, {
             'bitrate': selectedStream.bitrate.kiloBitsPerSecond.round(),
             'format': selectedStream.audioCodec,
+            'itag': selectedStream.tag,
             'userAgent': userAgent,
           });
+          await ensureYoutubeCatalogDuration(song);
           logger.log('Final URL resolved via youtube');
           return url;
         }
@@ -903,8 +954,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     await _cacheResolvedStream(songId, 'youtube', url, {
       'bitrate': song['resolvedBitrate'],
       'format': song['resolvedFormat'],
+      'itag': selectedStream.tag,
       'userAgent': userAgent,
     });
+    await ensureYoutubeCatalogDuration(song);
     logger.log('Final URL resolved via youtube');
 
     return url;
