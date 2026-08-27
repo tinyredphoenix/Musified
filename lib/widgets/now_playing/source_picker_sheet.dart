@@ -13,9 +13,17 @@ import 'package:musify/utilities/flutter_toast.dart';
 /// Tap never switches immediately — the user must pick a row.
 void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
   final extras = metadata.extras ?? {};
-  final currentSource = extras['resolvedSource'] as String? ?? 'youtube';
   final ytid = extras['ytid']?.toString() ?? '';
-  final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
+  // A downloaded copy is available to switch TO, but the currently playing
+  // source is what should read as selected.
+  final hasDownload = hasPlayableOfflineFile(ytid);
+  final resolvedSource = extras['resolvedSource'] as String?;
+  final playingOffline = resolvedSource == 'offline' ||
+      (resolvedSource == null && (extras['isOffline'] == true || hasDownload));
+  final currentSource = playingOffline
+      ? 'offline'
+      : (resolvedSource ?? 'youtube');
+  final isOffline = playingOffline;
 
   showCupertinoModalPopup<void>(
     context: context,
@@ -98,13 +106,28 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
         Navigator.pop(ctx);
         if (currentSource == source) return;
         HapticFeedback.selectionClick();
-        final success = await audioHandler.switchSource(source);
-        if (!success && context.mounted) {
+        final actual = await audioHandler.switchSource(source);
+        if (!context.mounted) return;
+        if (actual == null) {
           showToast(
             context,
-            source == 'jiosaavn'
-                ? 'Track not available on JioSaavn'
-                : 'Track not available on YouTube',
+            switch (source) {
+              'jiosaavn' => 'Track not available on JioSaavn',
+              'offline' => 'No downloaded copy for this track',
+              _ => 'Track not available on YouTube',
+            },
+          );
+        } else if (actual != source) {
+          // Requested provider had no match; a fallback provider was used.
+          const names = {
+            'jiosaavn': 'JioSaavn',
+            'youtube': 'YouTube',
+            'offline': 'the download',
+          };
+          showToast(
+            context,
+            'Not on ${names[source] ?? source} — playing from '
+            '${names[actual] ?? actual}',
           );
         }
       }
@@ -157,10 +180,8 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
                               icon: CupertinoIcons.music_note_2,
                               iconColor: CupertinoColors.systemGreen,
                               title: 'JioSaavn',
-                              subtitle: isOffline
-                                  ? 'Stream instead of the download'
-                                  : '320k AAC',
-                              selected: !isOffline && currentSource == 'jiosaavn',
+                              subtitle: '320k AAC',
+                              selected: currentSource == 'jiosaavn',
                               enabled: true,
                               onTap: () => select('jiosaavn'),
                             ),
@@ -169,10 +190,8 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
                               icon: CupertinoIcons.play_circle_fill,
                               iconColor: const Color(0xFFFF0033),
                               title: 'YouTube Music',
-                              subtitle: isOffline
-                                  ? 'Stream instead of the download'
-                                  : 'AAC',
-                              selected: !isOffline && currentSource == 'youtube',
+                              subtitle: 'AAC',
+                              selected: currentSource == 'youtube',
                               enabled: true,
                               onTap: () => select('youtube'),
                             ),
@@ -181,12 +200,14 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
                               icon: CupertinoIcons.arrow_down_circle_fill,
                               iconColor: CupertinoColors.systemBlue,
                               title: 'Downloaded',
-                              subtitle: isOffline
-                                  ? 'Playing from this device'
+                              subtitle: hasDownload
+                                  ? (isOffline
+                                      ? 'Playing from this device'
+                                      : 'Play the downloaded copy')
                                   : 'Download this track to use offline',
                               selected: isOffline,
-                              enabled: false,
-                              onTap: null,
+                              enabled: hasDownload && !isOffline,
+                              onTap: hasDownload ? () => select('offline') : null,
                             ),
                           ],
                         ),
@@ -225,11 +246,17 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
   );
 }
 
+bool _isPlayingOffline(Map extras) {
+  final resolvedSource = extras['resolvedSource'];
+  if (resolvedSource == 'offline') return true;
+  if (resolvedSource == 'youtube' || resolvedSource == 'jiosaavn') return false;
+  final ytid = extras['ytid']?.toString() ?? '';
+  return extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
+}
+
 IconData audioSourceIcon(MediaItem metadata) {
   final extras = metadata.extras ?? {};
-  final ytid = extras['ytid']?.toString() ?? '';
-  final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
-  if (isOffline) return CupertinoIcons.device_phone_portrait;
+  if (_isPlayingOffline(extras)) return CupertinoIcons.device_phone_portrait;
   if (extras['resolvedSource'] == 'jiosaavn') {
     return CupertinoIcons.music_note_2;
   }
@@ -238,9 +265,7 @@ IconData audioSourceIcon(MediaItem metadata) {
 
 Color audioSourceColor(MediaItem metadata) {
   final extras = metadata.extras ?? {};
-  final ytid = extras['ytid']?.toString() ?? '';
-  final isOffline = extras['isOffline'] == true || hasPlayableOfflineFile(ytid);
-  if (isOffline) return CupertinoColors.systemGrey;
+  if (_isPlayingOffline(extras)) return CupertinoColors.systemGrey;
   if (extras['resolvedSource'] == 'jiosaavn') {
     return CupertinoColors.systemGreen;
   }

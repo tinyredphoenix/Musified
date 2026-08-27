@@ -234,23 +234,31 @@ class AudioQualityBadge extends StatelessWidget {
   }
 
   Future<void> _replayWithSource(BuildContext context, String source) async {
-    final didSwitch = await audioHandler.switchSource(source);
-    if (!didSwitch && context.mounted) {
+    final actual = await audioHandler.switchSource(source);
+    if (!context.mounted) return;
+    if (actual == null) {
       showToast(context, 'That source is unavailable for this track.');
+    } else if (actual != source) {
+      showToast(context, 'Not available there — playing from $actual.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final extras = metadata.extras ?? {};
-    final isOffline =
-        extras['isOffline'] == true ||
-        hasPlayableOfflineFile(extras['ytid']?.toString());
+    final resolvedSource = extras['resolvedSource']?.toString();
+    // Reflect what is actually playing. A download on disk must not force the
+    // "Offline" badge once the track is streaming from a provider.
+    final isOffline = resolvedSource == 'offline' ||
+        (resolvedSource != 'youtube' &&
+            resolvedSource != 'jiosaavn' &&
+            (extras['isOffline'] == true ||
+                hasPlayableOfflineFile(extras['ytid']?.toString())));
 
     String label;
     Color color;
     final source =
-        extras['resolvedSource']?.toString() ??
+        resolvedSource ??
         extras['downloadSource']?.toString() ??
         'youtube';
 

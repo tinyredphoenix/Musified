@@ -81,10 +81,18 @@ MediaItem mapToMediaItem(Map song) {
   final offlineSong = ytid != null
       ? getOfflineSongByYtid(ytid)
       : <String, dynamic>{};
-  // Fully downloaded tracks always present as offline — overrides any
-  // in-flight online source preference on the song map.
-  final isOffline =
-      hasPlayableOfflineFile(ytid) || song['isOffline'] == true;
+  // The active playback decision wins over disk presence. Once a track has
+  // been resolved to a streaming provider (via source switch), it must not
+  // keep presenting as "offline" just because a download exists on disk.
+  final resolvedSource = song['resolvedSource']?.toString();
+  final bool isOffline;
+  if (resolvedSource == 'youtube' || resolvedSource == 'jiosaavn') {
+    isOffline = false;
+  } else if (resolvedSource == 'offline') {
+    isOffline = true;
+  } else {
+    isOffline = hasPlayableOfflineFile(ytid) || song['isOffline'] == true;
+  }
   final downloadSource =
       song['downloadSource'] ?? offlineSong['downloadSource'];
 

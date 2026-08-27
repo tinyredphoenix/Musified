@@ -30,12 +30,17 @@ class MarqueeWidget extends StatefulWidget {
     this.backDuration = const Duration(milliseconds: 800),
     this.pauseDuration = const Duration(milliseconds: 800),
     this.manualScrollEnabled = true,
+    this.alignment = Alignment.center,
   });
 
   final Widget child;
   final Axis direction;
   final Duration animationDuration, backDuration, pauseDuration;
   final bool manualScrollEnabled;
+
+  /// How the child sits when it is short enough not to scroll. Defaults to
+  /// centered; pass [Alignment.centerLeft] to keep it flush with siblings.
+  final AlignmentGeometry alignment;
 
   @override
   State<MarqueeWidget> createState() => _MarqueeWidgetState();
@@ -78,7 +83,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
                 : const NeverScrollableScrollPhysics(),
             child: ConstrainedBox(
               constraints: BoxConstraints(minWidth: constraints.maxWidth),
-              child: Center(child: widget.child),
+              child: Align(alignment: widget.alignment, child: widget.child),
             ),
           ),
         );

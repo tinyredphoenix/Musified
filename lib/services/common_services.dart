@@ -617,7 +617,26 @@ Map<String, dynamic> getOfflineSongByYtid(String ytid) {
       (s) => s['ytid'] == ytid,
       orElse: () => <String, dynamic>{},
     );
-    return Map<String, dynamic>.from(song);
+    final result = Map<String, dynamic>.from(song);
+    if (result.isEmpty || ytid.isEmpty || applicationDirPath.isEmpty) {
+      return result;
+    }
+    // iOS moves the app container (its UUID changes) on every reinstall or
+    // update, so any absolute path stored at download time goes stale and the
+    // file "disappears". Downloads are named deterministically by ytid, so
+    // always resolve against the CURRENT container instead of trusting the
+    // stored path. This keeps offline playback working across app updates.
+    final currentAudioPath = FilePaths.getAudioPath(ytid);
+    if (File(currentAudioPath).existsSync()) {
+      result['audioPath'] = currentAudioPath;
+    }
+    if (result['artworkPath'] != null) {
+      final currentArtworkPath = FilePaths.getArtworkPath(ytid);
+      if (File(currentArtworkPath).existsSync()) {
+        result['artworkPath'] = currentArtworkPath;
+      }
+    }
+    return result;
   } catch (_) {
     return <String, dynamic>{};
   }

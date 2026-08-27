@@ -333,6 +333,7 @@ class _MetadataWidget extends StatelessWidget {
         children: [
           MarqueeWidget(
             manualScrollEnabled: false,
+            alignment: Alignment.centerLeft,
             animationDuration: const Duration(seconds: 8),
             backDuration: const Duration(seconds: 2),
             pauseDuration: const Duration(seconds: 2),
