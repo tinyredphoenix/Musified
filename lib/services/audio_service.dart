@@ -2025,6 +2025,13 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         freshTrack: resumeAt == null,
       );
 
+      // Stop the old song from bleeding into the new UI immediately
+      if (resumeAt == null) {
+        try {
+          await audioPlayer.pause();
+        } catch (_) {}
+      }
+
       final playback = await _resolvePlaybackSource(songData).timeout(
         const Duration(seconds: 36),
         onTimeout: () {

@@ -109,23 +109,15 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _onQueryChanged(String query) {
-    _debounce?.cancel();
     if (query.trim().isEmpty) {
       setState(() {
         _suggestionsList = [];
         _isSearching = false;
+        _songsSearchResult = [];
+        _artistsSearchResult = [];
+        _playlistsSearchResult = [];
       });
-      return;
     }
-
-    _debounce = Timer(const Duration(milliseconds: 250), () async {
-      final suggestions = await getSearchSuggestions(query);
-      if (mounted && _searchBar.text == query) {
-        setState(() {
-          _suggestionsList = List<String>.from(suggestions);
-        });
-      }
-    });
   }
 
   @override
