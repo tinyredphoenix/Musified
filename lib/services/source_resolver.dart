@@ -59,6 +59,7 @@ class SourceResolver {
               'bitrate': int.tryParse(quality ?? jiosaavnQuality.value) ?? 320,
               'format': 'm4a',
               'saavnId': cached['saavnId'],
+              'image': cached['image'],
             };
           }
           await deleteCachedMatch(ytid);
@@ -114,6 +115,7 @@ class SourceResolver {
               'bitrate': int.tryParse(quality ?? jiosaavnQuality.value) ?? 320,
               'format': 'm4a',
               'saavnId': track['saavnId'],
+              'image': track['image'],
             };
           }
         }

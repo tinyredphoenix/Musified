@@ -88,15 +88,15 @@ String upgradeArtworkUrl(String url, {int targetSize = 800}) {
         .replaceAll('150x150.jpg', '500x500.jpg');
   }
 
-  // 3. YouTube standard thumbnails: keep hqdefault (center-crop to square).
-  // Do not upgrade to maxresdefault (1280×720 16:9).
+  // 3. YouTube standard thumbnails: always prefer maxresdefault (1280×720 16:9).
+  // This avoids baked-in black letterboxing from hqdefault (4:3).
   if (upgraded.contains('ytimg.com/vi/') ||
       upgraded.contains('youtube.com/vi/')) {
     upgraded = upgraded.replaceAllMapped(
       RegExp(
-        r'/(maxresdefault|sddefault|mqdefault|hq720|default)\.(jpg|webp|jpeg)',
+        r'/(default|mqdefault|hqdefault|sddefault|hq720)\.(jpg|webp|jpeg)',
       ),
-      (match) => '/hqdefault.${match[2]}',
+      (match) => '/maxresdefault.${match[2]}',
     );
   }
 

@@ -858,6 +858,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
           song['resolvedBitrate'] = metadata['bitrate'];
           song['resolvedFormat'] = metadata['format'];
           song['resolvedUserAgent'] = metadata['userAgent'];
+          if (metadata['image'] != null) {
+            song['highResImage'] = metadata['image'];
+            song['image'] = metadata['image'];
+          }
           if (preference == 'youtube') {
             unawaited(ensureYoutubeCatalogDuration(song));
           }
@@ -882,9 +886,14 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
             song['resolvedSource'] = 'jiosaavn';
             song['resolvedBitrate'] = saavnSource['bitrate'];
             song['resolvedFormat'] = saavnSource['format'];
+            if (saavnSource['image'] != null) {
+              song['highResImage'] = saavnSource['image'];
+              song['image'] = saavnSource['image'];
+            }
             await _cacheResolvedStream(songId, 'jiosaavn', url, {
               'bitrate': saavnSource['bitrate'],
               'format': saavnSource['format'],
+              'image': saavnSource['image'],
             });
             logger.log('Resolved JioSaavn stream: host=${Uri.tryParse(url)?.host}');
             return url;
