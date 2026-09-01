@@ -33,6 +33,14 @@ void main() {
     );
   });
 
+  test('missing song keys never skip a new load', () {
+    final completion = AudioCompletionCoordinator();
+    expect(
+      completion.shouldSkipPlayFromQueueAlreadyLoading(0, 0),
+      isFalse,
+    );
+  });
+
   test('clearing the loading index drops the tracked song', () {
     final state = AudioQueueState()
       ..items.add({'ytid': 'abc'})

@@ -28,7 +28,7 @@ extension VideoQualityUtil on VideoQuality {
     label = label.toLowerCase();
 
     if (label.startsWith('240') || label == '426x240') {
-      return VideoQuality.low144;
+      return VideoQuality.low240;
     }
 
     if (label.startsWith('360') || label == '640x360') {

@@ -139,7 +139,21 @@ class PlayerResponse {
   PlayerResponse(this.root);
 
   ///
-  PlayerResponse.parse(String raw) : root = json.decode(raw);
+  PlayerResponse.parse(String raw) : root = _parseRoot(raw);
+
+  static JsonMap _parseRoot(String raw) {
+    try {
+      final decoded = json.decode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return decoded.cast<String, dynamic>();
+    } catch (_) {}
+    return {
+      'playabilityStatus': {
+        'status': 'ERROR',
+        'reason': 'Invalid player response payload',
+      },
+    };
+  }
 }
 
 ///

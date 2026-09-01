@@ -50,6 +50,13 @@ final pinnedPlaylistIds = ValueNotifier<List<String>>(
   ),
 );
 final onlinePlaylists = ValueNotifier<List<Map>>([]);
+const _maxOnlinePlaylistsCache = 200;
+
+void _trimOnlinePlaylistsCache() {
+  if (onlinePlaylists.value.length <= _maxOnlinePlaylistsCache) return;
+  onlinePlaylists.value = onlinePlaylists.value
+      .sublist(onlinePlaylists.value.length - _maxOnlinePlaylistsCache);
+}
 
 void reloadPlaylistsStateFromStorage() {
   try {
@@ -133,6 +140,7 @@ void _updateOnlineCache(Map? p) {
       playlistId != null &&
       !onlinePlaylists.value.any((x) => _playlistId(x['ytid']) == playlistId)) {
     onlinePlaylists.value = [...onlinePlaylists.value, p];
+    _trimOnlinePlaylistsCache();
   }
 }
 
@@ -958,6 +966,7 @@ Future<List> getPlaylists({
         .whereType<Map<String, dynamic>>()
         .toList();
     onlinePlaylists.value = [...onlinePlaylists.value, ...newPlaylists];
+    _trimOnlinePlaylistsCache();
     return filteredPlaylists.isNotEmpty
         ? filteredPlaylists
         : onlinePlaylists.value
@@ -1237,7 +1246,9 @@ Future<List> _loadSongsForPlaylist(Map playlist) async {
       playlist['ytid'],
       playlistImage: playlistImage,
     );
-    if (!playlists.contains(playlist)) {
+    if (!playlists.any(
+      (p) => p['ytid']?.toString() == playlist['ytid']?.toString(),
+    )) {
       playlists.add(playlist);
     }
     return songs;

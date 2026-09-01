@@ -77,12 +77,32 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
   // --- Streams / UI combine ---
   late final Stream<PositionData> _positionDataStream =
-      Rx.combineLatest3<Duration, Duration, Duration?, PositionData>(
+      Rx.combineLatest4<Duration, Duration, Duration?, MediaItem?, PositionData>(
         audioPlayer.positionStream,
         audioPlayer.bufferedPositionStream,
         audioPlayer.durationStream,
-        (position, bufferedPosition, duration) =>
-            PositionData(position, bufferedPosition, duration ?? Duration.zero),
+        mediaItem,
+        (position, bufferedPosition, playerDuration, item) {
+          final catalog = item?.duration ??
+              _catalogDurationFromExtras(item?.extras);
+          var displayDuration = playerDuration ?? Duration.zero;
+          if (catalog != null &&
+              catalog > const Duration(seconds: 5) &&
+              displayDuration > catalog + const Duration(seconds: 5)) {
+            displayDuration = catalog;
+          }
+          var displayPosition = position;
+          if (catalog != null &&
+              catalog > Duration.zero &&
+              displayPosition > catalog) {
+            displayPosition = catalog;
+          }
+          return PositionData(
+            displayPosition,
+            bufferedPosition,
+            displayDuration,
+          );
+        },
       ).distinct((prev, curr) {
         return (prev.position - curr.position).abs() < _positionDataThreshold &&
             prev.duration == curr.duration &&
@@ -213,7 +233,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     _subscriptions
       ..add(
       audioPlayer.positionStream
-          .throttleTime(const Duration(milliseconds: 250))
+          .throttleTime(const Duration(milliseconds: 100))
           .listen(
             (position) =>
                 _completion.handleNearEndSkip(_nearEndSkipContext(position)),
@@ -306,7 +326,6 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     _debounceTimer?.cancel();
     currentPlayingYtid.dispose();
     queueItemCount.dispose();
-    queueItemCount.dispose();
     await _queueMapStream.close();
     await audioPlayer.dispose();
   }
@@ -379,7 +398,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   }
 
   String _mediaItemSignature(MediaItem item) {
-    return '${item.id}|${item.title}|${item.artUri}|${item.extras?['resolvedSource']}';
+    final dur = item.duration?.inSeconds ?? -1;
+    return '${item.id}|${item.title}|${item.artUri}|${item.extras?['resolvedSource']}|$dur';
   }
 
   void _publishMediaItem(MediaItem item, {bool force = false}) {
@@ -1026,9 +1046,12 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       for (var i = 0; i < songs.length; i++) {
         final song = songs[i];
         if (song['ytid'] != null && song['ytid'].toString().isNotEmpty) {
-          if (song['catalogOrigin'] == null &&
-              song['resolvedSource'] == null) {
-            song['catalogOrigin'] = 'youtube';
+          if (song['catalogOrigin'] == null) {
+            if (song['resolvedSource'] == 'youtube') {
+              song['catalogOrigin'] = 'youtube';
+            } else if (song['resolvedSource'] == null) {
+              song['catalogOrigin'] = 'youtube';
+            }
           }
           _hub.queue.items.add(_hub.queue.entryIds.createSong(song));
 
@@ -1461,9 +1484,9 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
   String? _songYtid(Map song) => AudioBrowseCatalog.songYtid(song);
 
-  Map? _findSongByYtid(String? ytid) {
-    return AudioBrowseCatalog.findByYtid(
-      ytid,
+  Map? _findSongByMediaId(String mediaId) {
+    return AudioBrowseCatalog.findByMediaId(
+      mediaId,
       currentSong: currentSong,
       queueItems: _hub.queue.items,
       liked: userLikedSongsList.value,
@@ -1591,7 +1614,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
   @override
   Future<MediaItem?> getMediaItem(String mediaId) async {
-    final song = _findSongByYtid(AudioBrowseCatalog.ytidFromMediaId(mediaId));
+    final song = _findSongByMediaId(mediaId);
     return song == null ? null : _mediaItemForResumption(song);
   }
 
@@ -1603,7 +1626,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     final item = await getMediaItem(mediaId);
     if (item == null) return;
 
-    final song = _findSongByYtid(AudioBrowseCatalog.ytidFromMediaId(mediaId));
+    final song = _findSongByMediaId(mediaId);
     if (song != null) {
       final queueSong = _hub.queue.entryIds.createSong(cloneMap(song));
       _hub.queue.items
@@ -1638,7 +1661,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     String mediaId, [
     Map<String, dynamic>? extras,
   ]) async {
-    final song = _findSongByYtid(AudioBrowseCatalog.ytidFromMediaId(mediaId));
+    final song = _findSongByMediaId(mediaId);
     if (song == null) {
       logger.log('No resumable song found for media id: $mediaId');
       return;
@@ -1759,6 +1782,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     if (state == ProcessingState.loading ||
         state == ProcessingState.buffering) {
       return;
+    }
+    if (state == ProcessingState.completed) {
+      try {
+        await audioPlayer.seek(Duration.zero);
+      } catch (_) {}
     }
     if (audioPlayer.audioSource == null) return;
     _logPlayer('Playback idle after source change; issuing one play()');

@@ -72,7 +72,7 @@ class AudioQueueController {
       state.originalItems.add(cloneMap(kept));
     }
     state.history.clear();
-    state.currentIndex = 0;
+    state.currentIndex = currentClone != null ? 0 : -1;
     state.loadingIndex = -1;
   }
 
@@ -124,13 +124,17 @@ class AudioQueueController {
     if (oldIndex < 0 ||
         oldIndex >= state.items.length ||
         newIndex < 0 ||
-        newIndex > state.items.length - 1) {
+        newIndex > state.items.length) {
       return false;
     }
 
     final song = state.items.removeAt(oldIndex);
-    state.items.insert(newIndex, song);
-    adjustIndicesAfterReorder(oldIndex, newIndex);
+    var insertIndex = newIndex;
+    if (insertIndex > state.items.length) {
+      insertIndex = state.items.length;
+    }
+    state.items.insert(insertIndex, song);
+    adjustIndicesAfterReorder(oldIndex, insertIndex);
     return true;
   }
 

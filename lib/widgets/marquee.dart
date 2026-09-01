@@ -30,7 +30,7 @@ class _MarqueeWidgetState extends State<MarqueeWidget>
   bool _isDisposed = false;
 
   @override
-  bool get wantKeepAlive => true;
+  bool get wantKeepAlive => false;
 
   @override
   void initState() {

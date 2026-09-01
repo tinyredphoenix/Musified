@@ -307,14 +307,17 @@ VisionOsClientConfig builtinVisionOsConfig() {
 
 /// Reads only the `visionos` entry from yt-dlp's INNERTUBE_CLIENTS table.
 VisionOsClientConfig? parseVisionOsFromYtdlp(String source) {
-  const marker = "    'visionos': {";
-  final start = source.indexOf(marker);
-  if (start < 0) {
+  final start = _findVisionOsBlockStart(source);
+  if (start == null) {
     logger.log('yt-dlp parse: visionos block not found in _base.py');
     return null;
   }
 
-  final braceIndex = start + marker.length - 1;
+  final braceIndex = source.indexOf('{', start);
+  if (braceIndex < 0) {
+    logger.log('yt-dlp parse: visionos block opening brace missing');
+    return null;
+  }
   final end = _matchingBrace(source, braceIndex);
   if (end == null) {
     logger.log('yt-dlp parse: visionos block brace mismatch');
@@ -323,6 +326,11 @@ VisionOsClientConfig? parseVisionOsFromYtdlp(String source) {
 
   final block = source.substring(braceIndex, end + 1);
   return _parseVisionOsBlock(block);
+}
+
+int? _findVisionOsBlockStart(String source) {
+  final match = RegExp(r'''['"]visionos['"]\s*:\s*\{''').firstMatch(source);
+  return match?.start;
 }
 
 int? _matchingBrace(String source, int openBraceIndex) {

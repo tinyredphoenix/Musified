@@ -3,10 +3,14 @@ import 'dart:convert';
 import 'package:musified/main.dart';
 import 'package:musified/services/proxy_manager.dart';
 import 'package:musified/services/settings_manager.dart';
+import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class PlaylistSharingService {
+  static const int _maxExpandConcurrency = 5;
+  static const int _maxSharedPlaylistSongs = 200;
+
   static Map<String, dynamic> createCompactPlaylist(Map fullPlaylist) {
     return {
       'title': fullPlaylist['title'],
@@ -16,11 +20,38 @@ class PlaylistSharingService {
     };
   }
 
+  static Future<List<T?>> _mapWithConcurrency<T>(
+    int length,
+    Future<T?> Function(int index) task, {
+    int concurrency = _maxExpandConcurrency,
+  }) async {
+    if (length <= 0) return const [];
+    final results = List<T?>.filled(length, null);
+    var nextIndex = 0;
+    final workers = concurrency.clamp(1, length);
+
+    Future<void> worker() async {
+      while (true) {
+        final index = nextIndex++;
+        if (index >= length) return;
+        results[index] = await task(index);
+      }
+    }
+
+    await Future.wait(List.generate(workers, (_) => worker()));
+    return results;
+  }
+
   static Future<Map<String, dynamic>> expandCompactPlaylist(
     Map<String, dynamic> compactPlaylist,
   ) async {
     final List<dynamic> songIds = compactPlaylist['list'];
+    if (songIds.length > _maxSharedPlaylistSongs) {
+      throw StateError('Shared playlist exceeds $_maxSharedPlaylistSongs songs');
+    }
+
     YoutubeExplode? ytClient;
+    final ownsClient = useProxy.value;
     try {
       if (useProxy.value) {
         ytClient = await ProxyManager().getYoutubeExplodeClient();
@@ -28,11 +59,14 @@ class PlaylistSharingService {
         ytClient = ProxyManager().getClientSync();
       }
 
-      final expandedSongs = await Future.wait(
-        songIds.map((ytid) async {
+      final expandedSongs = await _mapWithConcurrency<Map<String, dynamic>?>(
+        songIds.length,
+        (index) async {
+          final ytid = songIds[index]?.toString();
+          if (!isValidYoutubeVideoId(ytid)) return null;
           try {
-            final video = await ytClient!.videos.get(ytid);
-            return returnSongLayout(songIds.indexOf(ytid), video);
+            final video = await ytClient!.videos.get(ytid!);
+            return returnSongLayout(index, video);
           } catch (e, stackTrace) {
             logger.log(
               'Error expanding song: $ytid',
@@ -41,16 +75,16 @@ class PlaylistSharingService {
             );
             return null;
           }
-        }),
+        },
       );
 
       return {
         ...compactPlaylist,
-        'list': expandedSongs.where((song) => song != null).toList(),
+        'list': expandedSongs.whereType<Map<String, dynamic>>().toList(),
       };
     } finally {
       try {
-        if (useProxy.value) {
+        if (ownsClient) {
           ytClient?.close();
         }
       } catch (_) {}

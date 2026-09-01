@@ -167,6 +167,22 @@ int? youtubeStreamDurationSeconds(Uri url) {
   return seconds.round();
 }
 
+/// YouTube video IDs are 11 chars; reject path traversal for file storage keys.
+final RegExp _youtubeVideoIdPattern = RegExp(r'^[a-zA-Z0-9_-]{11}$');
+
+String sanitizeStorageSongId(String songId) {
+  final trimmed = songId.trim();
+  if (_youtubeVideoIdPattern.hasMatch(trimmed)) return trimmed;
+  final stripped = trimmed.replaceAll(RegExp(r'[^\w-]'), '_');
+  if (stripped.isEmpty) return 'invalid';
+  return stripped.length > 64 ? stripped.substring(0, 64) : stripped;
+}
+
+bool isValidYoutubeVideoId(String? id) {
+  if (id == null) return false;
+  return _youtubeVideoIdPattern.hasMatch(id.trim());
+}
+
 /// Signed googlevideo URLs expire; stale preloads cause iOS -1004 on load.
 bool isYoutubeStreamUrlExpired(
   Uri url, {

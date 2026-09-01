@@ -13,6 +13,8 @@ class PlayerSource {
   /// Same as default constructor
   PlayerSource.parse(this.root);
 
+  static const int _maxCacheEntries = 8;
+
   ///
   static Future<PlayerSource> get(
     YoutubeHttpClient httpClient,
@@ -24,6 +26,9 @@ class PlayerSource {
         return PlayerSource.parse(raw);
       });
       if (_cache[url] == null) {
+        if (_cache.length >= _maxCacheEntries) {
+          _cache.remove(_cache.keys.first);
+        }
         _cache[url] = _CachedValue(val);
       } else {
         _cache[url]!.update(val);

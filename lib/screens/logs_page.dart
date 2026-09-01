@@ -11,6 +11,12 @@ class LogsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
+    final textStyle = TextStyle(
+      fontFamily: 'Menlo',
+      fontSize: 12,
+      height: 1.35,
+      color: isDark ? const Color(0xCCEBEBF5) : const Color(0xCC1C1C1E),
+    );
 
     return CupertinoPageScaffold(
       backgroundColor: isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF),
@@ -53,18 +59,19 @@ class LogsPage extends StatelessWidget {
           listenable: logger,
           builder: (context, _) {
             final logs = logger.getLogs();
-            return SingleChildScrollView(
+            if (logs.isEmpty) {
+              return Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('No diagnostic logs recorded.', style: textStyle),
+              );
+            }
+
+            final lines = logs.split('\n');
+            return ListView.builder(
               padding: const EdgeInsets.all(16),
               physics: const BouncingScrollPhysics(),
-              child: Text(
-                logs.isEmpty ? 'No diagnostic logs recorded.' : logs,
-                style: TextStyle(
-                  fontFamily: 'Menlo',
-                  fontSize: 12,
-                  height: 1.35,
-                  color: isDark ? const Color(0xCCEBEBF5) : const Color(0xCC1C1C1E),
-                ),
-              ),
+              itemCount: lines.length,
+              itemBuilder: (context, index) => Text(lines[index], style: textStyle),
             );
           },
         ),

@@ -130,11 +130,15 @@ class AudioCompletionCoordinator {
   bool eventPending = false;
   bool handlerLoadStarted = false;
   int consecutiveErrors = 0;
+  DateTime? _lastPlaybackErrorAt;
+
+  static const Duration _errorWindow = Duration(minutes: 5);
 
   void reset() {
     eventPending = false;
     handlerLoadStarted = false;
     consecutiveErrors = 0;
+    _lastPlaybackErrorAt = null;
   }
 
   void onProcessingStateReady({required void Function() clearSleepTimerExpired}) {
@@ -151,14 +155,8 @@ class AudioCompletionCoordinator {
     String? requestedKey,
   }) {
     if (loadingIndex != index || eventPending) return false;
-    // Replacing the queue reuses index 0 for a different track. Such a tap is
-    // a new request, not a duplicate of the load already in flight.
-    if (loadingKey != null &&
-        requestedKey != null &&
-        loadingKey != requestedKey) {
-      return false;
-    }
-    return true;
+    if (loadingKey == null || requestedKey == null) return false;
+    return loadingKey == requestedKey;
   }
 
   /// Gate: allow one load attempt while handling completion.
@@ -288,6 +286,12 @@ class AudioCompletionCoordinator {
     PlaybackErrorContext ctx, {
     bool advance = true,
   }) {
+    final now = DateTime.now();
+    if (_lastPlaybackErrorAt != null &&
+        now.difference(_lastPlaybackErrorAt!) > _errorWindow) {
+      consecutiveErrors = 0;
+    }
+    _lastPlaybackErrorAt = now;
     consecutiveErrors++;
     logger.log(
       'Playback error occurred. Consecutive errors: $consecutiveErrors',

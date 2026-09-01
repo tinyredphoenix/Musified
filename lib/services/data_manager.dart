@@ -243,7 +243,7 @@ bool isCacheValid(Box box, String key, Duration cachingDuration) {
 Duration _getCacheDurationForKey(String key) {
   if (key.startsWith('song_') || key.contains('manifest_')) {
     return songCacheDuration;
-  } else if (key.startsWith('playlist_') || key.contains('playlistSongs')) {
+  } else if (key.startsWith('playlist_') || key.startsWith('playlistSongs')) {
     return playlistCacheDuration;
   } else if (key.startsWith('search_')) {
     return searchCacheDuration;

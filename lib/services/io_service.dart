@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:musified/utilities/app_utils.dart';
+
 String applicationDirPath = '';
 
 class FilePaths {
@@ -13,11 +15,13 @@ class FilePaths {
 
   // Get full paths for various file types
   static String getAudioPath(String songId) {
-    return '$applicationDirPath/$tracksDir/$songId$audioExtension';
+    final safeId = sanitizeStorageSongId(songId);
+    return '$applicationDirPath/$tracksDir/$safeId$audioExtension';
   }
 
   static String getArtworkPath(String songId) {
-    return '$applicationDirPath/$artworksDir/$songId$artworkExtension';
+    final safeId = sanitizeStorageSongId(songId);
+    return '$applicationDirPath/$artworksDir/$safeId$artworkExtension';
   }
 
   // Ensure directories exist

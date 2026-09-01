@@ -33,6 +33,7 @@ import 'package:musified/utilities/playlist_utils.dart';
 import 'package:path_provider/path_provider.dart';
 
 MusifiedAudioHandler? _audioHandlerInstance;
+final audioHandlerReady = ValueNotifier<bool>(false);
 MusifiedAudioHandler get audioHandler {
   final h = _audioHandlerInstance;
   if (h != null) return h;
@@ -344,6 +345,9 @@ Future<void> initialisation() async {
   } catch (e, stackTrace) {
     logger.log('AudioService init error', error: e, stackTrace: stackTrace);
     try {
+      await AudioService.stop();
+    } catch (_) {}
+    try {
       _audioHandlerInstance = MusifiedAudioHandler();
       logger.log('Created fallback MusifiedAudioHandler without AudioService');
     } catch (e2, st2) {
@@ -357,6 +361,7 @@ Future<void> initialisation() async {
       logger.log('Last-resort handler failed', error: e, stackTrace: st);
     }
   }
+  audioHandlerReady.value = _audioHandlerInstance != null;
 
   // Phase 4: router - MUST always run
   try {
@@ -367,8 +372,12 @@ Future<void> initialisation() async {
 
   // Phase 5: deep links
   try {
+    final initialUri = await appLinks.getInitialLink();
+    if (initialUri != null) {
+      unawaited(handleIncomingLink(initialUri));
+    }
     appLinks.uriLinkStream.listen(
-      handleIncomingLink,
+      (uri) => unawaited(handleIncomingLink(uri)),
       onError: (err) {
         logger.log('URI link error:', error: err);
       },
@@ -380,13 +389,18 @@ Future<void> initialisation() async {
   }
 }
 
-void handleIncomingLink(Uri? uri) async {
+Future<void> handleIncomingLink(Uri? uri) async {
   if (uri == null || (uri.scheme != 'musified' && uri.scheme != 'musify') || uri.host != 'playlist') return;
 
   if (uri.pathSegments.length < 2 || uri.pathSegments[0] != 'custom') return;
 
   try {
     final encodedPlaylist = uri.pathSegments[1];
+    if (encodedPlaylist.length > 65536) {
+      logger.log('Rejected oversized playlist deep link');
+      _showPlaylistError();
+      return;
+    }
     final playlist = await PlaylistSharingService.decodeAndExpandPlaylist(
       encodedPlaylist,
     );
@@ -412,10 +426,16 @@ void handleIncomingLink(Uri? uri) async {
       userCustomPlaylists.value,
     );
 
+    final navContext = NavigationManager.router.routerDelegate.navigatorKey.currentContext;
+    if (navContext == null) {
+      logger.log('Deep link received before navigator mounted');
+      return;
+    }
+
     if (isDuplicate) {
       showToast(
-        NavigationManager().context,
-        NavigationManager().context.l10n.playlistAlreadyExists,
+        navContext,
+        navContext.l10n.playlistAlreadyExists,
       );
     } else {
       userCustomPlaylists.value = [...userCustomPlaylists.value, playlist];
@@ -427,18 +447,21 @@ void handleIncomingLink(Uri? uri) async {
         ),
       );
       showToast(
-        NavigationManager().context,
-        '${NavigationManager().context.l10n.addedSuccess}!',
+        navContext,
+        '${navContext.l10n.addedSuccess}!',
       );
     }
-  } catch (e) {
+  } catch (e, stackTrace) {
+    logger.log('Failed to handle playlist deep link', error: e, stackTrace: stackTrace);
     _showPlaylistError();
   }
 }
 
 void _showPlaylistError() {
+  final navContext = NavigationManager.router.routerDelegate.navigatorKey.currentContext;
+  if (navContext == null) return;
   showToast(
-    NavigationManager().context,
-    NavigationManager().context.l10n.failedToLoadPlaylist,
+    navContext,
+    navContext.l10n.failedToLoadPlaylist,
   );
 }

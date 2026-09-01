@@ -14,16 +14,18 @@ class AudioPlaybackInstall {
     bool isOffline,
   ) async {
     try {
-      final tag = mapToMediaItem(song);
-
       if (isOffline) {
         final file = File(songUrl);
-        final bytes = await file.exists() ? await file.length() : 0;
+        if (!await file.exists()) {
+          logger.log('Offline file missing for ${song['ytid']}');
+          return null;
+        }
+        final bytes = await file.length();
         logger.log(
           'Building file source',
           data: {'path': songUrl, 'bytes': bytes, 'title': song['title']},
         );
-        final fileSource = AudioSource.uri(Uri.file(songUrl), tag: tag);
+        final fileSource = AudioSource.uri(Uri.file(songUrl), tag: mapToMediaItem(song));
         final catalogDuration = parseSongDuration(song['duration']);
         final codec = song['audioCodec']?.toString() ??
             getOfflineSongByYtid(song['ytid']?.toString() ?? '')['audioCodec']
@@ -37,22 +39,39 @@ class AudioPlaybackInstall {
           return ClippingAudioSource(
             child: fileSource,
             end: catalogDuration,
-            tag: tag,
+            tag: mapToMediaItem(song),
           );
         }
         return fileSource;
       }
 
-      final uri = Uri.parse(songUrl);
+      final playbackUri = Uri.parse(songUrl);
+      final catalogUri = _resolveStreamUri(playbackUri);
+      final isYoutube =
+          song['resolvedSource'] == 'youtube' ||
+          catalogUri.host.contains('googlevideo.com') ||
+          catalogUri.host.contains('youtube.com');
+
+      // Trust the stream URL's dur= before anything async — stops iOS from
+      // reporting ~2× length for visionos AAC-LC (itag 140).
+      if (isYoutube) {
+        final urlDur = youtubeStreamDurationSeconds(catalogUri);
+        if (urlDur != null) {
+          song['duration'] = urlDur;
+        }
+      }
+
+      final tag = mapToMediaItem(song);
+
       Map<String, String>? headers;
-      if (uri.host.contains('googlevideo.com') ||
-          uri.host.contains('youtube.com')) {
+      if (catalogUri.host.contains('googlevideo.com') ||
+          catalogUri.host.contains('youtube.com')) {
         headers = {
           'User-Agent':
               song['resolvedUserAgent']?.toString() ??
               'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)',
         };
-      } else if (uri.host.contains('saavncdn.com')) {
+      } else if (playbackUri.host.contains('saavncdn.com')) {
         headers = {
           'User-Agent':
               'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko)',
@@ -60,18 +79,15 @@ class AudioPlaybackInstall {
         };
       }
 
-      final uriSource = AudioSource.uri(uri, headers: headers, tag: tag);
-      final isYoutube =
-          song['resolvedSource'] == 'youtube' ||
-          uri.host.contains('googlevideo.com') ||
-          uri.host.contains('youtube.com');
+      final uriSource = AudioSource.uri(playbackUri, headers: headers, tag: tag);
       final catalogDuration = parseSongDuration(song['duration']);
+
       if (isYoutube &&
           catalogDuration != null &&
-          catalogDuration > const Duration(seconds: 5) &&
-          _needsDurationClip(song)) {
+          catalogDuration > const Duration(seconds: 5)) {
         logger.log(
-          'Clipping HE-AAC YouTube "${song['title']}" to ${catalogDuration.inSeconds}s',
+          'Clipping YouTube "${song['title']}" to ${catalogDuration.inSeconds}s '
+          '(itag=${song['resolvedItag'] ?? '-'} codec=${song['resolvedFormat'] ?? '-'})',
         );
         return ClippingAudioSource(
           child: uriSource,
@@ -90,13 +106,20 @@ class AudioPlaybackInstall {
     }
   }
 
-  static bool _needsDurationClip(Map song) {
-    if (isHeAacFormatLabel(song['resolvedFormat']?.toString())) {
-      return true;
+  static Uri _resolveStreamUri(Uri uri) {
+    if (uri.host.contains('googlevideo.com') ||
+        uri.host.contains('youtube.com')) {
+      return uri;
     }
-    final itag = song['resolvedItag'];
-    if (itag is int && kHeAacItags.contains(itag)) return true;
-    final parsed = int.tryParse(itag?.toString() ?? '');
-    return parsed != null && kHeAacItags.contains(parsed);
+    final embedded = uri.queryParameters['url'];
+    if (embedded != null) {
+      final inner = Uri.tryParse(embedded);
+      if (inner != null &&
+          (inner.host.contains('googlevideo.com') ||
+              inner.host.contains('youtube.com'))) {
+        return inner;
+      }
+    }
+    return uri;
   }
 }

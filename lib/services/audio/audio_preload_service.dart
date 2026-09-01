@@ -29,6 +29,7 @@ class AudioPreloadService {
         .where((id) => !activeQueueYtids.contains(id))
         .toList()) {
       cache.preloadingYtIds.remove(ytid);
+      if (cache.activeCount > 0) cache.activeCount--;
     }
   }
 
@@ -109,6 +110,7 @@ class AudioPreloadService {
         );
         if (isLoadInProgress()) {
           logger.log('Preload aborted after fetch for $ytid');
+          preloadUrl = null;
           return;
         }
       }
@@ -148,10 +150,24 @@ class AudioPreloadService {
     if (ytid == null || ytid.isEmpty) return null;
 
     final warmed = nextSong['_preloadedStreamUrl']?.toString();
-    if (warmed != null && warmed.isNotEmpty) return warmed;
+    if (warmed != null &&
+        warmed.isNotEmpty &&
+        isUsableYoutubePlaybackUrl(warmed)) {
+      return warmed;
+    }
+    if (warmed != null && warmed.isNotEmpty) {
+      nextSong.remove('_preloadedStreamUrl');
+    }
 
     final cached = cache.streamUrls[ytid];
-    if (cached != null && cached.isNotEmpty) return cached;
+    if (cached != null &&
+        cached.isNotEmpty &&
+        isUsableYoutubePlaybackUrl(cached)) {
+      return cached;
+    }
+    if (cached != null && cached.isNotEmpty) {
+      cache.drop(ytid);
+    }
 
     if (offlineModeEnabled || loadInProgress) return null;
 
@@ -166,11 +182,17 @@ class AudioPreloadService {
           return null;
         },
       );
-      if (url != null && url.isNotEmpty) {
+      if (url != null &&
+          url.isNotEmpty &&
+          isUsableYoutubePlaybackUrl(url)) {
         cache.streamUrls[ytid] = url;
         nextSong['_preloadedStreamUrl'] = url;
+        return url;
       }
-      return url;
+      if (url != null && url.isNotEmpty) {
+        logger.log('Fetched next URL unusable for $ytid (expired or invalid)');
+      }
+      return null;
     } catch (e, st) {
       logger.log(
         'Gapless next URL fetch failed for $ytid',

@@ -149,9 +149,7 @@ class DashManifest {
                 .trim();
 
             if (baseUrl == null || !baseUrl.startsWith('http')) {
-              throw UnimplementedError(
-                  'This kind of DASH Stream is not yet implemented. '
-                  'Please open a new issue on this project GitHub.');
+              continue;
             }
 
             final representationMsInfo =
@@ -166,9 +164,8 @@ class DashManifest {
                   final segmentUri =
                       representationMsInfo.segmentUrls![segmentIndex];
                   if (segmentUri.contains(RegExp('^https?://'))) {
-                    throw UnimplementedError(
-                        'This kind of DASH Stream is not yet implemented. '
-                        'Please open a new issue on this project GitHub.');
+                    segmentIndex++;
+                    continue;
                   }
                   fragments.add(Fragment(segmentUri));
                   segmentIndex++;

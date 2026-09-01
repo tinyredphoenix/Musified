@@ -284,38 +284,10 @@ class AudioPlaybackCoordinator {
     bool isOffline,
     GaplessInstallContext ctx,
   ) async {
+    // Gapless concat is disabled: mixed offline/youtube queues and doubled
+    // AVPlayer durations caused wrong track ends and -1004 load failures.
     gaplessSourceActive = false;
-    if (isOffline || ctx.offlineModeEnabled) return current;
-    if (ctx.repeatOne) return current;
-
-    final nextSong = ctx.nextSong;
-    if (nextSong == null) return current;
-
-    final ytid = nextSong['ytid']?.toString();
-    if (ytid == null || ytid.isEmpty) return current;
-
-    if (ctx.hasPlayableOfflineFile(ytid) && !ctx.offlineModeEnabled) {
-      return current;
-    }
-
-    final nextUrl = await ctx.resolveNextStreamUrl(nextSong);
-    if (nextUrl == null || nextUrl.isEmpty) return current;
-
-    try {
-      final nextSource =
-          await AudioPlaybackInstall.buildSource(nextSong, nextUrl, false);
-      if (nextSource == null) return current;
-
-      gaplessSourceActive = true;
-      gaplessBaseQueueIndex = ctx.currentIndex;
-      logger.log(
-        'Gapless install: "${ctx.currentSongTitle}" → "${nextSong['title']}"',
-      );
-      return ConcatenatingAudioSource(children: [current, nextSource]);
-    } catch (e, st) {
-      logger.log('Gapless next source build failed', error: e, stackTrace: st);
-      return current;
-    }
+    return current;
   }
 
   Future<bool> setAudioSourceAndPlay({
@@ -347,27 +319,17 @@ class AudioPlaybackCoordinator {
 
       if (isStale(transitionId)) return false;
 
-      final uri = isOffline ? null : Uri.tryParse(songUrl);
-      final isRemoteStream = uri != null &&
-          (uri.host.contains('googlevideo.com') ||
-              uri.host.contains('youtube.com'));
-
-      // iOS AVPlayer returns -1004 if we load a new googlevideo URL while the
-      // previous item is still attached. Stop first unless gapless concat.
-      if (!gaplessSourceActive && !isOffline && audioPlayer.audioSource != null) {
-        try {
-          await audioPlayer.stop().timeout(const Duration(seconds: 2));
-        } catch (e) {
-          logger.log('stop() before stream switch failed: $e');
-        }
-      }
-
+      // Stop so AVPlayer does not carry doubled position/duration from the
+      // previous item into the next load.
       final needsHardReset = isOffline || lastInstalledWasOffline;
-      if (needsHardReset) {
+      if (!gaplessSourceActive && audioPlayer.audioSource != null) {
         try {
           await audioPlayer.stop().timeout(const Duration(seconds: 2));
+          if (!needsHardReset) {
+            await audioPlayer.seek(Duration.zero);
+          }
         } catch (e) {
-          logger.log('stop() before source change failed: $e');
+          logger.log('stop before stream switch failed: $e');
         }
       }
 
@@ -390,7 +352,7 @@ class AudioPlaybackCoordinator {
       await audioPlayer
           .setAudioSources(
             [installSource],
-            preload: isOffline || !isRemoteStream,
+            preload: true,
           )
           .timeout(
             isOffline ? offlineTransitionTimeout : streamTransitionTimeout,

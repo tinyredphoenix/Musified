@@ -7,8 +7,10 @@ import 'package:musified/extensions/l10n.dart';
 final logger = Logger();
 
 class Logger extends ChangeNotifier {
-  static const int _maxLogChars = 200000;
-  String _logs = '';
+  static const int _maxLogChars = 80000;
+  static const int _maxLogLines = 400;
+
+  final List<String> _logLines = [];
   int _logCount = 0;
 
   void log(
@@ -28,18 +30,19 @@ class Logger extends ChangeNotifier {
         '[$timestamp] $message$dataMessage$errorMessage$stackTraceMessage';
 
     debugPrint(logMessage);
-    _logs += '$logMessage\n';
+    _logLines.add(logMessage);
     _logCount++;
-    if (_logs.length > _maxLogChars) {
-      _logs = _logs.substring(_logs.length - (_maxLogChars ~/ 2));
+    while (_logLines.length > _maxLogLines) {
+      _logLines.removeAt(0);
     }
     notifyListeners();
   }
 
   Future<String> copyLogs(BuildContext context) async {
     try {
-      if (_logs.isNotEmpty) {
-        await Clipboard.setData(ClipboardData(text: _logs));
+      final logs = getLogs();
+      if (logs.isNotEmpty) {
+        await Clipboard.setData(ClipboardData(text: logs));
         return '${context.l10n.copyLogsSuccess}.';
       } else {
         return '${context.l10n.copyLogsNoLogs}.';
@@ -52,10 +55,14 @@ class Logger extends ChangeNotifier {
 
   int getLogCount() => _logCount;
 
-  String getLogs() => _logs;
+  String getLogs() {
+    final joined = _logLines.join('\n');
+    if (joined.length <= _maxLogChars) return joined;
+    return joined.substring(joined.length - _maxLogChars);
+  }
 
   void clearLogs() {
-    _logs = '';
+    _logLines.clear();
     _logCount = 0;
     notifyListeners();
   }

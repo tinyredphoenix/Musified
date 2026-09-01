@@ -16,9 +16,7 @@ import 'package:musified/widgets/playlist_bar.dart';
 import 'package:musified/widgets/section_header.dart';
 import 'package:musified/widgets/song_tile.dart';
 
-final ValueNotifier<List> searchHistoryNotifier = ValueNotifier<List>(
-  Hive.box('user').get('searchHistory', defaultValue: []),
-);
+final ValueNotifier<List> searchHistoryNotifier = ValueNotifier<List>([]);
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -37,6 +35,17 @@ class _SearchPageState extends State<SearchPage> {
   List<String> _suggestionsList = [];
   Timer? _debounce;
   int _latestSearchRequest = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (searchHistoryNotifier.value.isEmpty) {
+      searchHistoryNotifier.value = Hive.box('user').get(
+        'searchHistory',
+        defaultValue: <dynamic>[],
+      );
+    }
+  }
 
   @override
   void dispose() {

@@ -215,7 +215,6 @@ void reloadSettingsFromStorage() {
     repeatNotifier.value = AudioServiceRepeatMode.values[restoredRepeatIndex];
   }
 
-  themeModeSetting.value = settings.get('themeIndex', defaultValue: 0);
   jiosaavnEnabled.value = settings.get('jiosaavnEnabled', defaultValue: true);
   jiosaavnQuality.value = settings.get('jiosaavnQuality', defaultValue: '320');
   preferredSource.value = settings.get('preferredSource', defaultValue: 'auto');

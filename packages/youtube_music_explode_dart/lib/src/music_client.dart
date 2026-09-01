@@ -751,16 +751,21 @@ class MusicClient {
     return null;
   }
 
-  Iterable<_JsonMap> _findRenderers(dynamic node, String rendererKey) sync* {
+  Iterable<_JsonMap> _findRenderers(
+    dynamic node,
+    String rendererKey, {
+    int depth = 0,
+  }) sync* {
+    if (depth > 64) return;
     if (node is Map) {
       final match = node[rendererKey];
       if (match is Map) yield match.cast<String, dynamic>();
       for (final value in node.values) {
-        yield* _findRenderers(value, rendererKey);
+        yield* _findRenderers(value, rendererKey, depth: depth + 1);
       }
     } else if (node is List) {
       for (final value in node) {
-        yield* _findRenderers(value, rendererKey);
+        yield* _findRenderers(value, rendererKey, depth: depth + 1);
       }
     }
   }

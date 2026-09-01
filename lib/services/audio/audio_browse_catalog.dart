@@ -1,4 +1,5 @@
 import 'package:audio_service/audio_service.dart';
+import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/map_utils.dart';
 import 'package:musified/utilities/mediaitem.dart';
 
@@ -14,10 +15,44 @@ abstract final class AudioBrowseCatalog {
   static String recentMediaId(String ytid) => '$recentMediaIdPrefix$ytid';
 
   static String? ytidFromMediaId(String mediaId) {
+    if (mediaId.isEmpty) return null;
     if (mediaId.startsWith(recentMediaIdPrefix)) {
       return mediaId.substring(recentMediaIdPrefix.length);
     }
-    return mediaId.isEmpty ? null : mediaId;
+    if (mediaId.startsWith('queue-')) return null;
+    if (isValidYoutubeVideoId(mediaId)) return mediaId;
+    return null;
+  }
+
+  static Map? findByQueueEntryId(String? entryId, List<Map> queueItems) {
+    if (entryId == null || entryId.isEmpty) return null;
+    for (final song in queueItems) {
+      if (song['queueEntryId']?.toString() == entryId) return song;
+    }
+    return null;
+  }
+
+  static Map? findByMediaId(
+    String mediaId, {
+    required Map? currentSong,
+    required List<Map> queueItems,
+    required Iterable liked,
+    required Iterable offline,
+    required Iterable recent,
+  }) {
+    final fromQueue = findByQueueEntryId(mediaId, queueItems);
+    if (fromQueue != null) return fromQueue;
+
+    final ytid = ytidFromMediaId(mediaId);
+    if (ytid == null) return null;
+    return findByYtid(
+      ytid,
+      currentSong: currentSong,
+      queueItems: queueItems,
+      liked: liked,
+      offline: offline,
+      recent: recent,
+    );
   }
 
   static String? songYtid(Map song) {

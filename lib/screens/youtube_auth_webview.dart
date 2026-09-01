@@ -13,11 +13,11 @@ class YouTubeAuthWebView extends StatefulWidget {
 class _YouTubeAuthWebViewState extends State<YouTubeAuthWebView> {
   late final WebViewController _controller;
   bool _isLoading = true;
-  
+
   @override
   void initState() {
     super.initState();
-    
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -47,7 +47,9 @@ class _YouTubeAuthWebViewState extends State<YouTubeAuthWebView> {
           },
         ),
       )
-      ..loadRequest(Uri.parse('https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/'));
+      ..loadRequest(Uri.parse(
+        'https://accounts.google.com/ServiceLogin?service=youtube&continue=https://music.youtube.com/',
+      ));
   }
 
   bool _isCompleting = false;
@@ -56,17 +58,24 @@ class _YouTubeAuthWebViewState extends State<YouTubeAuthWebView> {
     if (_isCompleting) return;
     try {
       final cookieManager = WebViewCookieManager();
-      final youtubeCookies = await cookieManager.getCookies(domain: Uri.parse('https://youtube.com'));
-      final musicCookies = await cookieManager.getCookies(domain: Uri.parse('https://music.youtube.com'));
-      final googleCookies = await cookieManager.getCookies(domain: Uri.parse('https://google.com'));
-      
+      final youtubeCookies = await cookieManager.getCookies(
+        domain: Uri.parse('https://www.youtube.com'),
+      );
+      final musicCookies = await cookieManager.getCookies(
+        domain: Uri.parse('https://music.youtube.com'),
+      );
+      final googleCookies = await cookieManager.getCookies(
+        domain: Uri.parse('https://www.google.com'),
+      );
+
       final cookiesMap = <String, String>{};
-      
+
       for (final cookie in [...googleCookies, ...youtubeCookies, ...musicCookies]) {
         cookiesMap[cookie.name] = cookie.value;
       }
-      
-      final hasRequired = cookiesMap.containsKey('SAPISID') || cookiesMap.containsKey('__Secure-3PAPISID');
+
+      final hasRequired = cookiesMap.containsKey('SAPISID') ||
+          cookiesMap.containsKey('__Secure-3PAPISID');
       if (hasRequired) {
         _isCompleting = true;
         YouTubeAuthService().saveCookies(cookiesMap);

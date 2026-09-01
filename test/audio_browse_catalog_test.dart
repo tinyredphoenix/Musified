@@ -39,4 +39,34 @@ void main() {
     expect(state.currentIndex, 1);
     expect(state.items.map((s) => s['ytid']).toList(), ['b', 'c', 'a']);
   });
+
+  test('AudioQueueController reorder allows drag to end', () {
+    final state = AudioQueueState();
+    state.items.addAll([
+      {'ytid': 'a'},
+      {'ytid': 'b'},
+      {'ytid': 'c'},
+    ]);
+    final controller = AudioQueueController(state);
+
+    expect(controller.reorder(0, 3), isTrue);
+    expect(state.items.map((s) => s['ytid']).toList(), ['b', 'c', 'a']);
+  });
+
+  test('AudioBrowseCatalog resolves queue entry media ids', () {
+    final song = {
+      'queueEntryId': 'queue-1',
+      'ytid': 'abcdefghijk',
+      'title': 'Queued',
+    };
+    final found = AudioBrowseCatalog.findByMediaId(
+      'queue-1',
+      currentSong: null,
+      queueItems: [song],
+      liked: [],
+      offline: [],
+      recent: [],
+    );
+    expect(found?['title'], 'Queued');
+  });
 }

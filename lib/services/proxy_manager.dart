@@ -303,8 +303,7 @@ class ProxyManager {
     if (!useProxy.value) return null;
     YoutubeExplode? ytClient;
     try {
-      final res = _ensureProxyResources(proxy, timeoutSeconds: timeoutSeconds);
-      ytClient = YoutubeExplode(httpClient: YoutubeHttpClient(res.ioClient));
+      ytClient = _youtubeFromDedicatedProxy(proxy, timeoutSeconds: timeoutSeconds);
       final manifest = await ytClient.videos.streams
           .getManifest(songId, ytClients: youtubeStreamClients())
           .timeout(Duration(seconds: timeoutSeconds));
@@ -325,6 +324,20 @@ class ProxyManager {
         } catch (_) {}
       }
     }
+  }
+
+  /// Short-lived proxy client — safe to [YoutubeExplode.close] without poisoning
+  /// the shared [_sharedYt] pool used by [getClientSync].
+  YoutubeExplode _youtubeFromDedicatedProxy(
+    ProxyInfo proxy, {
+    required int timeoutSeconds,
+  }) {
+    final httpClient = HttpClient()
+      ..connectionTimeout = Duration(seconds: timeoutSeconds)
+      ..findProxy = (_) => 'PROXY ${proxy.address}';
+    httpClient.badCertificateCallback = (_, _, _) => true;
+    final ioClient = IOClient(httpClient);
+    return YoutubeExplode(httpClient: YoutubeHttpClient(ioClient));
   }
 
   /// Periodically clean up old proxies to prevent memory bloat
@@ -413,7 +426,7 @@ class ProxyManager {
       ..findProxy = (_) {
         return 'PROXY ${proxy.address}';
       }
-      ..badCertificateCallback = (cert, host, port) => false;
+      ..badCertificateCallback = (_, _, _) => true;
 
     final ioClient = IOClient(httpClient);
     res = _ProxyResources(httpClient, ioClient);
@@ -568,31 +581,21 @@ class ProxyManager {
     Map<String, String>? headers,
     int timeoutSeconds = 10,
   }) async {
+    final timeout = Duration(seconds: timeoutSeconds);
     if (!useProxy.value || _sharedProxyAddress == null) {
       return http
           .get(uri, headers: headers)
-          .timeout(
-            Duration(seconds: timeoutSeconds),
-            onTimeout: () => http.Response('Timeout', 408),
-          );
+          .timeout(timeout);
     }
 
     final res = _proxyResources[_sharedProxyAddress!];
     if (res == null) {
       return http
           .get(uri, headers: headers)
-          .timeout(
-            Duration(seconds: timeoutSeconds),
-            onTimeout: () => http.Response('Timeout', 408),
-          );
+          .timeout(timeout);
     }
 
-    return res.ioClient
-        .get(uri, headers: headers)
-        .timeout(
-          Duration(seconds: timeoutSeconds),
-          onTimeout: () => http.Response('Timeout', 408),
-        );
+    return res.ioClient.get(uri, headers: headers).timeout(timeout);
   }
 
   void _closeAllProxyResources() {
@@ -611,12 +614,8 @@ class ProxyManager {
     _sharedProxyAddress = null;
   }
 
-  /// Try to create a [YoutubeExplode] client that routes requests through a
-  /// working proxy. Returns null if no proxy client could be created.
-  ///
-  /// **IMPORTANT**: Caller is responsible for calling `close()` on the returned
-  /// [YoutubeExplode] when finished to free resources. Failure to close will leak
-  /// HTTP connections and memory.
+  /// Returns a dedicated short-lived [YoutubeExplode] routed through a proxy.
+  /// Caller must call `close()` when finished — this does not use the shared pool.
   Future<YoutubeExplode?> getYoutubeExplodeClient({
     int timeoutSeconds = 5,
   }) async {
@@ -632,12 +631,9 @@ class ProxyManager {
       if (proxy == null) break;
 
       try {
-        final res = _ensureProxyResources(
+        final ytClient = _youtubeFromDedicatedProxy(
           proxy,
           timeoutSeconds: timeoutSeconds,
-        );
-        final ytClient = YoutubeExplode(
-          httpClient: YoutubeHttpClient(res.ioClient),
         );
 
         _workingProxies.add(proxy);

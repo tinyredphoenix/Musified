@@ -97,9 +97,14 @@ class WatchPage extends YoutubePage<WatchPageInitialData> {
   late final Map<String, dynamic> ytCfg = _getYtCfg();
 
   Map<String, dynamic> _getYtCfg() {
-    return json.decode(RegExp(r'ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;')
-        .firstMatch(root.outerHtml)!
-        .group(1)!);
+    final match = RegExp(r'ytcfg\.set\s*\(\s*({.+?})\s*\)\s*;')
+        .firstMatch(root.outerHtml);
+    if (match == null) return const {};
+    try {
+      return json.decode(match.group(1)!) as Map<String, dynamic>;
+    } catch (_) {
+      return const {};
+    }
   }
 
   ///

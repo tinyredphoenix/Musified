@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:musified/constants/app_constants.dart';
 import 'package:musified/extensions/l10n.dart';
 import 'package:musified/main.dart';
+import 'package:musified/services/router_service.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/flutter_bottom_sheet.dart' show closeCurrentBottomSheet;
@@ -21,9 +22,10 @@ class BottomNavigationPage extends StatefulWidget {
 }
 
 class _BottomNavigationPageState extends State<BottomNavigationPage> {
-  Stream<bool> get _miniPlayerVisibilityStream {
-    if (!isAudioHandlerInitialized) return Stream.value(false);
-    return audioHandler.mediaItem.map((mediaItem) => mediaItem != null).distinct();
+  Stream<bool> _miniPlayerVisibilityStream() {
+    return audioHandler.mediaItem
+        .map((mediaItem) => mediaItem != null)
+        .distinct();
   }
 
   bool? _previousOfflineMode;
@@ -65,21 +67,26 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: StreamBuilder<bool>(
-                    initialData: false,
-                    stream: _miniPlayerVisibilityStream,
-                    builder: (context, snapshot) {
-                      final mediaQuery = MediaQuery.of(context);
-                      final isMiniPlayerVisible = snapshot.data ?? false;
-                      final bottomPadding = isMiniPlayerVisible
-                          ? mediaQuery.padding.bottom + miniPlayerTotalHeight
-                          : mediaQuery.padding.bottom + 54;
+                  child: ValueListenableBuilder<bool>(
+                    valueListenable: audioHandlerReady,
+                    builder: (context, handlerReady, _) {
+                      return StreamBuilder<bool>(
+                        initialData: false,
+                        stream: handlerReady ? _miniPlayerVisibilityStream() : null,
+                        builder: (context, snapshot) {
+                          final mediaQuery = MediaQuery.of(context);
+                          final isMiniPlayerVisible = snapshot.data ?? false;
+                          final bottomPadding = isMiniPlayerVisible
+                              ? mediaQuery.padding.bottom + miniPlayerTotalHeight
+                              : mediaQuery.padding.bottom + 54;
 
-                      return MediaQuery(
-                        data: mediaQuery.copyWith(
-                          padding: mediaQuery.padding.copyWith(bottom: bottomPadding),
-                        ),
-                        child: widget.child,
+                          return MediaQuery(
+                            data: mediaQuery.copyWith(
+                              padding: mediaQuery.padding.copyWith(bottom: bottomPadding),
+                            ),
+                            child: widget.child,
+                          );
+                        },
                       );
                     },
                   ),
@@ -175,6 +182,7 @@ class _BottomNavigationPageState extends State<BottomNavigationPage> {
 
   void _handleOfflineModeChange(bool isOfflineMode) {
     if (!mounted) return;
+    NavigationManager.refreshRouter();
     final currentRoute = GoRouterState.of(context).matchedLocation;
     if (isOfflineMode && currentRoute.startsWith('/search')) {
       widget.child.goBranch(0);

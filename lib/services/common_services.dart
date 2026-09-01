@@ -117,7 +117,7 @@ void reloadSongLibraryStateFromStorage() {
 }
 
 // Timeouts and durations used across manifest fetching and cache validation.
-const Duration _cacheValidationDuration = Duration(hours: 1);
+const Duration _cacheValidationDuration = songCacheDuration;
 const Duration _headRevalidateAge = Duration(minutes: 30);
 
 String? _pendingYoutubeStreamError;
@@ -799,7 +799,7 @@ _selectedAudioStreams = {};
 const _maxSelectedAudioStreams = 50;
 
 String _selectedAudioStreamKey(String songId) =>
-    '${songId}_${audioQualitySetting.value}';
+    '${songId}_${audioQualitySetting.value}_youtube';
 
 /// Returns the stream resolved earlier for a song, unless it is old enough
 /// that its URL may have expired.
@@ -942,7 +942,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       return streamInfo;
     }
 
-    const cacheDuration = Duration(minutes: 45);
+    const cacheDuration = songCacheDuration;
     final forceSource = song['forceSource']?.toString();
     final resolveYoutube = songShouldResolveYoutube(song);
     final preference = resolveYoutube
@@ -1165,6 +1165,11 @@ Future<bool> makeSongOffline(
 
     if (ytid == null || ytid.isEmpty) {
       logger.log('makeSongOffline: song["ytid"] is null or empty');
+      return false;
+    }
+
+    if (!isValidYoutubeVideoId(ytid)) {
+      logger.log('makeSongOffline: invalid ytid "$ytid"');
       return false;
     }
 
