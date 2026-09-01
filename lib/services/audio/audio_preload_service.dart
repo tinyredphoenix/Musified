@@ -118,11 +118,22 @@ class AudioPreloadService {
       cache.preloadingYtIds.remove(ytid);
       if (cache.activeCount > 0) cache.activeCount--;
       if (preloadUrl != null && preloadUrl.isNotEmpty) {
-        final uri = Uri.tryParse(preloadUrl);
-        if (uri != null && isPlayableYoutubeStreamUrl(uri)) {
+        if (isUsableYoutubePlaybackUrl(preloadUrl)) {
           cache.preloadedYtIds.add(ytid);
           cache.streamUrls[ytid] = preloadUrl;
           nextSong['_preloadedStreamUrl'] = preloadUrl;
+          logger.log(
+            'Preloaded stream for $ytid',
+            data: {
+              'host': Uri.tryParse(preloadUrl)?.host ?? '-',
+              'dur': youtubeStreamDurationSeconds(
+                Uri.parse(preloadUrl),
+              )?.toString() ??
+                  '-',
+            },
+          );
+        } else {
+          logger.log('Preload URL unusable for $ytid (expired or invalid)');
         }
       }
     }

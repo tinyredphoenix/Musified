@@ -86,15 +86,7 @@ class StreamClient {
         'ytClients cannot be an empty list');
 
     videoId = VideoId.fromString(videoId);
-    final clients = ytClients ??
-        [
-          YoutubeApiClient.visionOs,
-          YoutubeApiClient.androidVr,
-        ];
-
-    if (_jsChallengeSolver != null && ytClients == null) {
-      clients.add(YoutubeApiClient.safari);
-    }
+    final clients = ytClients ?? [YoutubeApiClient.visionOs];
 
     final uniqueStreams = LinkedHashSet<StreamInfo>(
       equals: (a, b) {
@@ -153,10 +145,6 @@ class StreamClient {
       }
     }
 
-    // If the user has not provided any client retry with the tv which work also in some restricted videos.
-    if (uniqueStreams.isEmpty && ytClients == null) {
-      return getManifest(videoId, ytClients: [YoutubeApiClient.tv]);
-    }
     if (uniqueStreams.isEmpty) {
       if (lastException is Error && lastException.stackTrace != null) {
         throw Error.throwWithStackTrace(

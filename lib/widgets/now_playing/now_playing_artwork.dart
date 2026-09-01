@@ -33,14 +33,14 @@ class NowPlayingArtwork extends StatelessWidget {
     final isLandscape = screenWidth > screenHeight;
     final isDesktop = screenWidth > 800;
     final imageSize = isDesktop
-        ? screenHeight * 0.38
+        ? (screenWidth * 0.42).clamp(280.0, screenHeight * 0.5)
         : isLandscape
-        ? screenHeight * 0.45
+        ? screenHeight * 0.52
         : screenWidth < 360
-        ? screenWidth * 0.82
+        ? screenWidth * 0.9
         : screenWidth < 600
-        ? screenWidth * 0.88
-        : screenWidth * 0.70;
+        ? screenWidth * 0.92
+        : (screenWidth * 0.72).clamp(320.0, screenHeight * 0.48);
 
     const borderRadius = 22.0;
 

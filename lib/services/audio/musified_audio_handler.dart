@@ -1026,6 +1026,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       for (var i = 0; i < songs.length; i++) {
         final song = songs[i];
         if (song['ytid'] != null && song['ytid'].toString().isNotEmpty) {
+          if (song['catalogOrigin'] == null &&
+              song['resolvedSource'] == null) {
+            song['catalogOrigin'] = 'youtube';
+          }
           _hub.queue.items.add(_hub.queue.entryIds.createSong(song));
 
           if (replace && startIndex == i) {
@@ -1748,16 +1752,12 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> _ensureActuallyPlaying(int? transitionId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 800));
+    await Future<void>.delayed(const Duration(milliseconds: 500));
     if (_isStaleTransition(transitionId)) return;
     if (audioPlayer.playing) return;
-    // Still making progress toward playback — don't interfere. Calling play()
-    // or re-activating the session mid-buffer causes a stutter and can restart
-    // the item from 0 on iOS.
     final state = audioPlayer.processingState;
     if (state == ProcessingState.loading ||
-        state == ProcessingState.buffering ||
-        state == ProcessingState.completed) {
+        state == ProcessingState.buffering) {
       return;
     }
     if (audioPlayer.audioSource == null) return;

@@ -158,6 +158,45 @@ bool isPlayableYoutubeStreamUrl(Uri url) {
   return url.host.isNotEmpty;
 }
 
+/// googlevideo URLs carry track length as `dur` (seconds, may be fractional).
+int? youtubeStreamDurationSeconds(Uri url) {
+  final raw = url.queryParameters['dur'];
+  if (raw == null) return null;
+  final seconds = double.tryParse(raw);
+  if (seconds == null || seconds <= 0) return null;
+  return seconds.round();
+}
+
+/// Signed googlevideo URLs expire; stale preloads cause iOS -1004 on load.
+bool isYoutubeStreamUrlExpired(
+  Uri url, {
+  Duration grace = const Duration(seconds: 45),
+}) {
+  final expireRaw = url.queryParameters['expire'];
+  if (expireRaw == null) return false;
+  final expireSec = int.tryParse(expireRaw);
+  if (expireSec == null) return false;
+  final expiry = DateTime.fromMillisecondsSinceEpoch(expireSec * 1000);
+  return DateTime.now().isAfter(expiry.subtract(grace));
+}
+
+bool isUsableYoutubePlaybackUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || !isPlayableYoutubeStreamUrl(uri)) return false;
+  if (isYoutubeStreamUrlExpired(uri)) return false;
+  return true;
+}
+
+/// Prefer YouTube over JioSaavn when the catalog entry is from YouTube.
+bool songShouldResolveYoutube(Map song) {
+  final force = song['forceSource']?.toString();
+  if (force == 'youtube') return true;
+  if (song['catalogOrigin']?.toString() == 'youtube') return true;
+  if (song['resolvedSource']?.toString() == 'youtube') return true;
+  final pref = force ?? preferredSource.value;
+  return pref == 'youtube';
+}
+
 AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   List<AudioOnlyStreamInfo> availableSources,
 ) {

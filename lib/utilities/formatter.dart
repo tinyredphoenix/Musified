@@ -64,6 +64,7 @@ Map<String, dynamic> returnSongLayout(
     'highResImage': playlistImage ?? song.thumbnails.maxResUrl,
     'duration': song.duration?.inSeconds,
     'isLive': song.isLive,
+    'catalogOrigin': 'youtube',
   };
 }
 

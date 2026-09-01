@@ -174,21 +174,33 @@ class AudioPlaybackCoordinator {
     }
 
     final ytid = song['ytid']?.toString();
+
+    void rejectStale(String source, String url) {
+      logger.log(
+        'Rejecting stale $source stream URL for $ytid',
+        data: {
+          'expire': Uri.tryParse(url)?.queryParameters['expire'] ?? '-',
+        },
+      );
+      song.remove('_preloadedStreamUrl');
+      if (ytid != null) preloadedUrls.remove(ytid);
+    }
+
     final warmed = song['_preloadedStreamUrl']?.toString();
     if (warmed != null && warmed.isNotEmpty) {
-      final warmedUri = Uri.tryParse(warmed);
-      if (warmedUri != null && isPlayableYoutubeStreamUrl(warmedUri)) {
+      if (isUsableYoutubePlaybackUrl(warmed)) {
         logger.log('Using pre-warmed stream URL for $ytid');
         return warmed;
       }
+      rejectStale('pre-warmed', warmed);
     }
     if (ytid != null && preloadedUrls.containsKey(ytid)) {
-      final cached = preloadedUrls[ytid];
-      final cachedUri = cached != null ? Uri.tryParse(cached) : null;
-      if (cachedUri != null && isPlayableYoutubeStreamUrl(cachedUri)) {
+      final cached = preloadedUrls[ytid]!;
+      if (isUsableYoutubePlaybackUrl(cached)) {
         logger.log('Using preloaded stream URL for $ytid');
         return cached;
       }
+      rejectStale('preloaded', cached);
     }
 
     return fetchSongStreamUrl(song, song['isLive'] ?? false);
@@ -335,6 +347,21 @@ class AudioPlaybackCoordinator {
 
       if (isStale(transitionId)) return false;
 
+      final uri = isOffline ? null : Uri.tryParse(songUrl);
+      final isRemoteStream = uri != null &&
+          (uri.host.contains('googlevideo.com') ||
+              uri.host.contains('youtube.com'));
+
+      // iOS AVPlayer returns -1004 if we load a new googlevideo URL while the
+      // previous item is still attached. Stop first unless gapless concat.
+      if (!gaplessSourceActive && !isOffline && audioPlayer.audioSource != null) {
+        try {
+          await audioPlayer.stop().timeout(const Duration(seconds: 2));
+        } catch (e) {
+          logger.log('stop() before stream switch failed: $e');
+        }
+      }
+
       final needsHardReset = isOffline || lastInstalledWasOffline;
       if (needsHardReset) {
         try {
@@ -361,7 +388,10 @@ class AudioPlaybackCoordinator {
       );
 
       await audioPlayer
-          .setAudioSources([installSource], preload: true)
+          .setAudioSources(
+            [installSource],
+            preload: isOffline || !isRemoteStream,
+          )
           .timeout(
             isOffline ? offlineTransitionTimeout : streamTransitionTimeout,
           );
@@ -384,7 +414,14 @@ class AudioPlaybackCoordinator {
           audioSource is ClippingAudioSource;
 
       if (audioPlayer.duration != null) {
-        onDurationKnown(audioPlayer.duration!);
+        final catalog = parseSongDuration(song['duration']);
+        if (catalog != null &&
+            catalog > const Duration(seconds: 5) &&
+            audioPlayer.duration! > catalog + const Duration(seconds: 5)) {
+          onDurationKnown(catalog);
+        } else {
+          onDurationKnown(audioPlayer.duration!);
+        }
       }
 
       if (resumeAt != null && resumeAt > Duration.zero) {
@@ -459,6 +496,7 @@ class AudioPlaybackCoordinator {
         }
         final songId = song['ytid']?.toString();
         if (songId != null && songId.isNotEmpty) {
+          song.remove('_preloadedStreamUrl');
           await invalidateSongStreamCache(songId);
 
           final refreshedUrl = await fetchSongStreamUrl(

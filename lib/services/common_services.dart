@@ -138,17 +138,6 @@ String _youtubeStreamFailureMessage() {
       'Try Sync YouTube Client in Settings.';
 }
 
-/// googlevideo URLs carry the exact track length as `dur`. Reading it avoids
-/// racing an async catalog lookup, and it is what keeps the player from
-/// reporting a doubled duration for these streams.
-int? youtubeStreamDurationSeconds(Uri url) {
-  final raw = url.queryParameters['dur'];
-  if (raw == null) return null;
-  final seconds = double.tryParse(raw);
-  if (seconds == null || seconds <= 0) return null;
-  return seconds.round();
-}
-
 String _songStreamCacheKey(String songId, String source) =>
     'song_${songId}_${audioQualitySetting.value}_${source}_url';
 
@@ -955,13 +944,13 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
 
     const cacheDuration = Duration(minutes: 45);
     final forceSource = song['forceSource']?.toString();
-    final requestedPreference = forceSource ?? preferredSource.value;
-    final preference = (requestedPreference == 'saavn' || requestedPreference == 'jiosaavn')
-        ? 'jiosaavn'
-        : 'youtube';
-    final catalogOrigin = song['catalogOrigin']?.toString();
-    final resolveYoutube =
-        forceSource == 'youtube' || catalogOrigin == 'youtube' || preference == 'youtube';
+    final resolveYoutube = songShouldResolveYoutube(song);
+    final preference = resolveYoutube
+        ? 'youtube'
+        : ((forceSource == 'saavn' || forceSource == 'jiosaavn' ||
+                preferredSource.value == 'jiosaavn')
+            ? 'jiosaavn'
+            : 'youtube');
 
     logger.log(
       'Resolution start for songId=$songId',
@@ -969,7 +958,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
         'title': song['title'],
         'force': forceSource ?? '-',
         'target': resolveYoutube ? 'youtube' : preference,
-        'catalogOrigin': catalogOrigin ?? '-',
+        'catalogOrigin': song['catalogOrigin']?.toString() ?? '-',
         'offlineMode': offlineMode.value,
       },
     );
@@ -987,7 +976,16 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
           : null,
     );
     if (cachedUrl != null) {
-      if (metadata is Map && metadata['source'] == cachePreference) {
+      final cachedUri = Uri.tryParse(cachedUrl);
+      if (cachePreference == 'youtube' &&
+          cachedUri != null &&
+          isYoutubeStreamUrlExpired(cachedUri)) {
+        logger.log(
+          'Cached YouTube URL expired for $songId',
+          data: {'expire': cachedUri.queryParameters['expire'] ?? '-'},
+        );
+        await invalidateSongStreamCache(songId);
+      } else if (metadata is Map && metadata['source'] == cachePreference) {
         final isBadHeAac = cachePreference == 'youtube' && _isCachedHeAacYoutube(metadata);
         if (!isBadHeAac) {
           song['resolvedSource'] = cachePreference;
@@ -1002,11 +1000,25 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
             final cachedDuration = metadata['durationSeconds'];
             if (cachedDuration is int && cachedDuration > 0) {
               song['duration'] = cachedDuration;
+            } else if (cachedUri != null) {
+              final urlDur = youtubeStreamDurationSeconds(cachedUri);
+              if (urlDur != null) {
+                song['duration'] = urlDur;
+              } else {
+                unawaited(ensureYoutubeCatalogDuration(song));
+              }
             } else {
               unawaited(ensureYoutubeCatalogDuration(song));
             }
           }
-          logger.log('Using cached $cachePreference URL for $songId');
+          logger.log(
+            'Using cached $cachePreference URL for $songId',
+            data: {
+              'host': cachedUri?.host ?? '-',
+              'dur': song['duration']?.toString() ?? '-',
+              'expire': cachedUri?.queryParameters['expire'] ?? '-',
+            },
+          );
           return cachedUrl;
         }
       }

@@ -423,9 +423,13 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                           : (widget.isCompact ? 6 : 10),
                     ),
                     decoration: BoxDecoration(
-                      color: isCurrent ? activePillColor : const Color(0x00000000),
-                      borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
-                      border: isCurrent
+                      color: isCurrent && !widget.isCompact
+                          ? activePillColor
+                          : const Color(0x00000000),
+                      borderRadius: BorderRadius.circular(
+                        widget.isCompact ? 10 : MusifiedStyle.radiusMd,
+                      ),
+                      border: isCurrent && !widget.isCompact
                           ? Border.all(color: activeBorderColor, width: 1)
                           : null,
                     ),
@@ -436,28 +440,28 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                         fontFamily: MusifiedStyle.displayFont,
                         fontSize: isCurrent
                             ? (widget.isFullScreen
-                                ? 30
+                                ? 28
                                 : widget.isCompact
-                                ? 17
-                                : 26)
+                                ? 16
+                                : 24)
                             : (widget.isFullScreen
-                                ? 20
+                                ? 18
                                 : widget.isCompact
-                                ? 14
-                                : 18),
+                                ? 13
+                                : 17),
                         fontWeight:
-                            isCurrent ? FontWeight.w800 : FontWeight.w500,
+                            isCurrent ? FontWeight.w700 : FontWeight.w500,
                         letterSpacing: isCurrent ? -0.5 : -0.15,
                         color: isCurrent
                             ? activeTextColor
                             : (isPast ? pastTextColor : upcomingTextColor),
                         height: 1.35,
                         decoration: TextDecoration.none,
-                        shadows: isCurrent
+                        shadows: isCurrent && !widget.isCompact
                             ? [
                                 Shadow(
-                                  color: accentColor.withValues(alpha: 0.35),
-                                  blurRadius: 12,
+                                  color: accentColor.withValues(alpha: 0.25),
+                                  blurRadius: 10,
                                 ),
                               ]
                             : null,
