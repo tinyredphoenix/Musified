@@ -20,7 +20,6 @@ Map mediaItemToMap(MediaItem mediaItem) {
         extras?['highResImage'] ??
         mediaItem.artUri?.toString(),
     'lowResImage': extras?['lowResImage'],
-    'lowResImage': extras?['lowResImage'],
     'isLive': extras?['isLive'] ?? false,
     'isOffline': extras?['isOffline'] ?? false,
     'downloadSource': extras?['downloadSource'],

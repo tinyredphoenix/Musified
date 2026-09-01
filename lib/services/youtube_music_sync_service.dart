@@ -538,6 +538,56 @@ class YouTubeMusicSyncService {
     }
   }
 
+  String _normalizePlaylistIdForMutation(String playlistId) {
+    var id = playlistId.trim();
+    if (id.startsWith('VL')) {
+      id = id.substring(2);
+    }
+    return id;
+  }
+
+  Future<bool> addVideoToPlaylist(String playlistId, String videoId) async {
+    if (!_isValidYouTubeVideoId(videoId)) return false;
+    final cleanId = _normalizePlaylistIdForMutation(playlistId);
+    try {
+      await _authenticatedPost('browse/edit_playlist', {
+        'playlistId': cleanId,
+        'actions': [
+          {
+            'action': 'ACTION_ADD_VIDEO',
+            'addedVideoId': videoId,
+          },
+        ],
+      });
+      return true;
+    } catch (e) {
+      logger.log('Error adding video to YT Music playlist: $e');
+      return false;
+    }
+  }
+
+  Future<String?> createUserPlaylist(
+    String title, {
+    String? videoId,
+  }) async {
+    final trimmed = title.trim();
+    if (trimmed.isEmpty) return null;
+    try {
+      final body = <String, dynamic>{
+        'title': trimmed,
+        if (videoId != null && _isValidYouTubeVideoId(videoId))
+          'videoIds': [videoId],
+      };
+      final response = await _authenticatedPost('playlist/create', body);
+      final id = response['playlistId']?.toString();
+      if (id == null || id.isEmpty) return null;
+      return id;
+    } catch (e) {
+      logger.log('Error creating YT Music playlist: $e');
+      return null;
+    }
+  }
+
   /// Content Playback Nonce used by YouTube stats endpoints.
   String _generateCpn() {
     const chars =

@@ -11,7 +11,7 @@ import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/io_service.dart';
 import 'package:musified/services/lyrics_manager.dart';
 import 'package:musified/services/playlists_manager.dart';
-import 'package:musified/services/proxy_manager.dart';
+import 'package:musified/services/youtube_client.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/source_resolver.dart';
 import 'package:musified/services/ytdlp_client_sync_service.dart';
@@ -193,7 +193,7 @@ Future<void> ensureYoutubeCatalogDuration(Map song) async {
   }
 }
 
-/// Fetches a stream manifest for a song, honoring proxy settings.
+/// Fetches a stream manifest for a song via direct InnerTube connection.
 String? _youtubeClientUserAgent(YoutubeApiClient client) {
   final clientContext = client.payload['context']?['client'];
   return clientContext is Map ? clientContext['userAgent']?.toString() : null;
@@ -226,21 +226,6 @@ _tryGetManifest(
 
 Future<({StreamManifest manifest, YoutubeApiClient? client})?>
 _fetchStreamManifest(String songId) async {
-  if (useProxy.value) {
-    try {
-      final manifest = await ProxyManager()
-          .getSongManifest(songId)
-          .timeout(const Duration(seconds: 15));
-      if (manifest != null && manifest.audioOnly.isNotEmpty) {
-        logger.log('YouTube manifest via proxy for $songId');
-        return (manifest: manifest, client: youtubeStreamClient());
-      }
-    } catch (error) {
-      logger.log('Proxy getManifest failed for $songId: $error');
-    }
-    return null;
-  }
-
   return _tryGetManifest(
     songId,
     attempt: YtdlpClientSyncService.instance.clientLabel,
@@ -1426,7 +1411,9 @@ Future<bool> removeSongFromOffline(dynamic songId) async {
 
 Future<File?> _downloadAndSaveArtworkFile(String url, String filePath) async {
   try {
-    final response = await ProxyManager().getProxiedResponse(Uri.parse(url));
+    final response = await http
+        .get(Uri.parse(url))
+        .timeout(const Duration(seconds: 15));
 
     if (response.statusCode == 200) {
       final file = File(filePath);

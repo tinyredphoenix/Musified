@@ -271,7 +271,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   List<Widget> _buildCustomPlaylistsSections(bool isDark) {
-    final custom = userCustomPlaylists.value;
+    final custom = getUserCustomPlaylists();
     if (custom.isEmpty) return [];
 
     return [

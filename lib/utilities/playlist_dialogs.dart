@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:musified/extensions/l10n.dart';
 import 'package:musified/services/playlists_manager.dart';
+import 'package:musified/services/youtube_auth_service.dart';
+import 'package:musified/services/youtube_music_sync_service.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
@@ -120,13 +122,10 @@ void showCreatePlaylistDialog(
                     ),
                     const SizedBox(height: 16),
                     CupertinoTextField(
-                      key: ValueKey(isCustom),
-                      controller:
-                          isCustom ? nameController : linkController,
+                      controller: isCustom ? nameController : linkController,
                       placeholder: isCustom
-                          ? ctx.l10n.customPlaylistName
-                          : ctx.l10n.youtubePlaylistLinkOrId,
-                      autofocus: true,
+                          ? 'Playlist name'
+                          : 'YouTube playlist URL',
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 12,
@@ -176,29 +175,28 @@ void showCreatePlaylistDialog(
                               Navigator.pop(ctx);
                               if (isCustom) {
                                 final name = nameController.text.trim();
-                                if (name.isNotEmpty) {
-                                  final res = createCustomPlaylist(
-                                    name,
-                                    null,
+                                if (name.isEmpty) return;
+                                final res = createCustomPlaylist(
+                                  name,
+                                  null,
+                                  context,
+                                );
+                                if (songToAdd != null && songToAdd is Map) {
+                                  addSongInCustomPlaylist(
                                     context,
+                                    res.$2,
+                                    songToAdd,
                                   );
-                                  if (songToAdd != null && songToAdd is Map) {
-                                    addSongInCustomPlaylist(
-                                      context,
-                                      res.$2,
-                                      songToAdd,
-                                    );
-                                  } else if (songsToAdd != null &&
-                                      songsToAdd.isNotEmpty) {
-                                    addSongsInCustomPlaylist(
-                                      context,
-                                      res.$2,
-                                      songsToAdd.whereType<Map>().toList(),
-                                    );
-                                  }
-                                  if (context.mounted) {
-                                    showToast(context, res.$1);
-                                  }
+                                } else if (songsToAdd != null &&
+                                    songsToAdd.isNotEmpty) {
+                                  addSongsInCustomPlaylist(
+                                    context,
+                                    res.$2,
+                                    songsToAdd.whereType<Map>().toList(),
+                                  );
+                                }
+                                if (context.mounted) {
+                                  showToast(context, res.$1);
                                 }
                               } else {
                                 final link = linkController.text.trim();
@@ -244,52 +242,164 @@ void showAddToPlaylistDialog(
   BuildContext context, {
   required dynamic song,
 }) {
-  final playlists = getUserCustomPlaylists();
+  final ytSync = YouTubeMusicSyncService();
+  final ytAuth = YouTubeAuthService();
+
   showCupertinoModalPopup<void>(
     context: context,
-    builder: (ctx) => CupertinoActionSheet(
-      title: const Text('Add Track to Playlist'),
-      message: playlists.isEmpty
-          ? const Text('Create a playlist to save this track')
-          : null,
-      actions: [
-        CupertinoActionSheetAction(
-          onPressed: () {
-            Navigator.pop(ctx);
-            showCreatePlaylistDialog(context, songToAdd: song);
-          },
-          child: const Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(CupertinoIcons.plus_circle, size: 20),
-              SizedBox(width: 8),
-              Text('New Playlist...'),
-            ],
-          ),
-        ),
-        ...playlists.map((playlist) {
-          final name = playlist['title']?.toString() ?? 'Custom Playlist';
-          final id = playlist['id']?.toString() ??
-              playlist['ytid']?.toString() ??
-              '';
+    builder: (ctx) => ListenableBuilder(
+      listenable: Listenable.merge([
+        userCustomPlaylists,
+        ytSync.ytMusicPlaylists,
+        ytAuth.isSignedIn,
+      ]),
+      builder: (context, _) {
+        final custom = getUserCustomPlaylists();
+        final ytPlaylists = ytAuth.isSignedIn.value
+            ? ytSync.ytMusicPlaylists.value
+            : <Map<String, dynamic>>[];
+        final hasTargets = custom.isNotEmpty || ytPlaylists.isNotEmpty;
 
-          return CupertinoActionSheetAction(
+        final actions = <Widget>[
+          CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(ctx);
-              if (song is Map && id.isNotEmpty) {
-                final result = addSongInCustomPlaylist(context, id, song);
-                showToast(context, result);
-              }
+              showCreatePlaylistDialog(context, songToAdd: song);
             },
-            child: Text(name),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(CupertinoIcons.plus_circle, size: 20),
+                SizedBox(width: 8),
+                Text('New Custom Playlist...'),
+              ],
+            ),
+          ),
+        ];
+
+        if (ytAuth.isSignedIn.value) {
+          actions.add(
+            CupertinoActionSheetAction(
+              onPressed: () {
+                Navigator.pop(ctx);
+                showCreateYouTubeMusicPlaylistDialog(
+                  context,
+                  songToAdd: song is Map ? song : null,
+                );
+              },
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(CupertinoIcons.play_rectangle, size: 20),
+                  SizedBox(width: 8),
+                  Text('New YouTube Music Playlist...'),
+                ],
+              ),
+            ),
           );
-        }),
-      ],
-      cancelButton: CupertinoActionSheetAction(
-        isDefaultAction: true,
-        onPressed: () => Navigator.pop(ctx),
-        child: const Text('Cancel'),
-      ),
+        }
+
+        if (custom.isNotEmpty) {
+          for (final playlist in custom) {
+            final name = playlist['title']?.toString() ?? 'Custom Playlist';
+            final id = playlist['ytid']?.toString() ?? '';
+            actions.add(
+              CupertinoActionSheetAction(
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  if (song is Map && id.isNotEmpty) {
+                    final result = addSongInCustomPlaylist(context, id, song);
+                    showToast(context, result);
+                  }
+                },
+                child: Text('My · $name'),
+              ),
+            );
+          }
+        }
+
+        if (ytPlaylists.isNotEmpty) {
+          for (final playlist in ytPlaylists) {
+            final name = playlist['title']?.toString() ?? 'Playlist';
+            final id = playlist['playlistId']?.toString() ?? '';
+            if (id.isEmpty) continue;
+            actions.add(
+              CupertinoActionSheetAction(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  if (song is! Map) return;
+                  final result = await addSongToYouTubeMusicPlaylist(
+                    context,
+                    id,
+                    song,
+                  );
+                  if (context.mounted) {
+                    showToast(context, result);
+                  }
+                },
+                child: Text('YouTube · $name'),
+              ),
+            );
+          }
+        }
+
+        return CupertinoActionSheet(
+          title: const Text('Add Track to Playlist'),
+          message: hasTargets
+              ? null
+              : const Text('Create a playlist to save this track'),
+          actions: actions,
+          cancelButton: CupertinoActionSheetAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+        );
+      },
     ),
   );
+}
+
+void showCreateYouTubeMusicPlaylistDialog(
+  BuildContext context, {
+  Map? songToAdd,
+}) {
+  final nameController = TextEditingController();
+  showCupertinoDialog<void>(
+    context: context,
+    builder: (ctx) => CupertinoAlertDialog(
+      title: const Text('YouTube Music Playlist'),
+      content: Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: CupertinoTextField(
+          controller: nameController,
+          placeholder: 'Playlist name',
+          autofocus: true,
+        ),
+      ),
+      actions: [
+        CupertinoDialogAction(
+          onPressed: () => Navigator.pop(ctx),
+          child: Text(context.l10n.cancel),
+        ),
+        CupertinoDialogAction(
+          isDefaultAction: true,
+          onPressed: () async {
+            final name = nameController.text.trim();
+            Navigator.pop(ctx);
+            if (name.isEmpty) return;
+            final result = await createYouTubeMusicPlaylist(
+              name,
+              songToAdd,
+              context,
+            );
+            if (context.mounted) {
+              showToast(context, result);
+            }
+          },
+          child: Text(context.l10n.create),
+        ),
+      ],
+    ),
+  ).whenComplete(nameController.dispose);
 }

@@ -21,10 +21,6 @@ T _safeBoxGet<T>(String key, T defaultValue) {
 // Preferences - safely initialized even before Hive is open.
 // After Hive opens, reloadSettingsFromStorage() restores persisted values.
 
-final shouldWeCheckUpdates = ValueNotifier<bool?>(
-  _safeBoxGet<bool?>('shouldWeCheckUpdates', null),
-);
-
 final playNextSongAutomatically = ValueNotifier<bool>(
   _safeBoxGet<bool>('playNextSongAutomatically', true),
 );
@@ -49,8 +45,6 @@ final externalRecommendations = ValueNotifier<bool>(
   // retain their explicit setting from Hive.
   _safeBoxGet<bool>('externalRecommendations', true),
 );
-
-final useProxy = ValueNotifier<bool>(_safeBoxGet<bool>('useProxy', false));
 
 final audioQualitySetting = ValueNotifier<String>(
   _safeBoxGet<String>('audioQuality', 'high'),
@@ -145,10 +139,6 @@ final ytReportHistory = ValueNotifier<bool>(
 void reloadSettingsFromStorage() {
   final settings = Hive.box('settings');
 
-  shouldWeCheckUpdates.value = settings.get(
-    'shouldWeCheckUpdates',
-    defaultValue: null,
-  );
   playNextSongAutomatically.value = settings.get(
     'playNextSongAutomatically',
     defaultValue: false,
@@ -165,7 +155,6 @@ void reloadSettingsFromStorage() {
     // Hive still preserves an existing user's explicit preference.
     defaultValue: true,
   );
-  useProxy.value = settings.get('useProxy', defaultValue: false);
   audioQualitySetting.value = settings.get(
     'audioQuality',
     defaultValue: 'high',

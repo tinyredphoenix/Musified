@@ -1261,28 +1261,22 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     if (_hub.queue.items.isEmpty) {
       _hub.queue.currentIndex = -1;
     }
-    // Keep the user's selection — do not rewind queue index on load failure.
+    // Keep the track the user picked — never rewind UI to the previous song.
     final currentIndex = _hub.queue.currentIndex;
     if (currentIndex >= 0 && currentIndex < _hub.queue.items.length) {
       _publishMediaItem(
         _getMediaItemForQueue(_hub.queue.items[currentIndex]),
         force: true,
       );
-    } else if (previousMediaItem != null) {
+    } else if (previousMediaItem != null && _hub.queue.items.isNotEmpty) {
       _hub.queue.currentIndex = previousQueueIndex.clamp(
         0,
         _hub.queue.items.length - 1,
       );
       _publishMediaItem(previousMediaItem, force: true);
     }
+    unawaited(_playback.recoverPlayerAfterLoadFailure());
     _updatePlaybackState();
-    if (resumePlayback &&
-        previousMediaItem != null &&
-        audioPlayer.audioSource != null &&
-        mediaItem.valueOrNull?.id == previousMediaItem.id &&
-        !audioPlayer.playing) {
-      unawaited(audioPlayer.play().catchError((_) {}));
-    }
   }
 
   ({
@@ -1415,6 +1409,13 @@ class MusifiedAudioHandler extends BaseAudioHandler {
           previousMediaItem: previousMediaItem,
           resumePlayback: wasPlayingBeforeLoad,
         );
+        final failedYtid = _hub.queue.items[_hub.queue.currentIndex]['ytid']
+            ?.toString();
+        if (failedYtid != null && failedYtid.isNotEmpty) {
+          _hub.queue.items[_hub.queue.currentIndex].remove('_preloadedStreamUrl');
+          _hub.preloadCache.drop(failedYtid);
+          unawaited(invalidateSongStreamCache(failedYtid));
+        }
         _completion.handlePlaybackError(
           _playbackErrorContext(),
           advance: false,
@@ -1429,6 +1430,15 @@ class MusifiedAudioHandler extends BaseAudioHandler {
           previousMediaItem: previousMediaItem,
           resumePlayback: wasPlayingBeforeLoad,
         );
+        final idx = _hub.queue.currentIndex;
+        if (idx >= 0 && idx < _hub.queue.items.length) {
+          final failedYtid = _hub.queue.items[idx]['ytid']?.toString();
+          if (failedYtid != null && failedYtid.isNotEmpty) {
+            _hub.queue.items[idx].remove('_preloadedStreamUrl');
+            _hub.preloadCache.drop(failedYtid);
+            unawaited(invalidateSongStreamCache(failedYtid));
+          }
+        }
       }
       _completion.handlePlaybackError(
         _playbackErrorContext(),
@@ -1968,6 +1978,13 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
       _resetPreloadingState();
       _playback.lastError = null;
+
+      // Detach AVPlayer before any await — pause leaves googlevideo attached
+      // and the next setAudioSources fails with iOS -1004.
+      if (resumeAt == null) {
+        await _playback.detachCurrentStream();
+      }
+
       // INSTANT UI FEEDBACK: emit loading state before any await
       _emitOptimisticLoadingState(
         song: songData,
@@ -1976,13 +1993,6 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         // A source switch resumes the same song at its current position.
         freshTrack: resumeAt == null,
       );
-
-      // Stop the old song from bleeding into the new UI immediately
-      if (resumeAt == null) {
-        try {
-          await audioPlayer.pause();
-        } catch (_) {}
-      }
 
       final playback = await _playback.resolvePlaybackSource(
         songData,

@@ -1,11 +1,9 @@
 import 'dart:convert';
 
 import 'package:musified/main.dart';
-import 'package:musified/services/proxy_manager.dart';
-import 'package:musified/services/settings_manager.dart';
+import 'package:musified/services/youtube_client.dart';
 import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/formatter.dart';
-import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class PlaylistSharingService {
   static const int _maxExpandConcurrency = 5;
@@ -50,45 +48,29 @@ class PlaylistSharingService {
       throw StateError('Shared playlist exceeds $_maxSharedPlaylistSongs songs');
     }
 
-    YoutubeExplode? ytClient;
-    final ownsClient = useProxy.value;
-    try {
-      if (useProxy.value) {
-        ytClient = await ProxyManager().getYoutubeExplodeClient();
-      } else {
-        ytClient = ProxyManager().getClientSync();
-      }
-
-      final expandedSongs = await _mapWithConcurrency<Map<String, dynamic>?>(
-        songIds.length,
-        (index) async {
-          final ytid = songIds[index]?.toString();
-          if (!isValidYoutubeVideoId(ytid)) return null;
-          try {
-            final video = await ytClient!.videos.get(ytid!);
-            return returnSongLayout(index, video);
-          } catch (e, stackTrace) {
-            logger.log(
-              'Error expanding song: $ytid',
-              error: e,
-              stackTrace: stackTrace,
-            );
-            return null;
-          }
-        },
-      );
-
-      return {
-        ...compactPlaylist,
-        'list': expandedSongs.whereType<Map<String, dynamic>>().toList(),
-      };
-    } finally {
-      try {
-        if (ownsClient) {
-          ytClient?.close();
+    final expandedSongs = await _mapWithConcurrency<Map<String, dynamic>?>(
+      songIds.length,
+      (index) async {
+        final ytid = songIds[index]?.toString();
+        if (!isValidYoutubeVideoId(ytid)) return null;
+        try {
+          final video = await ytClient.videos.get(ytid!);
+          return returnSongLayout(index, video);
+        } catch (e, stackTrace) {
+          logger.log(
+            'Error expanding song: $ytid',
+            error: e,
+            stackTrace: stackTrace,
+          );
+          return null;
         }
-      } catch (_) {}
-    }
+      },
+    );
+
+    return {
+      ...compactPlaylist,
+      'list': expandedSongs.whereType<Map<String, dynamic>>().toList(),
+    };
   }
 
   static String encodePlaylist(Map playlist) {

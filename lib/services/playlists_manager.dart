@@ -9,7 +9,7 @@ import 'package:musified/main.dart' show logger;
 import 'package:musified/services/artist_service.dart';
 import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/playlist_download_service.dart';
-import 'package:musified/services/proxy_manager.dart';
+import 'package:musified/services/youtube_client.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
@@ -269,6 +269,61 @@ Future<String> addUserPlaylist(String input, BuildContext context) async {
   return ('${context.l10n.addedSuccess}!', newPlaylistId);
 }
 
+Map enrichSongForPlaylist(Map song) {
+  final copy = Map<String, dynamic>.from(song);
+  final image =
+      copy['highResImage'] ?? copy['image'] ?? copy['lowResImage'];
+  if (image != null) {
+    copy['highResImage'] ??= image;
+    copy['image'] ??= image;
+  }
+  return copy;
+}
+
+Future<String> addSongToYouTubeMusicPlaylist(
+  BuildContext context,
+  String playlistId,
+  Map song,
+) async {
+  final enriched = enrichSongForPlaylist(song);
+  final ytid = enriched['ytid']?.toString();
+  if (ytid == null || !isValidYoutubeVideoId(ytid)) {
+    return context.l10n.error;
+  }
+
+  final sync = YouTubeMusicSyncService();
+  if (isLikedMusicPlaylist({'playlistId': playlistId})) {
+    if (await sync.likeSong(ytid)) {
+      return context.l10n.songAdded;
+    }
+    return context.l10n.error;
+  }
+
+  if (await sync.addVideoToPlaylist(playlistId, ytid)) {
+    unawaited(sync.syncPlaylists());
+    return context.l10n.songAdded;
+  }
+  return context.l10n.error;
+}
+
+Future<String> createYouTubeMusicPlaylist(
+  String playlistName,
+  Map? songToAdd,
+  BuildContext context,
+) async {
+  final sync = YouTubeMusicSyncService();
+  final videoId = songToAdd?['ytid']?.toString();
+  final id = await sync.createUserPlaylist(
+    playlistName,
+    videoId: isValidYoutubeVideoId(videoId) ? videoId : null,
+  );
+  if (id == null) {
+    return context.l10n.error;
+  }
+  unawaited(sync.syncPlaylists());
+  return '${context.l10n.addedSuccess}!';
+}
+
 String addSongInCustomPlaylist(
   BuildContext context,
   String playlistId,
@@ -280,17 +335,18 @@ String addSongInCustomPlaylist(
   final isFromFolder = found?.isFromFolder ?? false;
 
   if (customPlaylist != null) {
+    final enriched = enrichSongForPlaylist(song);
     final List<dynamic> playlistSongs = customPlaylist['list'];
     if (playlistSongs.any(
-      (playlistElement) => playlistElement['ytid'] == song['ytid'],
+      (playlistElement) => playlistElement['ytid'] == enriched['ytid'],
     )) {
       return context.l10n.songAlreadyInPlaylist;
     }
     if (indexToInsert != null) {
       final safeIndex = indexToInsert.clamp(0, playlistSongs.length);
-      playlistSongs.insert(safeIndex, song);
+      playlistSongs.insert(safeIndex, enriched);
     } else {
-      playlistSongs.add(song);
+      playlistSongs.add(enriched);
     }
     if (isFromFolder) {
       unawaited(
@@ -344,12 +400,13 @@ String addSongsInCustomPlaylist(
 
     final newSongs = <dynamic>[];
     for (final song in songs) {
+      final enriched = enrichSongForPlaylist(Map<String, dynamic>.from(song));
       final alreadyExists = playlistSongs.any(
-        (playlistElement) => playlistElement['ytid'] == song['ytid'],
+        (playlistElement) => playlistElement['ytid'] == enriched['ytid'],
       );
       if (!alreadyExists) {
-        playlistSongs.add(song);
-        newSongs.add(song);
+        playlistSongs.add(enriched);
+        newSongs.add(enriched);
       }
     }
 
@@ -918,28 +975,7 @@ Future<List> getPlaylists({
         error: e,
         stackTrace: st,
       );
-      if (useProxy.value) {
-        final proxyYt = await ProxyManager().getYoutubeExplodeClient();
-        if (proxyYt != null) {
-          try {
-            searchResultsIterable = await proxyYt.search.searchContent(
-              searchTerm,
-              filter: TypeFilters.playlist,
-            );
-          } catch (e2, st2) {
-            logger.log('Proxy search failed:', error: e2, stackTrace: st2);
-            searchResultsIterable = <dynamic>[];
-          } finally {
-            try {
-              proxyYt.close();
-            } catch (_) {}
-          }
-        } else {
-          searchResultsIterable = <dynamic>[];
-        }
-      } else {
-        searchResultsIterable = <dynamic>[];
-      }
+      searchResultsIterable = <dynamic>[];
     }
 
     final existingYtIds = onlinePlaylists.value

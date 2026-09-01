@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:musified/constants/artist_constants.dart';
 import 'package:musified/main.dart' show logger;
 import 'package:musified/services/data_manager.dart';
-import 'package:musified/services/proxy_manager.dart';
+import 'package:musified/services/youtube_client.dart';
 import 'package:musified/utilities/app_utils.dart';
 import 'package:musified/utilities/formatter.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';

@@ -66,6 +66,20 @@ class AudioPlaybackCoordinator {
     lastError = null;
   }
 
+  /// Detach the current AVPlayer item before resolving a new stream URL.
+  /// iOS returns -1004 if a new googlevideo URL loads while the previous item
+  /// is still attached (pause alone is not enough).
+  Future<void> detachCurrentStream() async {
+    gaplessSourceActive = false;
+    installedSourceTransitionId = null;
+    if (audioPlayer.audioSource == null) return;
+    try {
+      await audioPlayer.stop().timeout(const Duration(seconds: 2));
+    } catch (e) {
+      logger.log('detachCurrentStream stop failed: $e');
+    }
+  }
+
   Future<bool> resolveOfflineAndSetPaths(Map songData) async {
     try {
       final ytid = songData['ytid']?.toString();
@@ -319,22 +333,21 @@ class AudioPlaybackCoordinator {
 
       if (isStale(transitionId)) return false;
 
-      // Stop so AVPlayer does not carry doubled position/duration from the
-      // previous item into the next load.
-      final needsHardReset = isOffline || lastInstalledWasOffline;
-      if (!gaplessSourceActive && audioPlayer.audioSource != null) {
+      // Fully detach the previous item before loading a new remote stream.
+      if (!gaplessSourceActive && !isOffline) {
+        await detachCurrentStream();
+      } else if (!gaplessSourceActive && audioPlayer.audioSource != null) {
         try {
           await audioPlayer.stop().timeout(const Duration(seconds: 2));
-          if (!needsHardReset) {
-            await audioPlayer.seek(Duration.zero);
-          }
         } catch (e) {
-          logger.log('stop before stream switch failed: $e');
+          logger.log('stop before offline switch failed: $e');
         }
       }
 
       final installSource =
           await maybeAppendGaplessNext(audioSource, isOffline, gaplessCtx);
+
+      final needsHardReset = isOffline || lastInstalledWasOffline;
 
       logPlayer(
         'setAudioSources',
@@ -346,13 +359,14 @@ class AudioPlaybackCoordinator {
           'clip': audioSource is ClippingAudioSource,
           'hardReset': needsHardReset,
           'gapless': gaplessSourceActive,
+          'preload': isOffline,
         },
       );
 
       await audioPlayer
           .setAudioSources(
             [installSource],
-            preload: true,
+            preload: isOffline,
           )
           .timeout(
             isOffline ? offlineTransitionTimeout : streamTransitionTimeout,
@@ -499,8 +513,18 @@ class AudioPlaybackCoordinator {
       }
 
       lastError = e.toString();
+      await recoverPlayerAfterLoadFailure();
       return false;
     }
+  }
+
+  /// Clears a poisoned AVPlayer session after -1004 / timeout load failures.
+  Future<void> recoverPlayerAfterLoadFailure() async {
+    gaplessSourceActive = false;
+    installedSourceTransitionId = null;
+    lastInstalledWasOffline = false;
+    lastInstalledWasClipped = false;
+    await detachCurrentStream();
   }
 
   Future<bool> attemptOfflineFallback({
