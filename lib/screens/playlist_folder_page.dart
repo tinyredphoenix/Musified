@@ -146,7 +146,7 @@ class _PlaylistFolderPageState extends State<PlaylistFolderPage> {
                             width: 100,
                             height: 100,
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                              color: musifiedSecondarySurface(isDark),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: const Icon(

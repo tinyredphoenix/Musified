@@ -347,43 +347,38 @@ class PlayerControlButtons extends StatelessWidget {
     BoxConstraints buttonConstraints,
     EdgeInsets buttonPadding,
   ) {
-    return StreamBuilder<List<MediaItem>>(
-      stream: audioHandler.queue,
-      builder: (context, snapshot) {
-        return ValueListenableBuilder<AudioServiceRepeatMode>(
-          valueListenable: repeatNotifier,
-          builder: (_, repeatMode, __) {
-            final isEnabled = repeatMode != AudioServiceRepeatMode.none;
-            final isRepeatOne = repeatMode == AudioServiceRepeatMode.one;
+    return ValueListenableBuilder<AudioServiceRepeatMode>(
+      valueListenable: repeatNotifier,
+      builder: (_, repeatMode, __) {
+        final isEnabled = repeatMode != AudioServiceRepeatMode.none;
+        final isRepeatOne = repeatMode == AudioServiceRepeatMode.one;
 
-            return CupertinoButton(
-              padding: buttonPadding,
-              minimumSize: Size(buttonConstraints.minWidth, buttonConstraints.minHeight),
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                final newMode = switch (repeatMode) {
-                  AudioServiceRepeatMode.none => AudioServiceRepeatMode.all,
-                  AudioServiceRepeatMode.all => AudioServiceRepeatMode.one,
-                  AudioServiceRepeatMode.one => AudioServiceRepeatMode.none,
-                  _ => AudioServiceRepeatMode.none,
-                };
-                repeatNotifier.value = newMode;
-                audioHandler.setRepeatMode(newMode);
-              },
-              child: Icon(
-                isRepeatOne
-                    ? CupertinoIcons.repeat_1
-                    : CupertinoIcons.repeat,
-                color: isEnabled
-                    ? const Color(0xFFFF2D55)
-                    : CupertinoDynamicColor.resolve(
-                        CupertinoColors.tertiaryLabel,
-                        context,
-                      ),
-                size: size * 0.9,
-              ),
-            );
+        return CupertinoButton(
+          padding: buttonPadding,
+          minimumSize: Size(buttonConstraints.minWidth, buttonConstraints.minHeight),
+          onPressed: () {
+            HapticFeedback.selectionClick();
+            final newMode = switch (repeatMode) {
+              AudioServiceRepeatMode.none => AudioServiceRepeatMode.all,
+              AudioServiceRepeatMode.all => AudioServiceRepeatMode.one,
+              AudioServiceRepeatMode.one => AudioServiceRepeatMode.none,
+              _ => AudioServiceRepeatMode.none,
+            };
+            repeatNotifier.value = newMode;
+            audioHandler.setRepeatMode(newMode);
           },
+          child: Icon(
+            isRepeatOne
+                ? CupertinoIcons.repeat_1
+                : CupertinoIcons.repeat,
+            color: isEnabled
+                ? const Color(0xFFFF2D55)
+                : CupertinoDynamicColor.resolve(
+                    CupertinoColors.tertiaryLabel,
+                    context,
+                  ),
+            size: size * 0.9,
+          ),
         );
       },
     );
@@ -409,13 +404,10 @@ class _PlaybackControlsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<List<MediaItem>>(
-      stream: audioHandler.queue,
-      builder: (context, snapshot) {
-        return ValueListenableBuilder<AudioServiceRepeatMode>(
-          valueListenable: repeatNotifier,
-          builder: (_, repeatMode, __) {
-            return FittedBox(
+    return ValueListenableBuilder<AudioServiceRepeatMode>(
+      valueListenable: repeatNotifier,
+      builder: (_, repeatMode, __) {
+        return FittedBox(
               fit: BoxFit.scaleDown,
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -457,8 +449,6 @@ class _PlaybackControlsRow extends StatelessWidget {
                 ],
               ),
             );
-          },
-        );
       },
     );
   }

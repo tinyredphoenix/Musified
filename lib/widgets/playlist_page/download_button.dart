@@ -94,7 +94,7 @@ class _PlaylistDownloadButtonState extends State<PlaylistDownloadButton> {
 
               return CupertinoButton(
                 padding: const EdgeInsets.all(10),
-                color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                color: musifiedSecondarySurface(isDark),
                 borderRadius: BorderRadius.circular(22),
                 onPressed: () => _download(context),
                 child: const Icon(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:musified/main.dart';
 import 'package:musified/constants/version.dart';
 import 'package:musified/screens/youtube_auth_webview.dart';
 import 'package:musified/services/common_services.dart';
@@ -86,7 +87,7 @@ class SettingsPage extends StatelessWidget {
   // THEME SELECTOR CARD
   // ---------------------------------------------------------------------------
   Widget _buildThemeSelector(BuildContext context, bool isDark) {
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+    final cardBg = musifiedSheetCard(isDark);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +200,7 @@ class SettingsPage extends StatelessWidget {
     const primaryColor = Color(0xFFFF2D55);
     final buttonBg = isSelected
         ? primaryColor
-        : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF2F2F7));
+        : musifiedSecondarySurface(isDark);
     final textColor = isSelected
         ? CupertinoColors.white
         : (isDark ? CupertinoColors.white : CupertinoColors.black);
@@ -247,7 +248,7 @@ class SettingsPage extends StatelessWidget {
   // YOUTUBE MUSIC ACCOUNT SECTION
   // ---------------------------------------------------------------------------
   Widget _buildYouTubeAccountCard(BuildContext context, bool isDark) {
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+    final cardBg = musifiedSheetCard(isDark);
 
     return ValueListenableBuilder<bool>(
       valueListenable: YouTubeAuthService().isSignedIn,
@@ -466,7 +467,7 @@ class SettingsPage extends StatelessWidget {
   // AUDIO & PLAYBACK ENGINE
   // ---------------------------------------------------------------------------
   Widget _buildAudioEngineSection(BuildContext context, bool isDark) {
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+    final cardBg = musifiedSheetCard(isDark);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,6 +500,9 @@ class SettingsPage extends StatelessWidget {
                       final next = isJio ? 'youtube' : 'jiosaavn';
                       preferredSource.value = next;
                       unawaited(addOrUpdateData('settings', 'preferredSource', next));
+                      if (isAudioHandlerInitialized) {
+                        audioHandler.clearPinnedSources();
+                      }
                       showToast(
                         context,
                         'Default provider: ${next == 'youtube' ? 'YouTube Music' : 'JioSaavn 320k Lossless'}',
@@ -576,7 +580,7 @@ class SettingsPage extends StatelessWidget {
   // STORAGE & CACHE
   // ---------------------------------------------------------------------------
   Widget _buildStorageSection(BuildContext context, bool isDark) {
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+    final cardBg = musifiedSheetCard(isDark);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -632,7 +636,7 @@ class SettingsPage extends StatelessWidget {
   // ABOUT MUSIFIED
   // ---------------------------------------------------------------------------
   Widget _buildAboutSection(BuildContext context, bool isDark) {
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : CupertinoColors.white;
+    final cardBg = musifiedSheetCard(isDark);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

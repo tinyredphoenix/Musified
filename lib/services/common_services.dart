@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
@@ -116,6 +117,12 @@ void reloadSongLibraryStateFromStorage() {
 
 // Timeouts and durations used across manifest fetching and cache validation.
 const Duration _cacheValidationDuration = Duration(hours: 1);
+const Duration _headRevalidateAge = Duration(minutes: 30);
+
+const List<String> _pipedApiHosts = [
+  'https://pipedapi.kavin.rocks',
+  'https://pipedapi.adminforge.de',
+];
 
 String _songStreamCacheKey(String songId, String source) =>
     'song_${songId}_${audioQualitySetting.value}_${source}_url';
@@ -130,14 +137,16 @@ Future<void> _cacheResolvedStream(
   Map<String, dynamic> metadata,
 ) async {
   final key = _songStreamCacheKey(songId, source);
-  // Keep URL and provenance writes ordered. A URL without its source metadata
-  // is unsafe to reuse because it can make the UI report the wrong service.
+  final metaKey = _songStreamCacheMetaKey(songId, source);
+  final now = DateTime.now();
+  // Atomic URL + metadata write so cache hits never lack provenance.
   await addOrUpdateData<String>('cache', key, url);
-  await addOrUpdateData<Map<String, dynamic>>(
-    'cache',
-    _songStreamCacheMetaKey(songId, source),
-    {'source': source, ...metadata},
-  );
+  final cacheBox = await Hive.openBox('cache');
+  await cacheBox.putAll({
+    _songStreamCacheMetaKey(songId, source): {'source': source, ...metadata},
+    '${metaKey}_date': now,
+    '${key}_date': now,
+  });
 }
 
 bool _isCachedHeAacYoutube(Map metadata) {
@@ -242,11 +251,87 @@ _fetchStreamManifest(String songId) async {
   return resolved;
 }
 
+DateTime? _parseCacheTimestamp(dynamic raw) {
+  if (raw is DateTime) return raw;
+  if (raw is int) return DateTime.fromMillisecondsSinceEpoch(raw);
+  if (raw is String) return DateTime.tryParse(raw);
+  return null;
+}
+
+Future<bool> _isCachedStreamUrlAlive(
+  String url, {
+  String? userAgent,
+}) async {
+  try {
+    final headers = <String, String>{
+      if (userAgent != null && userAgent.isNotEmpty) 'User-Agent': userAgent,
+    };
+    final uri = Uri.parse(url);
+    final head = await http
+        .head(uri, headers: headers.isEmpty ? null : headers)
+        .timeout(const Duration(seconds: 4));
+    if (head.statusCode == 200 || head.statusCode == 206) return true;
+    if (head.statusCode != 405) return false;
+    final probe = await http
+        .get(
+          uri,
+          headers: {
+            ...headers,
+            'Range': 'bytes=0-1',
+          },
+        )
+        .timeout(const Duration(seconds: 4));
+    return probe.statusCode == 200 || probe.statusCode == 206;
+  } catch (_) {
+    return false;
+  }
+}
+
+/// Emergency fallback when InnerTube manifest fetch fails entirely.
+Future<String?> _fetchPipedAudioUrl(String songId) async {
+  for (final host in _pipedApiHosts) {
+    try {
+      final uri = Uri.parse('$host/streams/$songId');
+      final response = await http.get(uri).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) continue;
+
+      final body = jsonDecode(response.body);
+      if (body is! Map) continue;
+      final streams = body['audioStreams'];
+      if (streams is! List || streams.isEmpty) continue;
+
+      Map? pick;
+      for (final entry in streams) {
+        if (entry is! Map) continue;
+        final mime = entry['mimeType']?.toString().toLowerCase() ?? '';
+        final format = entry['format']?.toString().toLowerCase() ?? '';
+        if (mime.contains('mp4') || format.contains('m4a')) {
+          pick = entry;
+          break;
+        }
+        pick ??= entry;
+      }
+      final url = pick?['url']?.toString();
+      if (url != null && url.isNotEmpty) {
+        logger.log('Piped fallback stream for $songId via $host');
+        return url;
+      }
+    } catch (e) {
+      logger.log('Piped fallback failed on $host for $songId: $e');
+    }
+  }
+  return null;
+}
+
 /// Returns a cached song URL if present and still valid.
 Future<String?> _getCachedSongUrl(
   String cacheKey,
-  Duration cacheDuration,
-) async {
+  Duration cacheDuration, {
+  String? userAgent,
+}) async {
+  final cacheBox = await Hive.openBox('cache');
+  final cachedAt = _parseCacheTimestamp(await cacheBox.get('${cacheKey}_date'));
+
   final cachedUrl = await getData(
     'cache',
     cacheKey,
@@ -255,6 +340,24 @@ Future<String?> _getCachedSongUrl(
 
   if (cachedUrl is! String || cachedUrl.isEmpty) {
     return null;
+  }
+
+  if (cachedAt != null &&
+      DateTime.now().difference(cachedAt) > _headRevalidateAge) {
+    if (!await _isCachedStreamUrlAlive(cachedUrl, userAgent: userAgent)) {
+      logger.log('Stale cached stream URL rejected for $cacheKey');
+      await deleteData('cache', cacheKey);
+      await deleteData('cache', '${cacheKey}_meta');
+      return null;
+    }
+  } else if (cachedAt == null) {
+    // Legacy entries without a stored date must be probed once.
+    if (!await _isCachedStreamUrlAlive(cachedUrl, userAgent: userAgent)) {
+      logger.log('Untimestamped cached stream URL rejected for $cacheKey');
+      await deleteData('cache', cacheKey);
+      await deleteData('cache', '${cacheKey}_meta');
+      return null;
+    }
   }
 
   return cachedUrl;
@@ -847,10 +950,16 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
 
     // Check source-specific cache
     final sourceKey = _songStreamCacheKey(songId, preference);
-    final cachedUrl = await _getCachedSongUrl(sourceKey, cacheDuration);
+    final cacheBox = await Hive.openBox('cache');
+    final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, preference));
+    final cachedUrl = await _getCachedSongUrl(
+      sourceKey,
+      cacheDuration,
+      userAgent: metadata is Map
+          ? metadata['userAgent']?.toString()
+          : null,
+    );
     if (cachedUrl != null) {
-      final cacheBox = await Hive.openBox('cache');
-      final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, preference));
       if (metadata is Map && metadata['source'] == preference) {
         final isBadHeAac = preference == 'youtube' && _isCachedHeAacYoutube(metadata);
         if (!isBadHeAac) {
@@ -879,7 +988,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
-            .timeout(const Duration(seconds: 3), onTimeout: () => null);
+            .timeout(const Duration(seconds: 5), onTimeout: () => null);
         if (saavnSource != null && saavnSource['url'] != null) {
           final url = saavnSource['url'] as String;
           if (url.isNotEmpty) {
@@ -908,6 +1017,21 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     // YouTube Music resolution
     final selectedStream = await fetchBestAudioStream(songId);
     if (selectedStream == null) {
+      final pipedUrl = await _fetchPipedAudioUrl(songId);
+      if (pipedUrl != null && pipedUrl.isNotEmpty) {
+        song['resolvedSource'] = 'youtube';
+        song['resolvedFormat'] = 'm4a';
+        song['resolvedUserAgent'] =
+            'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)';
+        await _cacheResolvedStream(songId, 'youtube', pipedUrl, {
+          'bitrate': null,
+          'format': 'm4a',
+          'source': 'piped',
+        });
+        unawaited(ensureYoutubeCatalogDuration(song));
+        logger.log('Resolved Piped stream for $songId');
+        return pipedUrl;
+      }
       logger.log('fetchSongStreamUrl: no YouTube audio streams for $songId');
       return null;
     }
@@ -921,6 +1045,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     song['resolvedSource'] = 'youtube';
     song['resolvedBitrate'] = selectedStream.bitrate.kiloBitsPerSecond.round();
     song['resolvedFormat'] = selectedStream.audioCodec;
+    song['resolvedItag'] = selectedStream.tag;
     song['resolvedUserAgent'] = userAgent;
 
     await _cacheResolvedStream(songId, 'youtube', url, {

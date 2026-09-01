@@ -145,7 +145,7 @@ class PlaylistBar extends StatelessWidget {
         ? normalizeArtistDisplayTitle(playlistTitle)
         : playlistTitle;
     final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final cardBg = musifiedElevatedSurface(isDark);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
@@ -256,7 +256,7 @@ class PlaylistBar extends StatelessWidget {
       width: artworkSize,
       height: artworkSize,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+        color: musifiedSecondarySurface(isDark),
         shape: isArtist ? BoxShape.circle : BoxShape.rectangle,
         borderRadius: isArtist ? null : BorderRadius.circular(10),
       ),
@@ -269,7 +269,7 @@ class PlaylistBar extends StatelessWidget {
       width: artworkSize,
       height: artworkSize,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+        color: musifiedSecondarySurface(isDark),
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Icon(

@@ -84,10 +84,10 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
     final l10n = context.l10n;
     final iconSize = widget.iconSize.clamp(22, 26).toDouble();
 
-    return StreamBuilder<List<Map>>(
-      stream: audioHandler.queueAsMapStream,
-      builder: (context, snapshot) {
-        final queue = snapshot.data ?? [];
+    return ValueListenableBuilder<int>(
+      valueListenable: audioHandler.queueItemCount,
+      builder: (context, queueLength, _) {
+        final showQueueButton = queueLength > 0 && !widget.isLargeScreen;
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -146,7 +146,7 @@ class _BottomActionsRowState extends State<BottomActionsRow> {
                   );
                 },
               ),
-              if (queue.isNotEmpty && !widget.isLargeScreen)
+              if (showQueueButton)
                 _iconButton(
                   icon: CupertinoIcons.list_bullet,
                   onPressed: () => showCustomBottomSheet(

@@ -13,7 +13,7 @@ class ShufflePlayButton extends StatelessWidget {
 
     return CupertinoButton(
       padding: const EdgeInsets.all(10),
-      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      color: musifiedSecondarySurface(isDark),
       borderRadius: BorderRadius.circular(22),
       onPressed: () async {
         if (songs.isEmpty) return;

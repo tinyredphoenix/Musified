@@ -25,8 +25,8 @@ void showAudioSourcePicker(BuildContext context, MediaItem metadata) {
     context: context,
     builder: (ctx) {
       final isDark = isAppDarkMode(ctx);
-      final sheetBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-      final rowBg = isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white;
+      final sheetBg = musifiedElevatedSurface(isDark);
+      final rowBg = isDark ? musifiedSecondarySurface(isDark) : CupertinoColors.white;
       final label = isDark ? CupertinoColors.white : CupertinoColors.black;
       final secondary = CupertinoColors.systemGrey;
       final separator = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);

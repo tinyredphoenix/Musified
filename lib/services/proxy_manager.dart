@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -8,6 +7,7 @@ import 'package:http/io_client.dart';
 import 'package:musified/constants/clients.dart';
 import 'package:musified/main.dart';
 import 'package:musified/models/proxy_model.dart';
+import 'package:musified/services/proxy_fetch_service.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
@@ -57,13 +57,7 @@ class ProxyManager {
   static const int _validateDirectTimeout = 5;
   static const int _proxyRefreshIntervalMinutes = 60;
 
-  // Regex patterns (compiled once)
-  static final RegExp _spysRegex = RegExp(
-    r'(?<ip>\d+\.\d+\.\d+\.\d+):(?<port>\d+)\s(?<country>[A-Z]{2})-(?<anon>[HNA!]{1,2})(?:\s|-)(?<ssl>[\sS!]*)',
-  );
-  static final RegExp _openProxyRegex = RegExp(
-    r'(.)\s(?<ip>\d+\.\d+\.\d+\.\d+):(?<port>\d+)\s(?:(?<responsetime>\d+)(?:ms))\s(?<country>[A-Z]{2})\s(?<isp>.+)$',
-  );
+  final ProxyFetchService _fetchService = ProxyFetchService();
 
   static final ProxyManager _instance = ProxyManager._internal();
 
@@ -128,12 +122,22 @@ class ProxyManager {
       // Clear existing candidates to avoid duplicates and stale proxies
       _proxiesByCountry.clear();
 
-      final fetchTasks = <Future>[]
-        ..add(_fetchProxyScrape())
-        ..add(_fetchGeonode())
-        ..add(_fetchOpenProxyList())
-        ..add(_fetchSpysMe());
-      final fetch = Future.wait(fetchTasks);
+      final fetch = _fetchService.fetchAll(
+        onCandidate: ({
+          required String source,
+          required String address,
+          required String country,
+          bool? isSsl,
+        }) {
+          _addProxyCandidate(
+            source: source,
+            address: address,
+            country: country,
+            isSsl: isSsl,
+          );
+        },
+        isBlocked: _isBlockedProxyAddress,
+      );
       _fetchingProxiesFuture = fetch;
       await fetch.whenComplete(() {
         _hasFetched = true;
@@ -650,166 +654,6 @@ class ProxyManager {
     } while (true);
 
     return null;
-  }
-
-  Future<void> _fetchSpysMe() async {
-    if (!useProxy.value) return;
-    try {
-      const url = 'https://spys.me/proxy.txt';
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(
-            const Duration(seconds: 10),
-            onTimeout: () => http.Response('', 408),
-          );
-
-      if (response.statusCode != 200) {
-        _logProxyFetchError('spys.me', 'Status code: ${response.statusCode}');
-        return;
-      }
-
-      if (response.body.isEmpty) return;
-
-      response.body.split('\n').forEach((line) {
-        if (line.trim().isEmpty || line.startsWith(';'))
-          return; // Skip comments/empty lines
-
-        // Use pre-compiled regex (constant)
-        final match = _spysRegex.firstMatch(line);
-        if (match != null) {
-          final country = match.namedGroup('country') ?? '';
-          if (country.isNotEmpty) {
-            _addProxyCandidate(
-              source: 'spys.me',
-              address: '${match.namedGroup('ip')}:${match.namedGroup('port')}',
-              country: country,
-              isSsl: (match.namedGroup('ssl') ?? '').trim().isNotEmpty,
-            );
-          }
-        }
-      });
-    } catch (e) {
-      _logProxyFetchError('spys.me', e);
-    }
-  }
-
-  void _logProxyFetchError(String source, dynamic error) {
-    logger.log(
-      'ProxyManager: Error fetching proxies from $source: $error',
-      error: error,
-    );
-  }
-
-  Future<void> _fetchProxyScrape() async {
-    if (!useProxy.value) return;
-    try {
-      const url =
-          'https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=json&protocol=http&ssl=yes';
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () => http.Response('', 408),
-          );
-      if (response.statusCode != 200) return;
-
-      Map<String, dynamic> result;
-      try {
-        result = jsonDecode(response.body);
-      } catch (e) {
-        _logProxyFetchError('proxyscrape.com', e);
-        return; // Invalid JSON
-      }
-
-      if (result['proxies'] is! List) return;
-
-      for (final proxyData in (result['proxies'] as List)) {
-        if (proxyData is! Map) continue;
-
-        if (proxyData['ip_data'] is Map &&
-            (proxyData['alive'] ?? false) &&
-            proxyData['ip_data']['countryCode'] != null) {
-          final country = proxyData['ip_data']['countryCode'].toString();
-          _addProxyCandidate(
-            source: 'proxyscrape.com',
-            address: '${proxyData['ip']}:${proxyData['port']}',
-            country: country,
-            isSsl: true,
-          );
-        }
-      }
-    } catch (e) {
-      _logProxyFetchError('proxyscrape.com', e);
-    }
-  }
-
-  Future<void> _fetchOpenProxyList() async {
-    if (!useProxy.value) return;
-    try {
-      const url =
-          'https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS.txt';
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () => http.Response('', 408),
-          );
-      if (response.statusCode != 200) return;
-      response.body.split('\n').forEach((line) {
-        // Use pre-compiled regex (constant)
-        final match = _openProxyRegex.firstMatch(line);
-        if (match != null) {
-          final country = match.namedGroup('country') ?? '';
-          if (country.isNotEmpty) {
-            _addProxyCandidate(
-              source: 'openproxylist',
-              address: '${match.namedGroup('ip')}:${match.namedGroup('port')}',
-              country: country,
-              isSsl: true,
-            );
-          }
-        }
-      });
-    } catch (e) {
-      _logProxyFetchError('openproxylist', e);
-    }
-  }
-
-  Future<void> _fetchGeonode() async {
-    if (!useProxy.value) return;
-    try {
-      const url =
-          'https://proxylist.geonode.com/api/proxy-list?limit=50&page=1&sort_by=lastChecked&sort_type=desc&protocols=http%2Chttps';
-      final response = await http
-          .get(Uri.parse(url))
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () => http.Response('', 408),
-          );
-      if (response.statusCode != 200) return;
-
-      final result = jsonDecode(response.body);
-      final data = result['data'];
-      if (data is! List) return;
-
-      for (final item in data) {
-        if (item is! Map) continue;
-        final ip = item['ip'];
-        final port = item['port'];
-        final country = item['country'];
-
-        if (ip != null && port != null && country != null) {
-          _addProxyCandidate(
-            source: 'geonode',
-            address: '$ip:$port',
-            country: country,
-            isSsl: true,
-          );
-        }
-      }
-    } catch (e) {
-      _logProxyFetchError('geonode', e);
-    }
   }
 }
 

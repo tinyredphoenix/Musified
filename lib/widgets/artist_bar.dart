@@ -23,7 +23,7 @@ class ArtistBar extends StatelessWidget {
       artist['title']?.toString() ?? 'Artist',
     );
     final image = normalizeArtistThumbnailUrl(artist['image']?.toString());
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final cardBg = musifiedElevatedSurface(isDark);
     final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Container(
@@ -112,7 +112,7 @@ class _ArtistArtwork extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+        color: musifiedSecondarySurface(isDark),
         shape: BoxShape.circle,
       ),
       child: const Icon(

@@ -127,6 +127,13 @@ Future<void> deleteData(String category, String key) async {
 
   final _box = await _openBox(category);
   await _box.delete(key);
+  if (category == 'cache') {
+    await _box.delete('${key}_date');
+    if (key.endsWith('_url')) {
+      await _box.delete('${key}_meta');
+      await _box.delete('${key}_meta_date');
+    }
+  }
 }
 
 Future<bool> clearCache() async {

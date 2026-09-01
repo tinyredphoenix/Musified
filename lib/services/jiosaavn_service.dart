@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:dart_des/dart_des.dart';
 import 'package:http/http.dart' as http;
+import 'package:musified/main.dart' show logger;
 
 class JioSaavnService {
   factory JioSaavnService() => _instance;
@@ -78,7 +79,8 @@ class JioSaavnService {
       final des = DES(key: key, paddingType: DESPaddingType.PKCS7);
       final decrypted = des.decrypt(input);
       return utf8.decode(decrypted);
-    } catch (_) {
+    } catch (e) {
+      logger.log('JioSaavn URL decrypt failed: $e');
       return '';
     }
   }

@@ -30,7 +30,7 @@ class NullArtworkWidget extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(borderRadius),
-          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+          color: musifiedSecondarySurface(isDark),
         ),
         child: Center(
           child: Column(

@@ -63,7 +63,7 @@ void showSongInfoDialog(BuildContext context, Map song) async {
   if (!context.mounted) return;
 
   final isDark = isAppDarkMode(context);
-  final cardBg = isDark ? const Color(0xFF2C2C2E) : CupertinoColors.white;
+  final cardBg = isDark ? musifiedSecondarySurface(isDark) : CupertinoColors.white;
   const secondaryColor = CupertinoColors.systemGrey;
   final labelColor = isDark ? CupertinoColors.white : CupertinoColors.black;
   final separatorColor = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);

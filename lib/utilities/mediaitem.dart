@@ -37,8 +37,12 @@ String? _nonEmptyUrl(dynamic value) {
 }
 
 /// Square-friendly artwork URL for lock-screen / in-app art.
-/// Prefers googleusercontent, ggpht, and saavncdn over 16:9 ytimg maxres.
-String? resolveMediaArtworkUrl(Map song, {String? ytid}) {
+/// Prefers googleusercontent, ggpht, and saavncdn over 16:9 ytimg thumbs.
+String? resolveMediaArtworkUrl(
+  Map song, {
+  String? ytid,
+  int targetSize = 400,
+}) {
   final candidates = <String>[
     for (final key in [
       'highResImage',
@@ -59,14 +63,16 @@ String? resolveMediaArtworkUrl(Map song, {String? ytid}) {
   }
   chosen ??= candidates.isNotEmpty ? candidates.first : null;
 
-  if (chosen != null) return upgradeArtworkUrl(chosen);
+  if (chosen != null) {
+    return upgradeArtworkUrl(chosen, targetSize: targetSize);
+  }
   if (ytid != null && ytid.isNotEmpty) {
     return 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg';
   }
   return null;
 }
 
-String upgradeArtworkUrl(String url, {int targetSize = 800}) {
+String upgradeArtworkUrl(String url, {int targetSize = 400}) {
   if (url.isEmpty || url == 'null') return url;
 
   var upgraded = url;
@@ -88,15 +94,15 @@ String upgradeArtworkUrl(String url, {int targetSize = 800}) {
         .replaceAll('150x150.jpg', '500x500.jpg');
   }
 
-  // 3. YouTube standard thumbnails: always prefer maxresdefault (1280×720 16:9).
-  // This avoids baked-in black letterboxing from hqdefault (4:3).
+  // 3. YouTube ytimg: keep hqdefault (4:3) for square lock-screen crops.
+  // maxresdefault is 16:9 and letterboxes badly on iOS Now Playing art.
   if (upgraded.contains('ytimg.com/vi/') ||
       upgraded.contains('youtube.com/vi/')) {
     upgraded = upgraded.replaceAllMapped(
       RegExp(
-        r'/(default|mqdefault|hqdefault|sddefault|hq720)\.(jpg|webp|jpeg)',
+        r'/(default|mqdefault|sddefault|hq720|maxresdefault)\.(jpg|webp|jpeg)',
       ),
-      (match) => '/maxresdefault.${match[2]}',
+      (match) => '/hqdefault.${match[2]}',
     );
   }
 

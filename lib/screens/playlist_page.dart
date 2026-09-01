@@ -363,7 +363,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final isDark = isAppDarkMode(context);
     return CupertinoButton(
       padding: const EdgeInsets.all(10),
-      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      color: musifiedSecondarySurface(isDark),
       borderRadius: BorderRadius.circular(22),
       onPressed: () async {
         try {
@@ -394,7 +394,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final isDark = isAppDarkMode(context);
     return CupertinoButton(
       padding: const EdgeInsets.all(10),
-      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      color: musifiedSecondarySurface(isDark),
       borderRadius: BorderRadius.circular(22),
       onPressed: _handleSyncPlaylist,
       child: const Icon(CupertinoIcons.arrow_2_circlepath, size: 20, color: Color(0xFFFF2D55)),
@@ -405,7 +405,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     final isDark = isAppDarkMode(context);
     return CupertinoButton(
       padding: const EdgeInsets.all(10),
-      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      color: musifiedSecondarySurface(isDark),
       borderRadius: BorderRadius.circular(22),
       onPressed: () async {
         final result = await showCupertinoDialog<Map?>(

@@ -23,6 +23,7 @@ import 'package:musified/services/source_resolver.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
 import 'package:musified/theme/app_themes.dart';
+import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/language_utils.dart';
 import 'package:musified/utilities/playlist_utils.dart';
@@ -199,8 +200,11 @@ void main() async {
   configureImageMemoryBudget();
 
   ErrorWidget.builder = (FlutterErrorDetails details) {
+    final canvas = usePureBlackColor.value
+        ? MusifiedStyle.oledBlack
+        : MusifiedStyle.elevated;
     return Container(
-      color: const Color(0xFF121212),
+      color: canvas,
       child: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),

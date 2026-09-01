@@ -39,10 +39,10 @@ class SongTile extends StatelessWidget {
     final primaryColor = isDark ? CupertinoColors.white : CupertinoColors.black;
     final secondaryColor = CupertinoColors.systemGrey;
 
-    return StreamBuilder<String?>(
-      stream: audioHandler.mediaItem.map((item) => item?.extras?['ytid']?.toString()),
-      builder: (context, snapshot) {
-        final isPlaying = snapshot.data == ytid && ytid.isNotEmpty;
+    return ValueListenableBuilder<String?>(
+      valueListenable: audioHandler.currentPlayingYtid,
+      builder: (context, playingYtid, _) {
+        final isPlaying = playingYtid == ytid && ytid.isNotEmpty;
 
         return CupertinoButton(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -51,7 +51,7 @@ class SongTile extends StatelessWidget {
             if (onTap != null) {
               onTap!();
             } else {
-              audioHandler.playSong(song);
+              audioHandler.playSingleSong(song);
             }
           },
           child: Row(
@@ -68,7 +68,7 @@ class SongTile extends StatelessWidget {
                         imageUrl: imageUrl,
                         fit: BoxFit.cover,
                         errorWidget: (_, __, ___) => Container(
-                          color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                          color: musifiedSecondarySurface(isDark),
                           child: const Icon(
                             CupertinoIcons.music_note,
                             size: 20,

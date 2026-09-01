@@ -20,7 +20,7 @@ class ListeningRecapCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = isAppDarkMode(context);
-    final cardBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
+    final cardBg = musifiedElevatedSurface(isDark);
 
     return Container(
       decoration: BoxDecoration(

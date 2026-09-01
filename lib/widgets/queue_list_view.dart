@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:audio_service/audio_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -23,7 +22,6 @@ class QueueWidget extends StatefulWidget {
 class _QueueWidgetState extends State<QueueWidget> {
   List<Map> _queue = [];
   late StreamSubscription<List<Map>> _subscription;
-  late StreamSubscription<MediaItem?> _mediaSubscription;
   bool _isDismissing = false;
   bool _hasScrolledToInitial = false;
   final ScrollController _scrollController = ScrollController();
@@ -42,11 +40,11 @@ class _QueueWidgetState extends State<QueueWidget> {
         }
       }
     });
-    _mediaSubscription = audioHandler.mediaItem
-        .distinct((prev, next) => prev?.id == next?.id)
-        .listen((_) {
-          if (mounted && !_isDismissing) setState(() {});
-        });
+    audioHandler.currentPlayingYtid.addListener(_onPlayingTrackChanged);
+  }
+
+  void _onPlayingTrackChanged() {
+    if (mounted && !_isDismissing) setState(() {});
   }
 
   void _scrollToCurrentSong() {
@@ -71,7 +69,7 @@ class _QueueWidgetState extends State<QueueWidget> {
   @override
   void dispose() {
     _subscription.cancel();
-    _mediaSubscription.cancel();
+    audioHandler.currentPlayingYtid.removeListener(_onPlayingTrackChanged);
     _scrollController.dispose();
     super.dispose();
   }
@@ -224,7 +222,7 @@ class _QueueWidgetState extends State<QueueWidget> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                color: musifiedSecondarySurface(isDark),
                 shape: BoxShape.circle,
               ),
               child: const Icon(
@@ -282,10 +280,7 @@ class _QueueWidgetState extends State<QueueWidget> {
             if (closeOnTap) Navigator.pop(context);
           },
           onRemove: () {
-            setState(() {
-              _queue.removeAt(index);
-            });
-            audioHandler.removeQueueItemAt(index);
+            audioHandler.removeFromQueue(index);
           },
         );
       },
@@ -327,7 +322,7 @@ class _QueueTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isCurrentSong
             ? activeColor.withValues(alpha: 0.12)
-            : (isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7)),
+            : musifiedElevatedSurface(isDark),
         borderRadius: BorderRadius.circular(10),
       ),
       child: GestureDetector(
@@ -352,6 +347,8 @@ class _QueueTile extends StatelessWidget {
                           ? CachedNetworkImage(
                               imageUrl: image,
                               fit: BoxFit.cover,
+                              memCacheWidth: 88,
+                              memCacheHeight: 88,
                               errorWidget: (_, __, ___) => const NullArtworkWidget(iconSize: 18, size: 44),
                             )
                           : const NullArtworkWidget(iconSize: 18, size: 44),

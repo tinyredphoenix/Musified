@@ -98,7 +98,7 @@ Widget buildImagePickerRow(
   return SizedBox(
     width: double.infinity,
     child: CupertinoButton(
-      color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+      color: musifiedSecondarySurface(isDark),
       borderRadius: BorderRadius.circular(12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       onPressed: onPickImage,

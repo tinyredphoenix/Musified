@@ -87,7 +87,7 @@ class _DownloadPickerSheetState extends State<DownloadPickerSheet> {
     final artist = widget.song['artist']?.toString() ?? '';
     final isDark = isAppDarkMode(context);
     const primaryColor = Color(0xFFFF2D55);
-    final cardBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final cardBg = musifiedSecondarySurface(isDark);
     final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
     const secondaryTextColor = CupertinoColors.systemGrey;
 
@@ -413,7 +413,7 @@ Future<void> showDownloadPicker(
     context: context,
     builder: (ctx) => Container(
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFFFFFFF),
+        color: isDark ? musifiedElevatedSurface(isDark) : const Color(0xFFFFFFFF),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: DownloadPickerSheet(song: song, onDownload: onDownload),

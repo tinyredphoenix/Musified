@@ -73,7 +73,7 @@ class _PlaylistLikeButtonState extends State<PlaylistLikeButton> {
           padding: const EdgeInsets.all(10),
           color: isLiked
               ? const Color(0xFFFF2D55)
-              : (isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA)),
+              : musifiedSecondarySurface(isDark),
           borderRadius: BorderRadius.circular(22),
           onPressed: _toggleLikeStatus,
           child: Icon(

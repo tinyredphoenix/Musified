@@ -6,8 +6,10 @@ class FullPlayerState {
     required this.playbackState,
     required this.queue,
     required this.position,
+    this.mediaItem,
   });
   final PlaybackState playbackState;
   final List<MediaItem> queue;
   final PositionData position;
+  final MediaItem? mediaItem;
 }

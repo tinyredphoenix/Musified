@@ -29,6 +29,7 @@ class FlipCard extends StatefulWidget {
     required this.rotateSide,
     this.onTapFlipping = false,
     this.animationDuration = const Duration(milliseconds: 280),
+    this.contentKey,
   });
 
   final Widget frontWidget;
@@ -38,6 +39,9 @@ class FlipCard extends StatefulWidget {
   // Kept for API compatibility; unused after dropping 3D rotate.
   final RotateSide rotateSide;
   final Duration animationDuration;
+  /// When the front/back content changes (e.g. new track) while staying on the
+  /// front face, AnimatedSwitcher needs a new key to swap artwork immediately.
+  final String? contentKey;
 
   @override
   State<FlipCard> createState() => _FlipCardState();
@@ -97,7 +101,7 @@ class _FlipCardState extends State<FlipCard> {
               return FadeTransition(opacity: animation, child: child);
             },
             child: KeyedSubtree(
-              key: ValueKey(showFront),
+              key: ValueKey('${showFront}_${widget.contentKey ?? 'default'}'),
               child: showFront ? widget.frontWidget : widget.backWidget,
             ),
           );

@@ -84,7 +84,7 @@ class FullPageLyricsModal extends StatelessWidget {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                        color: musifiedSecondarySurface(isDark),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

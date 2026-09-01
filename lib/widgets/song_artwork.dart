@@ -36,7 +36,10 @@ class SongArtworkWidget extends StatelessWidget {
         metadata.extras?['image']?.toString() ??
         'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/hqdefault.jpg';
 
-    final imageUrl = upgradeArtworkUrl(isValidUri ? rawArtUri : fallbackUrl);
+    final imageUrl = upgradeArtworkUrl(
+      isValidUri ? rawArtUri : fallbackUrl,
+      targetSize: cacheDimension,
+    );
 
     return metadata.artUri?.scheme == 'file'
         ? SizedBox(

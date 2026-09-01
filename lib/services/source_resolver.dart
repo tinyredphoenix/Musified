@@ -129,6 +129,9 @@ class SourceResolver {
     final box = await _getBox();
     final data = box?.get(ytid);
     if (data != null && data is Map) {
+      final map = Map<String, dynamic>.from(data);
+      map['_accessedAt'] = DateTime.now().millisecondsSinceEpoch;
+      unawaited(box?.put(ytid, map));
       return Map<String, dynamic>.from(data);
     }
     return null;
@@ -138,13 +141,25 @@ class SourceResolver {
     try {
       final box = await _getBox();
       if (box == null) return;
-      await box.put(ytid, saavnData);
+      await box.put(ytid, {
+        ...saavnData,
+        '_accessedAt': DateTime.now().millisecondsSinceEpoch,
+      });
       const maxKeys = 1500;
-      final excess = box.length - maxKeys;
-      if (excess > 0) {
-        final keys = box.keys.take(excess).toList();
-        for (final key in keys) {
-          await box.delete(key);
+      if (box.length > maxKeys) {
+        final entries = <({dynamic key, int accessed})>[];
+        for (final key in box.keys) {
+          final raw = box.get(key);
+          if (raw is Map) {
+            final at = raw['_accessedAt'];
+            final ms = at is int ? at : 0;
+            entries.add((key: key, accessed: ms));
+          }
+        }
+        entries.sort((a, b) => a.accessed.compareTo(b.accessed));
+        final excess = box.length - maxKeys;
+        for (var i = 0; i < excess && i < entries.length; i++) {
+          await box.delete(entries[i].key);
         }
       }
     } catch (_) {}

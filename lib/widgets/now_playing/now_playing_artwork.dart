@@ -48,6 +48,7 @@ class NowPlayingArtwork extends StatelessWidget {
       rotateSide: RotateSide.right,
       onTapFlipping: !offlineMode.value,
       controller: lyricsController,
+      contentKey: metadata.extras?['ytid']?.toString() ?? metadata.id,
       frontWidget: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(borderRadius),

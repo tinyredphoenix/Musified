@@ -418,7 +418,7 @@ class _HomeSongCard extends StatelessWidget {
                             memCacheWidth: 280,
                             memCacheHeight: 280,
                             errorWidget: (_, __, ___) => Container(
-                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                              color: musifiedSecondarySurface(isDark),
                               child: const Icon(
                                 CupertinoIcons.music_note,
                                 size: 36,
@@ -427,7 +427,7 @@ class _HomeSongCard extends StatelessWidget {
                             ),
                           )
                         : Container(
-                            color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                            color: musifiedSecondarySurface(isDark),
                             child: const Icon(
                               CupertinoIcons.music_note,
                               size: 36,

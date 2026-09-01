@@ -18,7 +18,7 @@ class PlaylistActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = isAppDarkMode(context);
-    final secondaryBtnBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final secondaryBtnBg = musifiedSecondarySurface(isDark);
     final secondaryTextColor = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Padding(

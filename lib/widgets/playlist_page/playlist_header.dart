@@ -155,7 +155,7 @@ class _Chip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chipBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final chipBg = musifiedSecondarySurface(isDark);
     final chipText = isDark ? CupertinoColors.white : CupertinoColors.black;
 
     return Container(

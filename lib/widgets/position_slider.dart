@@ -5,6 +5,7 @@ import 'package:musified/main.dart';
 import 'package:musified/models/position_data.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/utilities/formatter.dart';
+import 'package:rxdart/rxdart.dart';
 
 class PositionSlider extends StatefulWidget {
   const PositionSlider({super.key});
@@ -23,85 +24,91 @@ class _PositionSliderState extends State<PositionSlider> {
     Duration.zero,
   );
 
+  late final Stream<(MediaItem?, PositionData)> _sliderStream = Rx.combineLatest2(
+    audioHandler.mediaItem.distinct((a, b) => a?.id == b?.id),
+    audioHandler.positionDataStream,
+    (MediaItem? item, PositionData pos) => (item, pos),
+  );
+
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<MediaItem?>(
-      stream: audioHandler.mediaItem,
-      builder: (context, mediaSnapshot) {
-        return StreamBuilder<PositionData>(
-          stream: audioHandler.positionDataStream,
-          builder: (context, snapshot) {
-            final mediaId = mediaSnapshot.data?.id;
-            final mediaChanged = mediaId != _currentMediaId;
-            if (mediaChanged) {
-              _currentMediaId = mediaId;
-              _isDragging = false;
-              _positionData = PositionData(
-                Duration.zero,
-                Duration.zero,
-                Duration.zero,
-              );
-            }
+    return StreamBuilder<(MediaItem?, PositionData)>(
+      stream: _sliderStream,
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox.shrink();
+        }
 
-            if (snapshot.data != null && !mediaChanged) {
-              _positionData = snapshot.data!;
-            }
+        final (mediaItem, positionSnapshot) = snapshot.data!;
+        final mediaId = mediaItem?.id;
+        final mediaChanged = mediaId != _currentMediaId;
+        if (mediaChanged) {
+          _currentMediaId = mediaId;
+          _isDragging = false;
+          _positionData = PositionData(
+            Duration.zero,
+            Duration.zero,
+            Duration.zero,
+          );
+        }
 
-            final processingState =
-                audioHandler.playbackState.valueOrNull?.processingState;
-            final metadataDuration = mediaSnapshot.data?.duration;
-            final displayDuration = (metadataDuration != null && metadataDuration > Duration.zero)
-                ? metadataDuration
-                : (_positionData.duration > Duration.zero
-                    ? _positionData.duration
-                    : Duration.zero);
-            final displayPositionData = PositionData(
-              processingState == AudioProcessingState.loading
-                  ? Duration.zero
-                  : _positionData.position,
-              _positionData.bufferedPosition,
-              displayDuration,
-            );
-            final maxDuration = displayDuration.inMilliseconds > 0
-                ? displayDuration.inMilliseconds.toDouble()
-                : 1.0;
+        if (!mediaChanged) {
+          _positionData = positionSnapshot;
+        }
 
-            final currentValue = _isDragging
-                ? _dragValue
-                : displayPositionData.position.inMilliseconds.toDouble();
+        final processingState =
+            audioHandler.playbackState.valueOrNull?.processingState;
+        final metadataDuration = mediaItem?.duration;
+        final displayDuration = (metadataDuration != null && metadataDuration > Duration.zero)
+            ? metadataDuration
+            : (_positionData.duration > Duration.zero
+                ? _positionData.duration
+                : Duration.zero);
+        final displayPositionData = PositionData(
+          processingState == AudioProcessingState.loading
+              ? Duration.zero
+              : _positionData.position,
+          _positionData.bufferedPosition,
+          displayDuration,
+        );
+        final maxDuration = displayDuration.inMilliseconds > 0
+            ? displayDuration.inMilliseconds.toDouble()
+            : 1.0;
 
-            final isDark = isAppDarkMode(context);
+        final currentValue = _isDragging
+            ? _dragValue
+            : displayPositionData.position.inMilliseconds.toDouble();
 
-            return Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                SizedBox(
-                  width: double.infinity,
-                  height: 24,
-                  child: CupertinoSlider(
-                    value: currentValue.clamp(0.0, maxDuration),
-                    activeColor: const Color(0xFFFF2D55),
-                    thumbColor: isDark ? CupertinoColors.white : CupertinoColors.black,
-                    onChanged: (value) {
-                      setState(() {
-                        _isDragging = true;
-                        _dragValue = value;
-                      });
-                    },
-                    onChangeEnd: (value) {
-                      audioHandler.seek(Duration(milliseconds: value.round()));
-                      setState(() {
-                        _isDragging = false;
-                      });
-                    },
-                    max: maxDuration,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                _buildPositionRow(context, displayPositionData),
-              ],
-            );
-          },
+        final isDark = isAppDarkMode(context);
+
+        return Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: double.infinity,
+              height: 24,
+              child: CupertinoSlider(
+                value: currentValue.clamp(0.0, maxDuration),
+                activeColor: const Color(0xFFFF2D55),
+                thumbColor: isDark ? CupertinoColors.white : CupertinoColors.black,
+                onChanged: (value) {
+                  setState(() {
+                    _isDragging = true;
+                    _dragValue = value;
+                  });
+                },
+                onChangeEnd: (value) {
+                  audioHandler.seek(Duration(milliseconds: value.round()));
+                  setState(() {
+                    _isDragging = false;
+                  });
+                },
+                max: maxDuration,
+              ),
+            ),
+            const SizedBox(height: 4),
+            _buildPositionRow(context, displayPositionData),
+          ],
         );
       },
     );

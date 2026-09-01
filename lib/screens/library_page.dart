@@ -108,7 +108,7 @@ class _LibraryPageState extends State<LibraryPage> {
       Container(
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+          color: musifiedElevatedSurface(isDark),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -231,12 +231,12 @@ class _LibraryPageState extends State<LibraryPage> {
                                             imageUrl: image,
                                             fit: BoxFit.cover,
                                             errorWidget: (_, __, ___) => Container(
-                                              color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                                              color: musifiedSecondarySurface(isDark),
                                               child: const Icon(CupertinoIcons.music_albums, color: CupertinoColors.systemGrey),
                                             ),
                                           )
                                         : Container(
-                                            color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                                            color: musifiedSecondarySurface(isDark),
                                             child: const Icon(CupertinoIcons.music_albums, color: CupertinoColors.systemGrey),
                                           ),
                                   ),

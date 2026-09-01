@@ -210,7 +210,7 @@ class _UserSongsPageState extends State<UserSongsPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: CupertinoButton(
-                    color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                    color: musifiedSecondarySurface(isDark),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     borderRadius: BorderRadius.circular(12),
                     onPressed: () async {

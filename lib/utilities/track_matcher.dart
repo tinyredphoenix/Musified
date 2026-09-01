@@ -132,10 +132,7 @@ class TrackMatcher {
     final artistMatches = (cleanArtA.isEmpty && cleanArtB.isEmpty) ||
         (cleanArtA.isNotEmpty &&
             cleanArtB.isNotEmpty &&
-            (cleanArtA == cleanArtB ||
-                cleanArtA.contains(cleanArtB) ||
-                cleanArtB.contains(cleanArtA) ||
-                _artistTokensOverlap(cleanArtA, cleanArtB)));
+            (cleanArtA == cleanArtB || _artistTokensOverlap(cleanArtA, cleanArtB)));
 
     if (!artistMatches) return false;
 

@@ -8,6 +8,7 @@ import 'package:musified/models/full_player_state.dart';
 import 'package:musified/screens/now_playing_page.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
+import 'package:musified/utilities/mediaitem.dart' show upgradeArtworkUrl;
 
 /// Clean, high-performance iOS floating mini player.
 class MiniPlayer extends StatefulWidget {
@@ -62,47 +63,45 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
   Widget build(BuildContext context) {
     if (!isAudioHandlerInitialized) return const SizedBox.shrink();
 
-    return StreamBuilder<MediaItem?>(
-      stream: audioHandler.mediaItem,
-      builder: (context, mediaSnapshot) {
-        final metadata = mediaSnapshot.data;
-        if (metadata == null) return const SizedBox.shrink();
+    return StreamBuilder<FullPlayerState>(
+      stream: audioHandler.fullPlayerStateStream,
+      builder: (context, stateSnapshot) {
+        final state = stateSnapshot.data;
+        final metadata = state?.mediaItem;
+        if (metadata == null || state == null) {
+          return const SizedBox.shrink();
+        }
 
-        return StreamBuilder<FullPlayerState>(
-          stream: audioHandler.fullPlayerStateStream,
-          builder: (context, stateSnapshot) {
-            final state = stateSnapshot.data;
-            if (state == null) return const SizedBox.shrink();
+        final isDark = isAppDarkMode(context);
+        final bg = musifiedMiniPlayerBg(isDark);
+        final border = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
+        final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+        final artistColor = CupertinoColors.systemGrey;
 
-            final isDark = isAppDarkMode(context);
-            final bg = isDark ? const Color(0xE61C1C1E) : const Color(0xE6FFFFFF);
-            final border = isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000);
-            final titleColor = isDark ? CupertinoColors.white : CupertinoColors.black;
-            final artistColor = CupertinoColors.systemGrey;
+        final metadataDuration = metadata.duration;
+        final totalDuration = (metadataDuration != null && metadataDuration > Duration.zero)
+            ? metadataDuration
+            : (state.position.duration > Duration.zero
+                ? state.position.duration
+                : Duration.zero);
+        final progress = totalDuration.inMilliseconds == 0
+            ? 0.0
+            : (state.position.position.inMilliseconds / totalDuration.inMilliseconds)
+                .clamp(0.0, 1.0);
 
-            final metadataDuration = metadata.duration;
-            final totalDuration = (metadataDuration != null && metadataDuration > Duration.zero)
-                ? metadataDuration
-                : (state.position.duration > Duration.zero
-                    ? state.position.duration
-                    : Duration.zero);
-            final progress = totalDuration.inMilliseconds == 0
-                ? 0.0
-                : (state.position.position.inMilliseconds / totalDuration.inMilliseconds)
-                    .clamp(0.0, 1.0);
+        final ytid = metadata.extras?['ytid']?.toString() ?? metadata.id;
+        final rawImage = metadata.artUri?.toString() ??
+            metadata.extras?['lowResImage']?.toString() ??
+            metadata.extras?['image']?.toString() ??
+            'https://i.ytimg.com/vi/$ytid/hqdefault.jpg';
+        final imageUrl = upgradeArtworkUrl(rawImage, targetSize: 88);
 
-            final ytid = metadata.extras?['ytid']?.toString() ?? metadata.id;
-            final imageUrl = metadata.artUri?.toString() ??
-                metadata.extras?['lowResImage']?.toString() ??
-                metadata.extras?['image']?.toString() ??
-                'https://i.ytimg.com/vi/$ytid/hqdefault.jpg';
+        final isPlaying = state.playbackState.playing;
+        final isLoading = state.playbackState.processingState == AudioProcessingState.loading ||
+            state.playbackState.processingState == AudioProcessingState.buffering;
+        final hasNext = audioHandler.hasNext;
 
-            final isPlaying = state.playbackState.playing;
-            final isLoading = state.playbackState.processingState == AudioProcessingState.loading ||
-                state.playbackState.processingState == AudioProcessingState.buffering;
-            final hasNext = audioHandler.hasNext;
-
-            return Padding(
+        return Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
               child: AnimatedBuilder(
                 animation: _scaleAnimation,
@@ -155,8 +154,10 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                                         child: CachedNetworkImage(
                                           imageUrl: imageUrl,
                                           fit: BoxFit.cover,
-                                          errorWidget: (_, __, ___) => Container(
-                                            color: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA),
+                                          memCacheWidth: 88,
+                                          memCacheHeight: 88,
+                                          errorWidget: (_, __, ___) => ColoredBox(
+                                            color: musifiedSecondarySurface(isDark),
                                             child: const Icon(
                                               CupertinoIcons.music_note,
                                               size: 20,
@@ -252,8 +253,6 @@ class _MiniPlayerState extends State<MiniPlayer> with SingleTickerProviderStateM
                 ),
               ),
             );
-          },
-        );
       },
     );
   }

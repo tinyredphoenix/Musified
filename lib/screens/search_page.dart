@@ -83,14 +83,16 @@ class _SearchPageState extends State<SearchPage> {
         unawaited(addOrUpdateData<List>('user', 'searchHistory', searchHistory));
       }
 
-      final songResults = await fetchSongsList(query);
+      final results = await Future.wait([
+        fetchSongsList(query),
+        searchArtists(query),
+        getPlaylists(query: query),
+      ]);
       if (requestId != _latestSearchRequest || !mounted) return;
 
-      final artistResults = await searchArtists(query);
-      if (requestId != _latestSearchRequest || !mounted) return;
-
-      final playlistResults = await getPlaylists(query: query);
-      if (requestId != _latestSearchRequest || !mounted) return;
+      final songResults = results[0];
+      final artistResults = results[1] as List<Map<String, dynamic>>;
+      final playlistResults = results[2];
 
       setState(() {
         _songsSearchResult = songResults;
@@ -109,6 +111,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _onQueryChanged(String query) {
+    _debounce?.cancel();
     if (query.trim().isEmpty) {
       setState(() {
         _suggestionsList = [];
@@ -117,7 +120,23 @@ class _SearchPageState extends State<SearchPage> {
         _artistsSearchResult = [];
         _playlistsSearchResult = [];
       });
+      return;
     }
+
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      if (!mounted) return;
+      final trimmed = _searchBar.text.trim();
+      if (trimmed.isEmpty) return;
+      try {
+        final suggestions = await getSearchSuggestions(trimmed);
+        if (!mounted || _searchBar.text.trim() != trimmed) return;
+        setState(() {
+          _suggestionsList = suggestions.take(8).toList();
+        });
+      } catch (e) {
+        logger.log('Suggestion error: $e');
+      }
+    });
   }
 
   @override
@@ -212,7 +231,7 @@ class _SearchPageState extends State<SearchPage> {
                           song: s is Map ? s : {},
                           onTap: () {
                             HapticFeedback.selectionClick();
-                            audioHandler.playSong(s is Map ? s : {});
+                            audioHandler.playSingleSong(s is Map ? s : {});
                           },
                         ),
                       ),
@@ -326,7 +345,7 @@ class _SearchPageState extends State<SearchPage> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7),
+                          color: musifiedElevatedSurface(isDark),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: isDark ? const Color(0x33FFFFFF) : const Color(0x1F000000),

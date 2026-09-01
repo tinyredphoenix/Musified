@@ -105,8 +105,8 @@ Future<void> showMusifiedPickerSheet(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
               color: isDark
-                  ? const Color(0xFF2C2C2E)
-                  : const Color(0xFFE5E5EA),
+                  ? musifiedSecondarySurface(isDark)
+                  : musifiedSecondarySurface(false),
               onPressed: () {
                 Navigator.pop(context);
                 action.onTap();

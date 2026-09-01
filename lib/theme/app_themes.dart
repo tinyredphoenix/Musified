@@ -64,6 +64,28 @@ Color musifiedCard(bool isDark) => isDark
     ? (usePureBlackColor.value ? const Color(0xFF0A0A0A) : MusifiedStyle.surface)
     : MusifiedStyle.lightSurface;
 
+/// Placeholder / chip / secondary control surface (OLED-aware).
+Color musifiedSecondarySurface(bool isDark) => isDark
+    ? (usePureBlackColor.value ? const Color(0xFF0A0A0A) : MusifiedStyle.surfaceHigh)
+    : const Color(0xFFE5E5EA);
+
+/// Mini-player frosted panel background.
+Color musifiedMiniPlayerBg(bool isDark) => isDark
+    ? (usePureBlackColor.value
+        ? const Color(0xE6000000)
+        : const Color(0xE61C1C1E))
+    : const Color(0xE6FFFFFF);
+
+/// Grouped list / sheet surface (#1C1C1E elevated, OLED near-black).
+Color musifiedElevatedSurface(bool isDark) => isDark
+    ? (usePureBlackColor.value ? const Color(0xFF0A0A0A) : MusifiedStyle.surface)
+    : const Color(0xFFF2F2F7);
+
+/// Sheet / dialog card on elevated surfaces.
+Color musifiedSheetCard(bool isDark) => isDark
+    ? (usePureBlackColor.value ? const Color(0xFF0A0A0A) : MusifiedStyle.surface)
+    : CupertinoColors.white;
+
 CupertinoThemeData buildCupertinoTheme({
   required Brightness brightness,
   Color primaryColor = const Color(0xFFFF2D55),

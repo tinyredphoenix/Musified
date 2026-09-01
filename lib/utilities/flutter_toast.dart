@@ -41,7 +41,7 @@ void showToast(
               child: Container(
                 decoration: BoxDecoration(
                   color: isDark
-                      ? const Color(0xFF2C2C2E)
+                      ? musifiedSecondarySurface(isDark)
                       : const Color(0xFF1C1C1E),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
@@ -117,7 +117,7 @@ void showToastWithButton(
           child: Container(
             decoration: BoxDecoration(
               color: isDark
-                  ? const Color(0xFF2C2C2E)
+                  ? musifiedSecondarySurface(isDark)
                   : const Color(0xFF1C1C1E),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(

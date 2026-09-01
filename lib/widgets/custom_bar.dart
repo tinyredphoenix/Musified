@@ -31,8 +31,8 @@ class CustomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = isAppDarkMode(context);
-    final defaultBg = isDark ? const Color(0xFF1C1C1E) : const Color(0xFFF2F2F7);
-    final iconContainerBg = isDark ? const Color(0xFF2C2C2E) : const Color(0xFFE5E5EA);
+    final defaultBg = musifiedElevatedSurface(isDark);
+    final iconContainerBg = musifiedSecondarySurface(isDark);
     final effectiveIconColor = iconColor ?? const Color(0xFFFF2D55);
     final effectiveTextColor = textColor ?? (isDark ? CupertinoColors.white : CupertinoColors.black);
 
