@@ -291,7 +291,7 @@ Future<void> initialisation() async {
     // Restore persisted settings into ValueNotifiers + theme globals
     reloadSettingsFromStorage();
     syncThemeFromSettings();
-    unawaited(YtdlpClientSyncService.instance.ensureLoaded());
+    await YtdlpClientSyncService.instance.ensureLoaded();
     reloadSongLibraryStateFromStorage();
     reloadPlaylistsStateFromStorage();
     OfflinePlaylistService().reloadOfflinePlaylistsFromStorage();

@@ -144,8 +144,21 @@ class AudioCompletionCoordinator {
   }
 
   /// Gate for [_playFromQueue]: skip when already loading this index (non-completion).
-  bool shouldSkipPlayFromQueueAlreadyLoading(int loadingIndex, int index) {
-    return loadingIndex == index && !eventPending;
+  bool shouldSkipPlayFromQueueAlreadyLoading(
+    int loadingIndex,
+    int index, {
+    String? loadingKey,
+    String? requestedKey,
+  }) {
+    if (loadingIndex != index || eventPending) return false;
+    // Replacing the queue reuses index 0 for a different track. Such a tap is
+    // a new request, not a duplicate of the load already in flight.
+    if (loadingKey != null &&
+        requestedKey != null &&
+        loadingKey != requestedKey) {
+      return false;
+    }
+    return true;
   }
 
   /// Gate: allow one load attempt while handling completion.
@@ -201,15 +214,15 @@ class AudioCompletionCoordinator {
 
   void handleNearEndSkip(NearEndSkipContext ctx) {
     if (eventPending || ctx.sleepTimerExpired) return;
-    if (!ctx.lastInstalledWasClipped) return;
     if (ctx.gaplessSourceActive) return;
     if (ctx.loadInProgress || ctx.sourceSwitchInFlight) return;
     if (!ctx.playerPlaying) return;
     if (ctx.processingState == ProcessingState.completed) return;
 
-    var duration = ctx.playerDuration;
-    if (duration == null) return;
+    final playerDuration = ctx.playerDuration;
+    if (playerDuration == null) return;
 
+    var duration = playerDuration;
     final song = ctx.currentSong;
     if (song != null) {
       duration = ctx.canonicalDuration(song, ctx.currentMediaItem, duration);
@@ -220,6 +233,13 @@ class AudioCompletionCoordinator {
         duration = catalog;
       }
     }
+
+    // Advance either because the source was clipped to the real length, or
+    // because the player over-reports it (Apple does this for some AAC
+    // streams) and audio actually stops at the canonical duration.
+    final playerOverReportsDuration =
+        playerDuration > duration + const Duration(seconds: 5);
+    if (!ctx.lastInstalledWasClipped && !playerOverReportsDuration) return;
 
     if (duration < const Duration(seconds: 5)) return;
     final remaining = duration - ctx.position;

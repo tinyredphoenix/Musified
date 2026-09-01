@@ -11,7 +11,32 @@ class AudioQueueState {
   final QueueEntryIdManager entryIds = QueueEntryIdManager();
 
   int currentIndex = 0;
-  int loadingIndex = -1;
+
+  int _loadingIndex = -1;
+  String? _loadingKey;
+
+  int get loadingIndex => _loadingIndex;
+  set loadingIndex(int value) {
+    _loadingIndex = value;
+    if (value < 0) _loadingKey = null;
+  }
+
+  /// Identifies the track currently loading, so an index alone cannot be
+  /// mistaken for "the same request" after the queue is replaced.
+  String? get loadingKey => _loadingKey;
+
+  void markLoading(int index, Map? song) {
+    loadingIndex = index;
+    _loadingKey = songKey(song);
+  }
+
+  static String? songKey(Map? song) {
+    if (song == null) return null;
+    final ytid = song['ytid']?.toString();
+    if (ytid != null && ytid.isNotEmpty) return ytid;
+    final entryId = song['queueEntryId']?.toString();
+    return (entryId == null || entryId.isEmpty) ? null : entryId;
+  }
 
   bool containsIndex(int index) => index >= 0 && index < items.length;
 

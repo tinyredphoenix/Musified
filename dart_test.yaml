@@ -1,0 +1,3 @@
+tags:
+  network:
+    description: Hits YouTube / yt-dlp over the network.

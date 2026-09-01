@@ -1315,8 +1315,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     if (_completion.shouldSkipPlayFromQueueAlreadyLoading(
       _hub.queue.loadingIndex,
       index,
+      loadingKey: _hub.queue.loadingKey,
+      requestedKey: AudioQueueState.songKey(_hub.queue.songAt(index)),
     )) {
-      _logPlayer('playFromQueue skipped — already loading this index');
+      _logPlayer('playFromQueue skipped — already loading this song');
       return false;
     }
 
@@ -1335,7 +1337,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     // Start new transition
     _songTransitionCounter++;
     final currentTransitionId = _songTransitionCounter;
-    _hub.queue.loadingIndex = index;
+    _hub.queue.markLoading(index, _hub.queue.songAt(index));
     _currentLoadingTransitionId = currentTransitionId;
 
     final wasPlayingBeforeLoad = audioPlayer.playing;
@@ -1913,10 +1915,13 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     final effectiveTransitionId = transitionId ?? ++_songTransitionCounter;
     if (ownsTransition) {
       _currentLoadingTransitionId = effectiveTransitionId;
-      _hub.queue.loadingIndex = _hub.queue.items.indexWhere(
-        (candidate) =>
-            candidate['queueEntryId'] == song['queueEntryId'] ||
-            candidate['ytid']?.toString() == song['ytid']?.toString(),
+      _hub.queue.markLoading(
+        _hub.queue.items.indexWhere(
+          (candidate) =>
+              candidate['queueEntryId'] == song['queueEntryId'] ||
+              candidate['ytid']?.toString() == song['ytid']?.toString(),
+        ),
+        song,
       );
     }
 
@@ -2100,7 +2105,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         audioPlayer.processingState == ProcessingState.loading;
 
     final transitionId = ++_songTransitionCounter;
-    _hub.queue.loadingIndex = _hub.queue.currentIndex;
+    _hub.queue.markLoading(_hub.queue.currentIndex, _hub.queue.currentSong);
     _currentLoadingTransitionId = transitionId;
     final request = cloneMap(song)..remove('resolvedSource');
     if (source == 'offline') {

@@ -10,291 +10,224 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 const _ytdlpBasePyUrl =
     'https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/yt_dlp/extractor/youtube/_base.py';
 
-const _defaultClientId = 'android_vr';
+/// Musified resolves streams with exactly one InnerTube client.
+///
+/// VISIONOS is the only client that currently returns directly playable
+/// googlevideo URLs: it needs no PO Token and no JS signature deciphering
+/// (which Musified cannot do). ANDROID/IOS/WEB hand back ciphered or empty
+/// URLs, and ANDROID_VR/MWEB are answered with HTTP 403.
+///
+/// Syncing refreshes this client's version and user-agent from yt-dlp so the
+/// app keeps working when YouTube rotates them, without shipping a new build.
+const _activeClientId = 'visionos';
 
-/// Registry for InnerTube clients: built-in defaults + optional yt-dlp sync.
+const _clientEntryKey = 'youtubeInnertubeActiveClient';
+const _syncAtKey = 'youtubeInnertubeSyncAt';
+const _syncCommitKey = 'youtubeInnertubeSyncCommit';
+
 class YtdlpClientSyncService {
   YtdlpClientSyncService._();
   static final YtdlpClientSyncService instance = YtdlpClientSyncService._();
 
-  final ValueNotifier<List<YoutubeInnertubeClientEntry>> catalog =
-      ValueNotifier<List<YoutubeInnertubeClientEntry>>([]);
-  final ValueNotifier<String> selectedClientId =
-      ValueNotifier<String>(_defaultClientId);
   final ValueNotifier<DateTime?> lastSyncedAt = ValueNotifier<DateTime?>(null);
   final ValueNotifier<String?> lastSyncCommit = ValueNotifier<String?>(null);
 
+  /// Bumped whenever the active definition changes, so settings can rebuild.
+  final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
+  final ValueNotifier<bool> syncing = ValueNotifier<bool>(false);
+
+  YoutubeInnertubeClientEntry _active = builtinVisionOsEntry();
   bool _loaded = false;
+
+  YoutubeInnertubeClientEntry get activeEntry => _active;
+
+  String get clientLabel => _active.displayLabel;
+
+  YoutubeApiClient activeClient() => _active.toYoutubeApiClient();
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;
     _loaded = true;
-    await _loadFromStorage();
-  }
 
-  List<YoutubeInnertubeClientEntry> get builtinClients =>
-      List<YoutubeInnertubeClientEntry>.unmodifiable(_builtinCatalog());
+    if (!Hive.isBoxOpen('settings')) return;
+    final settings = Hive.box('settings');
 
-  YoutubeInnertubeClientEntry? entryById(String id) {
-    for (final entry in catalog.value) {
-      if (entry.id == id) return entry;
+    final syncAt = settings.get(_syncAtKey);
+    if (syncAt is String) lastSyncedAt.value = DateTime.tryParse(syncAt);
+
+    final commit = settings.get(_syncCommitKey);
+    if (commit is String) lastSyncCommit.value = commit;
+
+    final raw = settings.get(_clientEntryKey);
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          final entry = YoutubeInnertubeClientEntry.fromJson(
+            Map<String, dynamic>.from(decoded),
+          );
+          if (entry.isUsable) {
+            _active = entry;
+            revision.value++;
+          }
+        }
+      } catch (_) {
+        // Keep the built-in definition.
+      }
     }
-    return null;
-  }
-
-  YoutubeInnertubeClientEntry? selectedEntry() =>
-      entryById(selectedClientId.value);
-
-  /// Selected client only — no built-in fallback if missing or auth-required.
-  YoutubeApiClient? selectedYoutubeClient() {
-    final entry = selectedEntry();
-    if (entry == null || entry.requiresAuth) return null;
-    return entry.toYoutubeApiClient();
-  }
-
-  String selectedClientLabel() {
-    final entry = selectedEntry();
-    if (entry == null) return 'ANDROID_VR (default)';
-    return entry.displayLabel;
-  }
-
-  Future<void> selectClient(String id) async {
-    if (entryById(id) == null) return;
-    selectedClientId.value = id;
-    await addOrUpdateData('settings', 'youtubeInnertubeClientId', id);
   }
 
   Future<YtdlpClientSyncResult> syncFromYtdlp() async {
+    if (syncing.value) {
+      return YtdlpClientSyncResult.failed('Sync already running');
+    }
+    syncing.value = true;
     try {
       final response = await http
           .get(Uri.parse(_ytdlpBasePyUrl))
           .timeout(const Duration(seconds: 25));
       if (response.statusCode != 200) {
         return YtdlpClientSyncResult.failed(
-          'Could not download yt-dlp client list (${response.statusCode})',
+          'yt-dlp download failed (HTTP ${response.statusCode})',
         );
       }
 
-      final parsed = _parseInnertubeClients(response.body);
-      if (parsed.isEmpty) {
+      final clients = parseInnertubeClientsFromYtdlp(response.body);
+      if (clients.isEmpty) {
         return YtdlpClientSyncResult.failed(
-          'No playable clients found in yt-dlp source',
+          'Could not read client definitions from yt-dlp',
         );
       }
 
-      final merged = _mergeCatalog(parsed);
-      catalog.value = merged;
+      final match = clients.where((e) => e.id == _activeClientId).toList();
+      if (match.isEmpty) {
+        return YtdlpClientSyncResult.failed(
+          'yt-dlp no longer defines the $_activeClientId client',
+        );
+      }
+
+      final entry = match.first;
+      if (!entry.isUsable) {
+        return YtdlpClientSyncResult.failed(
+          'Synced $_activeClientId definition was incomplete',
+        );
+      }
+
+      _active = entry;
+      revision.value++;
 
       final syncedAt = DateTime.now();
       lastSyncedAt.value = syncedAt;
 
-      String? commit;
-      try {
-        final meta = await http
-            .get(
-              Uri.parse(
-                'https://api.github.com/repos/yt-dlp/yt-dlp/commits/master',
-              ),
-              headers: {'Accept': 'application/vnd.github+json'},
-            )
-            .timeout(const Duration(seconds: 10));
-        if (meta.statusCode == 200) {
-          final body = jsonDecode(meta.body) as Map<String, dynamic>;
-          final sha = body['sha']?.toString();
-          if (sha != null && sha.length >= 7) {
-            commit = sha.substring(0, 7);
-            lastSyncCommit.value = commit;
-          }
-        }
-      } catch (_) {
-        // Commit metadata is optional.
-      }
+      await addOrUpdateData('settings', _clientEntryKey, jsonEncode(entry.toJson()));
+      await addOrUpdateData('settings', _syncAtKey, syncedAt.toIso8601String());
 
-      await addOrUpdateData(
-        'settings',
-        'youtubeInnertubeClientsJson',
-        jsonEncode(
-          merged.map((e) {
-            try {
-              return e.toJson();
-            } catch (err) {
-              throw FormatException('Client ${e.id} not serializable: $err');
-            }
-          }).toList(),
-        ),
-      );
-      await addOrUpdateData(
-        'settings',
-        'youtubeInnertubeSyncAt',
-        syncedAt.toIso8601String(),
-      );
+      final commit = await _latestCommitSha();
       if (commit != null) {
-        await addOrUpdateData('settings', 'youtubeInnertubeSyncCommit', commit);
-      }
-
-      if (entryById(selectedClientId.value) == null) {
-        final fallback = merged.firstWhere(
-          (e) => e.id == _defaultClientId,
-          orElse: () => merged.first,
-        );
-        await selectClient(fallback.id);
+        lastSyncCommit.value = commit;
+        await addOrUpdateData('settings', _syncCommitKey, commit);
       }
 
       return YtdlpClientSyncResult.success(
-        count: merged.length,
+        label: entry.displayLabel,
         commit: commit,
       );
     } catch (e) {
-      return YtdlpClientSyncResult.failed('$e');
+      return YtdlpClientSyncResult.failed(_readableError(e));
+    } finally {
+      syncing.value = false;
     }
   }
 
-  Future<void> _loadFromStorage() async {
-    catalog.value = _mergeCatalog([]);
-
-    if (!Hive.isBoxOpen('settings')) {
-      selectedClientId.value = _defaultClientId;
-      return;
-    }
-
-    final settings = Hive.box('settings');
-    final storedId = settings.get('youtubeInnertubeClientId');
-    if (storedId is String && storedId.isNotEmpty) {
-      selectedClientId.value = storedId;
-    }
-
-    final syncAtRaw = settings.get('youtubeInnertubeSyncAt');
-    if (syncAtRaw is String) {
-      lastSyncedAt.value = DateTime.tryParse(syncAtRaw);
-    }
-
-    final commit = settings.get('youtubeInnertubeSyncCommit');
-    if (commit is String) lastSyncCommit.value = commit;
-
-    final rawCatalog = settings.get('youtubeInnertubeClientsJson');
-    if (rawCatalog is String && rawCatalog.isNotEmpty) {
-      try {
-        final list = jsonDecode(rawCatalog) as List<dynamic>;
-        final synced = list
-            .whereType<Map>()
-            .map((m) => YoutubeInnertubeClientEntry.fromJson(
-                  Map<String, dynamic>.from(m),
-                ))
-            .where((e) => e.id.isNotEmpty && !e.requiresAuth)
-            .toList();
-        if (synced.isNotEmpty) {
-          catalog.value = _mergeCatalog(synced);
-        }
-      } catch (_) {
-        // Keep built-in catalog.
-      }
-    }
-
-    if (entryById(selectedClientId.value) == null) {
-      selectedClientId.value = _defaultClientId;
+  Future<String?> _latestCommitSha() async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('https://api.github.com/repos/yt-dlp/yt-dlp/commits/master'),
+            headers: {'Accept': 'application/vnd.github+json'},
+          )
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+      final body = jsonDecode(response.body);
+      if (body is! Map) return null;
+      final sha = body['sha']?.toString();
+      if (sha == null || sha.length < 7) return null;
+      return sha.substring(0, 7);
+    } catch (_) {
+      return null;
     }
   }
+}
 
-  List<YoutubeInnertubeClientEntry> _mergeCatalog(
-    List<YoutubeInnertubeClientEntry> synced,
-  ) {
-    final byId = <String, YoutubeInnertubeClientEntry>{};
-    for (final builtin in _builtinCatalog()) {
-      byId[builtin.id] = builtin;
-    }
-    for (final entry in synced) {
-      byId[entry.id] = entry;
-    }
-    final merged = byId.values.toList();
-    merged.sort((a, b) {
-      if (a.isRecommended != b.isRecommended) {
-        return a.isRecommended ? -1 : 1;
-      }
-      return a.id.compareTo(b.id);
-    });
-    return merged;
+String _readableError(Object error) {
+  final text = error.toString();
+  if (text.contains('SocketException') || text.contains('Failed host lookup')) {
+    return 'No internet connection';
   }
-
-  List<YoutubeInnertubeClientEntry> _builtinCatalog() {
-    return [
-      _fromStatic('android_vr', YoutubeApiClient.androidVr, recommended: true),
-      _fromStatic('visionos', YoutubeApiClient.visionOs, recommended: true),
-      _fromStatic('android', YoutubeApiClient.android),
-      _fromStatic('mweb', YoutubeApiClient.mweb),
-      _fromStatic('web_safari', YoutubeApiClient.safari),
-      _fromStatic('tv', YoutubeApiClient.tv),
-    ];
+  if (text.contains('TimeoutException')) {
+    return 'yt-dlp request timed out';
   }
-
-  YoutubeInnertubeClientEntry _fromStatic(
-    String id,
-    YoutubeApiClient client, {
-    bool recommended = false,
-  }) {
-    final payload = Map<String, dynamic>.from(client.payload);
-    final clientMap = payload['context']?['client'] as Map?;
-    return YoutubeInnertubeClientEntry(
-      id: id,
-      clientName: clientMap?['clientName']?.toString() ?? id,
-      clientVersion: clientMap?['clientVersion']?.toString() ?? '',
-      host: _hostFromApiUrl(client.apiUrl),
-      payload: payload,
-      apiUrl: client.apiUrl,
-      userAgent: clientMap?['userAgent']?.toString(),
-      isBuiltin: true,
-      isRecommended: recommended,
-    );
-  }
-
-  String _hostFromApiUrl(String apiUrl) {
-    final uri = Uri.tryParse(apiUrl);
-    return uri?.host ?? 'www.youtube.com';
-  }
+  return text.split('\n').first;
 }
 
 class YtdlpClientSyncResult {
   const YtdlpClientSyncResult._({
     required this.ok,
-    this.count = 0,
+    this.label,
     this.commit,
     this.error,
   });
 
   final bool ok;
-  final int count;
+  final String? label;
   final String? commit;
   final String? error;
 
-  factory YtdlpClientSyncResult.success({required int count, String? commit}) =>
-      YtdlpClientSyncResult._(ok: true, count: count, commit: commit);
+  factory YtdlpClientSyncResult.success({required String label, String? commit}) =>
+      YtdlpClientSyncResult._(ok: true, label: label, commit: commit);
 
   factory YtdlpClientSyncResult.failed(String error) =>
       YtdlpClientSyncResult._(ok: false, error: error);
 }
 
-List<YoutubeInnertubeClientEntry> parseInnertubeClientsFromYtdlp(String source) =>
-    _parseInnertubeClients(source);
+/// Compiled-in fallback used before the first sync, or if a sync is unusable.
+YoutubeInnertubeClientEntry builtinVisionOsEntry() {
+  const client = YoutubeApiClient.visionOs;
+  final payload = Map<String, dynamic>.from(client.payload);
+  final clientMap = payload['context']?['client'] as Map?;
+  return YoutubeInnertubeClientEntry(
+    id: _activeClientId,
+    clientName: clientMap?['clientName']?.toString() ?? 'VISIONOS',
+    clientVersion: clientMap?['clientVersion']?.toString() ?? '',
+    host: Uri.tryParse(client.apiUrl)?.host ?? 'www.youtube.com',
+    payload: payload,
+    apiUrl: client.apiUrl,
+    userAgent: clientMap?['userAgent']?.toString(),
+    isBuiltin: true,
+  );
+}
 
-List<YoutubeInnertubeClientEntry> _parseInnertubeClients(String source) {
-  final start = source.indexOf('INNERTUBE_CLIENTS = {');
+/// Extracts the InnerTube client table from yt-dlp's `youtube/_base.py`.
+List<YoutubeInnertubeClientEntry> parseInnertubeClientsFromYtdlp(String source) {
+  const marker = 'INNERTUBE_CLIENTS = {';
+  final start = source.indexOf(marker);
   if (start < 0) return [];
 
-  final sectionStart = start + 'INNERTUBE_CLIENTS = {'.length;
-  final sectionEnd = _findSectionEnd(source, sectionStart - 1);
-  if (sectionEnd == null) return [];
+  final openBrace = start + marker.length - 1;
+  final end = _matchingBrace(source, openBrace);
+  if (end == null) return [];
 
-  final section = source.substring(sectionStart - 1, sectionEnd + 1);
-  final blocks = _extractTopLevelClientBlocks(section);
+  final section = source.substring(openBrace, end + 1);
   final entries = <YoutubeInnertubeClientEntry>[];
-
-  for (final block in blocks) {
+  for (final block in _topLevelClientBlocks(section)) {
     final entry = _parseClientBlock(block.key, block.value);
     if (entry != null) entries.add(entry);
   }
   return entries;
 }
 
-int? _findSectionEnd(String source, int openBraceIndex) {
+int? _matchingBrace(String source, int openBraceIndex) {
   var depth = 0;
   for (var i = openBraceIndex; i < source.length; i++) {
     final char = source[i];
@@ -307,27 +240,24 @@ int? _findSectionEnd(String source, int openBraceIndex) {
   return null;
 }
 
-List<({String key, String value})> _extractTopLevelClientBlocks(String section) {
+List<({String key, String value})> _topLevelClientBlocks(String section) {
   final results = <({String key, String value})>[];
-  final keyRegex = RegExp("\n '([^']+)': \\{");
+  // Top-level client keys sit at one level of indentation inside the table.
+  final keyRegex = RegExp("\n\\s{1,8}'([A-Za-z0-9_]+)':\\s*\\{");
   var searchFrom = 0;
 
-  while (true) {
+  while (searchFrom < section.length) {
     final match = keyRegex.firstMatch(section.substring(searchFrom));
     if (match == null) break;
 
-    final absoluteStart = searchFrom + match.start;
     final key = match.group(1)!;
-    if (key.startsWith('_')) {
-      searchFrom = searchFrom + match.end;
-      continue;
-    }
-
-    final braceIndex = section.indexOf('{', absoluteStart);
-    final end = _findSectionEnd(section, braceIndex);
+    final braceIndex = searchFrom + match.end - 1;
+    final end = _matchingBrace(section, braceIndex);
     if (end == null) break;
 
-    results.add((key: key, value: section.substring(braceIndex, end + 1)));
+    if (!key.startsWith('_')) {
+      results.add((key: key, value: section.substring(braceIndex, end + 1)));
+    }
     searchFrom = end + 1;
   }
   return results;
@@ -336,10 +266,11 @@ List<({String key, String value})> _extractTopLevelClientBlocks(String section) 
 YoutubeInnertubeClientEntry? _parseClientBlock(String id, String block) {
   if (block.contains("'REQUIRE_AUTH': True")) return null;
 
-  final host = _extractQuotedField(block, 'INNERTUBE_HOST') ?? 'www.youtube.com';
-  final clientName = _extractQuotedField(block, 'clientName');
-  final clientVersion = _extractQuotedField(block, 'clientVersion');
+  final clientName = _quotedField(block, 'clientName');
+  final clientVersion = _quotedField(block, 'clientVersion');
   if (clientName == null || clientVersion == null) return null;
+
+  final host = _quotedField(block, 'INNERTUBE_HOST') ?? 'www.youtube.com';
 
   final client = <String, dynamic>{
     'clientName': clientName,
@@ -349,52 +280,41 @@ YoutubeInnertubeClientEntry? _parseClientBlock(String id, String block) {
     'utcOffsetMinutes': 0,
   };
 
-  void putString(String field) {
-    final value = _extractQuotedField(block, field);
+  for (final field in [
+    'userAgent',
+    'deviceMake',
+    'deviceModel',
+    'osName',
+    'osVersion',
+    'platform',
+    'gl',
+  ]) {
+    final value = _quotedField(block, field);
     if (value != null) client[field] = value;
   }
-
-  void putInt(String field) {
-    final value = _extractIntField(block, field);
-    if (value != null) client[field] = value;
-  }
-
-  putString('userAgent');
-  putString('deviceMake');
-  putString('deviceModel');
-  putString('osName');
-  putString('osVersion');
-  putString('platform');
-  putString('gl');
-  putInt('androidSdkVersion');
-
-  final payload = <String, dynamic>{
-    'context': <String, dynamic>{'client': client},
-  };
-
-  final apiUrl = 'https://$host/youtubei/v1/player?prettyPrint=false';
+  final sdk = _intField(block, 'androidSdkVersion');
+  if (sdk != null) client['androidSdkVersion'] = sdk;
 
   return YoutubeInnertubeClientEntry(
     id: id,
     clientName: clientName,
     clientVersion: clientVersion,
     host: host,
-    payload: payload,
-    apiUrl: apiUrl,
+    payload: {
+      'context': {'client': client},
+    },
+    apiUrl: 'https://$host/youtubei/v1/player?prettyPrint=false',
     userAgent: client['userAgent']?.toString(),
-    isRecommended: id == 'android_vr' || id == 'visionos',
   );
 }
 
-String? _extractQuotedField(String block, String field) {
-  final pattern = RegExp("'$field': '((?:\\\\'|[^'])*)'");
-  final match = pattern.firstMatch(block);
-  if (match == null) return null;
-  return match.group(1)?.replaceAll(r"\'", "'");
+String? _quotedField(String block, String field) {
+  final match = RegExp("'$field':\\s*'((?:\\\\'|[^'])*)'").firstMatch(block);
+  return match?.group(1)?.replaceAll(r"\'", "'");
 }
 
-int? _extractIntField(String block, String field) {
-  final match = RegExp("'$field': (\\d+)").firstMatch(block);
+int? _intField(String block, String field) {
+  final match = RegExp("'$field':\\s*(\\d+)").firstMatch(block);
   if (match == null) return null;
   return int.tryParse(match.group(1)!);
 }

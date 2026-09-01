@@ -14,7 +14,6 @@ import 'package:musified/services/ytdlp_client_sync_service.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
-import 'package:musified/widgets/settings/youtube_client_picker_sheet.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -515,23 +514,27 @@ class SettingsPage extends StatelessWidget {
                 },
               ),
               _buildDivider(isDark),
-              ValueListenableBuilder<String>(
-                valueListenable:
-                    YtdlpClientSyncService.instance.selectedClientId,
+              ValueListenableBuilder<int>(
+                valueListenable: YtdlpClientSyncService.instance.revision,
                 builder: (context, _, __) {
-                  final label =
-                      YtdlpClientSyncService.instance.selectedClientLabel();
-                  return _buildSettingRow(
-                    icon: CupertinoIcons.cloud_download,
-                    iconBg: CupertinoColors.systemRed,
-                    title: 'YouTube Stream Client',
-                    subtitle: 'Sync from yt-dlp · pick InnerTube client',
-                    trailingText: label,
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      unawaited(showYoutubeClientPickerSheet(context));
+                  return ValueListenableBuilder<bool>(
+                    valueListenable: YtdlpClientSyncService.instance.syncing,
+                    builder: (context, syncing, __) {
+                      final service = YtdlpClientSyncService.instance;
+                      return _buildSettingRow(
+                        icon: CupertinoIcons.cloud_download,
+                        iconBg: CupertinoColors.systemRed,
+                        title: 'YouTube Stream Client',
+                        subtitle: syncing
+                            ? 'Syncing from yt-dlp…'
+                            : _clientSyncSubtitle(service.lastSyncedAt.value),
+                        trailingText: service.clientLabel,
+                        onTap: syncing
+                            ? null
+                            : () => unawaited(_syncYoutubeClient(context)),
+                        isDark: isDark,
+                      );
                     },
-                    isDark: isDark,
                   );
                 },
               ),
@@ -852,6 +855,30 @@ class SettingsPage extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  String _clientSyncSubtitle(DateTime? syncedAt) {
+    if (syncedAt == null) return 'Tap to update definition from yt-dlp';
+    final elapsed = DateTime.now().difference(syncedAt);
+    if (elapsed.inMinutes < 1) return 'Updated from yt-dlp just now';
+    if (elapsed.inHours < 1) return 'Updated from yt-dlp ${elapsed.inMinutes}m ago';
+    if (elapsed.inDays < 1) return 'Updated from yt-dlp ${elapsed.inHours}h ago';
+    return 'Updated from yt-dlp ${elapsed.inDays}d ago';
+  }
+
+  Future<void> _syncYoutubeClient(BuildContext context) async {
+    HapticFeedback.mediumImpact();
+    final result = await YtdlpClientSyncService.instance.syncFromYtdlp();
+    if (result.ok) {
+      await invalidateAllSongStreamCaches();
+    }
+    if (!context.mounted) return;
+    showToast(
+      context,
+      result.ok
+          ? 'YouTube client updated to ${result.label}'
+          : 'Sync failed: ${result.error}',
     );
   }
 

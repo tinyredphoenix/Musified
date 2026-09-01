@@ -133,13 +133,20 @@ String? consumeYoutubeStreamError() {
 }
 
 String _youtubeStreamFailureMessage() {
-  final label = YtdlpClientSyncService.instance.selectedClientLabel();
-  final entry = YtdlpClientSyncService.instance.selectedEntry();
-  if (entry != null && entry.likelyNeedsDecipher) {
-    return "Couldn't load stream with $label (URLs need deciphering). "
-        'Pick android_vr or visionos in Settings → YouTube Stream Client.';
-  }
-  return "Couldn't load YouTube stream ($label). Sync or change client in Settings.";
+  final label = YtdlpClientSyncService.instance.clientLabel;
+  return "Couldn't load YouTube stream ($label). "
+      'Try Sync YouTube Client in Settings.';
+}
+
+/// googlevideo URLs carry the exact track length as `dur`. Reading it avoids
+/// racing an async catalog lookup, and it is what keeps the player from
+/// reporting a doubled duration for these streams.
+int? youtubeStreamDurationSeconds(Uri url) {
+  final raw = url.queryParameters['dur'];
+  if (raw == null) return null;
+  final seconds = double.tryParse(raw);
+  if (seconds == null || seconds <= 0) return null;
+  return seconds.round();
 }
 
 String _songStreamCacheKey(String songId, String source) =>
@@ -245,17 +252,11 @@ _fetchStreamManifest(String songId) async {
     return null;
   }
 
-  final client = selectedYoutubeStreamClient();
-  if (client == null) {
-    logger.log('No YouTube InnerTube client selected for $songId');
-    return null;
-  }
-
   return _tryGetManifest(
     songId,
-    attempt: YtdlpClientSyncService.instance.selectedClientLabel(),
+    attempt: YtdlpClientSyncService.instance.clientLabel,
     timeout: const Duration(seconds: 20),
-    ytClients: [client],
+    ytClients: [selectedYoutubeStreamClient()],
   );
 }
 
@@ -905,7 +906,7 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
     if (playable.isEmpty) {
       logger.log(
         'fetchBestAudioStream: no playable URLs for $songId '
-        '(client may need signature deciphering — try android_vr)',
+        '(client returned ciphered URLs)',
       );
       return null;
     }
@@ -998,7 +999,12 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
             song['image'] = metadata['image'];
           }
           if (cachePreference == 'youtube') {
-            unawaited(ensureYoutubeCatalogDuration(song));
+            final cachedDuration = metadata['durationSeconds'];
+            if (cachedDuration is int && cachedDuration > 0) {
+              song['duration'] = cachedDuration;
+            } else {
+              unawaited(ensureYoutubeCatalogDuration(song));
+            }
           }
           logger.log('Using cached $cachePreference URL for $songId');
           return cachedUrl;
@@ -1066,13 +1072,23 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     song['resolvedItag'] = selectedStream.tag;
     song['resolvedUserAgent'] = userAgent;
 
+    // Set before the source is built so the media item and the near-end check
+    // never see the player's (sometimes doubled) reported duration.
+    final streamDuration = youtubeStreamDurationSeconds(selectedStream.url);
+    if (streamDuration != null) {
+      song['duration'] = streamDuration;
+    }
+
     await _cacheResolvedStream(songId, 'youtube', url, {
       'bitrate': song['resolvedBitrate'],
       'format': song['resolvedFormat'],
       'itag': selectedStream.tag,
       'userAgent': userAgent,
+      'durationSeconds': streamDuration,
     });
-    unawaited(ensureYoutubeCatalogDuration(song));
+    if (streamDuration == null) {
+      unawaited(ensureYoutubeCatalogDuration(song));
+    }
     logger.log('Resolved YouTube stream: host=${Uri.tryParse(url)?.host}');
     return url;
   } on TimeoutException catch (_) {
@@ -1223,6 +1239,11 @@ Future<bool> makeSongOffline(
         downloadedSource = 'youtube';
         audioBitrateKbps = audioManifest.bitrate.kiloBitsPerSecond.round();
         audioCodec = audioManifest.audioCodec;
+
+        final streamDuration = youtubeStreamDurationSeconds(audioManifest.url);
+        if (streamDuration != null) {
+          offlineSong['duration'] = streamDuration;
+        }
 
         final selectedClient = _getSelectedAudioStream(ytid)?.client;
         final stream = ytClient.videos.streamsClient.get(
