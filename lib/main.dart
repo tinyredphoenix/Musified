@@ -14,6 +14,8 @@ import 'package:musified/services/common_services.dart';
 import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/io_service.dart';
 import 'package:musified/services/logger_service.dart';
+
+export 'package:musified/services/logger_service.dart' show logger, Logger;
 import 'package:musified/services/playlist_download_service.dart';
 import 'package:musified/services/playlist_sharing.dart';
 import 'package:musified/services/playlists_manager.dart';
@@ -39,7 +41,7 @@ MusifiedAudioHandler get audioHandler {
 
 bool get isAudioHandlerInitialized => _audioHandlerInstance != null;
 
-final logger = Logger();
+// Re-exported from logger_service for files that import main.dart.
 final appLinks = AppLinks();
 
 class MusifiedApp extends StatefulWidget {
@@ -198,6 +200,7 @@ class _MusifiedAppState extends State<MusifiedApp> with WidgetsBindingObserver {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  logger.resetForNewSession();
   configureImageMemoryBudget();
 
   ErrorWidget.builder = (FlutterErrorDetails details) {

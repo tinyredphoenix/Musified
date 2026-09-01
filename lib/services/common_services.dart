@@ -244,7 +244,7 @@ _fetchStreamManifest(String songId) async {
           .timeout(const Duration(seconds: 15));
       if (manifest != null && manifest.audioOnly.isNotEmpty) {
         logger.log('YouTube manifest via proxy for $songId');
-        return (manifest: manifest, client: selectedYoutubeStreamClient());
+        return (manifest: manifest, client: youtubeStreamClient());
       }
     } catch (error) {
       logger.log('Proxy getManifest failed for $songId: $error');
@@ -256,7 +256,7 @@ _fetchStreamManifest(String songId) async {
     songId,
     attempt: YtdlpClientSyncService.instance.clientLabel,
     timeout: const Duration(seconds: 20),
-    ytClients: [selectedYoutubeStreamClient()],
+    ytClients: youtubeStreamClients(),
   );
 }
 

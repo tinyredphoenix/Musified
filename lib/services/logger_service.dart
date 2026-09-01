@@ -2,6 +2,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/extensions/l10n.dart';
 
+/// App-wide log sink (settings → copy logs). Defined here so services can log
+/// without importing [main.dart].
+final logger = Logger();
+
 class Logger extends ChangeNotifier {
   static const int _maxLogChars = 200000;
   String _logs = '';
@@ -55,4 +59,9 @@ class Logger extends ChangeNotifier {
     _logCount = 0;
     notifyListeners();
   }
+
+  /// Wipes the in-memory log buffer. Does not touch Hive, stream cache, or
+  /// downloaded files. Called once at cold start so prior sessions cannot
+  /// accumulate in RAM.
+  void resetForNewSession() => clearLogs();
 }

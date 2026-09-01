@@ -287,7 +287,7 @@ class ProxyManager {
   ) async {
     try {
       final manifest = await _defaultYt.videos.streams
-          .getManifest(songId, ytClients: customClients)
+          .getManifest(songId, ytClients: youtubeStreamClients())
           .timeout(Duration(seconds: timeoutSeconds));
       return manifest;
     } catch (e) {
@@ -306,7 +306,7 @@ class ProxyManager {
       final res = _ensureProxyResources(proxy, timeoutSeconds: timeoutSeconds);
       ytClient = YoutubeExplode(httpClient: YoutubeHttpClient(res.ioClient));
       final manifest = await ytClient.videos.streams
-          .getManifest(songId, ytClients: customClients)
+          .getManifest(songId, ytClients: youtubeStreamClients())
           .timeout(Duration(seconds: timeoutSeconds));
       _workingProxies.add(proxy);
       return manifest;
