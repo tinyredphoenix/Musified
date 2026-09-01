@@ -21,6 +21,7 @@ import 'package:musified/services/common_services.dart';
 
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/utilities/app_utils.dart';
+import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/utilities/map_utils.dart';
 import 'package:musified/utilities/mediaitem.dart';
 import 'package:rxdart/rxdart.dart';
@@ -554,13 +555,19 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         'seq': '${audioPlayer.currentIndex ?? '-'}/${audioPlayer.sequence.length}',
         'pos': '${audioPlayer.position.inSeconds}s',
         'dur': '${audioPlayer.duration?.inSeconds ?? '-'}s',
-        'q': '$_hub.queue.currentIndex/${_hub.queue.items.length}',
+        'q': '${_hub.queue.currentIndex}/${_hub.queue.items.length}',
         'load': _currentLoadingTransitionId,
         'done': _completion.eventPending,
         if (_playback.lastError != null) 'err': _playback.lastError,
         ...?extra,
       },
     );
+  }
+
+  void _showPlaybackStreamError() {
+    final message = consumeYoutubeStreamError() ??
+        "Couldn't play this track. Check Settings → YouTube Stream Client.";
+    showAppToast(message);
   }
 
   bool _isCurrentMediaItemMatchingSong(
@@ -918,10 +925,22 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         return;
       }
 
+      final snapshot = _captureQueuePlaybackState();
       _hub.queueOps.replaceWithSingle(song);
       _hydrateQueueEntryIds();
       _updateQueueMediaItems();
-      await _playFromQueue(0);
+      final success = await _playFromQueue(0);
+      if (!success) {
+        _restoreQueuePlaybackState(snapshot);
+        _hydrateQueueEntryIds();
+        _updateQueueMediaItems();
+        _updatePlaybackState();
+        logger.log(
+          'playSingleSong failed — restored previous queue',
+          data: {'ytid': ytid, 'title': song['title']},
+        );
+        _showPlaybackStreamError();
+      }
     } catch (e, stackTrace) {
       logger.log('Error in playSingleSong', error: e, stackTrace: stackTrace);
     }
@@ -1209,20 +1228,81 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     }
   }
 
+  void _rollbackFailedQueuePlay({
+    required int previousQueueIndex,
+    required MediaItem? previousMediaItem,
+    required bool resumePlayback,
+  }) {
+    if (_hub.queue.items.isEmpty) {
+      _hub.queue.currentIndex = -1;
+    } else {
+      _hub.queue.currentIndex = previousQueueIndex.clamp(
+        0,
+        _hub.queue.items.length - 1,
+      );
+    }
+    if (previousMediaItem != null) {
+      _publishMediaItem(previousMediaItem, force: true);
+    }
+    _updatePlaybackState();
+    if (resumePlayback &&
+        audioPlayer.audioSource != null &&
+        !audioPlayer.playing) {
+      unawaited(audioPlayer.play().catchError((_) {}));
+    }
+  }
+
+  ({
+    List<Map> items,
+    List<Map> originals,
+    List<Map> history,
+    int currentIndex,
+    MediaItem? mediaItem,
+  }) _captureQueuePlaybackState() {
+    return (
+      items: cloneMaps(_hub.queue.items),
+      originals: cloneMaps(_hub.queue.originalItems),
+      history: cloneMaps(_hub.queue.history),
+      currentIndex: _hub.queue.currentIndex,
+      mediaItem: mediaItem.valueOrNull,
+    );
+  }
+
+  void _restoreQueuePlaybackState(
+    ({
+      List<Map> items,
+      List<Map> originals,
+      List<Map> history,
+      int currentIndex,
+      MediaItem? mediaItem,
+    }) snapshot,
+  ) {
+    _hub.queue.items
+      ..clear()
+      ..addAll(cloneMaps(snapshot.items));
+    _hub.queue.originalItems
+      ..clear()
+      ..addAll(cloneMaps(snapshot.originals));
+    _hub.queue.history
+      ..clear()
+      ..addAll(cloneMaps(snapshot.history));
+    _hub.queue.currentIndex = snapshot.items.isEmpty
+        ? -1
+        : snapshot.currentIndex.clamp(0, snapshot.items.length - 1);
+    if (snapshot.mediaItem != null) {
+      _publishMediaItem(snapshot.mediaItem!, force: true);
+    }
+  }
+
   // --- Playback load ---
 
-  Future<void> _playFromQueue(int index) async {
+  Future<bool> _playFromQueue(int index) async {
     if (index < 0 || index >= _hub.queue.items.length) {
       logger.log('Invalid queue index: $index');
-      return;
+      return false;
     }
 
     _playback.gaplessSourceActive = false;
-
-    try {
-      final session = await AudioSession.instance;
-      await session.setActive(true);
-    } catch (_) {}
 
     try {
       final session = await AudioSession.instance;
@@ -1236,7 +1316,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       index,
     )) {
       _logPlayer('playFromQueue skipped — already loading this index');
-      return;
+      return false;
     }
 
     _completion.tryMarkCompletionLoadStarted(_hub.queue.loadingIndex);
@@ -1245,7 +1325,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         'playFromQueue skipped — completion load already started',
         extra: {'loadingIndex': _hub.queue.loadingIndex, 'requested': index},
       );
-      return;
+      return false;
     }
 
     // Drop in-flight YouTube preloads so a skip does not compete with them.
@@ -1257,9 +1337,12 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     _hub.queue.loadingIndex = index;
     _currentLoadingTransitionId = currentTransitionId;
 
+    final wasPlayingBeforeLoad = audioPlayer.playing;
+    final previousQueueIndex = _hub.queue.currentIndex;
+    final previousMediaItem = mediaItem.valueOrNull;
+    var succeeded = false;
+
     try {
-      final previousQueueIndex = _hub.queue.currentIndex;
-      final previousMediaItem = mediaItem.valueOrNull;
       _hub.queue.currentIndex = index;
 
       final currentSong = _hub.queue.items[_hub.queue.currentIndex];
@@ -1280,40 +1363,50 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         transitionId: currentTransitionId,
       );
 
-      // Only process result if this is still the current transition
-      if (currentTransitionId == _currentLoadingTransitionId) {
-        if (success) {
-          _completion.clearConsecutiveErrors();
-          _preloadUpcomingSongs();
-          // Trigger background song addition if auto-play is enabled
-          if (playNextSongAutomatically.value) {
-            unawaited(_backgroundAddSongsToQueue());
-          }
-        } else {
-          _hub.queue.currentIndex = previousQueueIndex;
-          if (previousMediaItem != null) {
-            _publishMediaItem(previousMediaItem, force: true);
-          }
-          _updatePlaybackState();
-          _completion.handlePlaybackError(
-            _playbackErrorContext(),
-            advance: false,
-          );
+      if (currentTransitionId != _currentLoadingTransitionId) {
+        return false;
+      }
+
+      if (success) {
+        succeeded = true;
+        _completion.clearConsecutiveErrors();
+        _preloadUpcomingSongs();
+        if (playNextSongAutomatically.value) {
+          unawaited(_backgroundAddSongsToQueue());
         }
+      } else {
+        _rollbackFailedQueuePlay(
+          previousQueueIndex: previousQueueIndex,
+          previousMediaItem: previousMediaItem,
+          resumePlayback: wasPlayingBeforeLoad,
+        );
+        _completion.handlePlaybackError(
+          _playbackErrorContext(),
+          advance: false,
+        );
+        _showPlaybackStreamError();
       }
     } catch (e, stackTrace) {
       logger.log('Error playing from queue', error: e, stackTrace: stackTrace);
+      if (currentTransitionId == _currentLoadingTransitionId) {
+        _rollbackFailedQueuePlay(
+          previousQueueIndex: previousQueueIndex,
+          previousMediaItem: previousMediaItem,
+          resumePlayback: wasPlayingBeforeLoad,
+        );
+      }
       _completion.handlePlaybackError(
         _playbackErrorContext(),
         advance: false,
       );
+      _showPlaybackStreamError();
     } finally {
-      // Only reset if this is still the transition that started it
       if (currentTransitionId == _currentLoadingTransitionId) {
         _hub.queue.loadingIndex = -1;
         _currentLoadingTransitionId = -1;
       }
     }
+    return succeeded;
   }
 
   // --- Preload (via hub) ---

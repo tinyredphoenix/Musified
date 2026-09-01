@@ -16,12 +16,15 @@ class SyncedLyricsView extends StatefulWidget {
     required this.lyrics,
     required this.isActive,
     this.isFullScreen = false,
+    this.isCompact = false,
   });
 
   final MediaItem metadata;
   final String lyrics;
   final bool isActive;
   final bool isFullScreen;
+  /// Flip-card lyrics on the now-playing artwork (small square).
+  final bool isCompact;
 
   @override
   State<SyncedLyricsView> createState() => _SyncedLyricsViewState();
@@ -227,14 +230,62 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   @override
   Widget build(BuildContext context) {
     final isDark = isAppDarkMode(context);
-    final activeTextColor = isDark ? CupertinoColors.white : CupertinoColors.black;
-    final pastTextColor = isDark ? const Color(0xCCFFFFFF) : const Color(0xCC000000);
-    final upcomingTextColor = isDark ? const Color(0x66FFFFFF) : const Color(0x66000000);
-    final glowColor = isDark ? const Color(0x80FFFFFF) : const Color(0x29000000);
-    final pillColor = isDark ? const Color(0x33FFFFFF) : const Color(0x14000000);
+    final primary = CupertinoTheme.of(context).primaryColor;
+    final activeTextColor =
+        isDark ? CupertinoColors.white : MusifiedStyle.lightOnSurface;
+    final pastTextColor =
+        isDark ? MusifiedStyle.secondaryLabel : MusifiedStyle.lightSecondaryLabel;
+    final upcomingTextColor =
+        isDark ? MusifiedStyle.tertiaryLabel : MusifiedStyle.lightTertiaryLabel;
+    final activePillColor = primary.withValues(alpha: isDark ? 0.18 : 0.12);
+    final activeBorderColor = primary.withValues(alpha: 0.45);
     final fadeStops = widget.isFullScreen
-        ? const [0.0, 0.08, 0.92, 1.0]
-        : const [0.0, 0.06, 0.94, 1.0];
+        ? const [0.0, 0.1, 0.9, 1.0]
+        : widget.isCompact
+        ? const [0.0, 0.04, 0.96, 1.0]
+        : const [0.0, 0.08, 0.92, 1.0];
+
+    final lyricsBody = _parsedLyrics == null
+        ? _buildPlainLyricsView(activeTextColor, pastTextColor)
+        : _buildSyncedLyricsView(
+            activeTextColor,
+            pastTextColor,
+            upcomingTextColor,
+            activePillColor,
+            activeBorderColor,
+            primary,
+          );
+
+    if (widget.isCompact) {
+      return Stack(
+        children: [
+          lyricsBody,
+          Positioned(
+            top: 6,
+            right: 6,
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () {
+                showFullPageLyrics(context, widget.metadata);
+              },
+              child: Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: musifiedSecondarySurface(isDark),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  CupertinoIcons.fullscreen,
+                  color: activeTextColor,
+                  size: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
 
     return Stack(
       children: [
@@ -253,15 +304,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
             ).createShader(bounds);
           },
           blendMode: BlendMode.dstIn,
-          child: _parsedLyrics == null
-              ? _buildPlainLyricsView(activeTextColor)
-              : _buildSyncedLyricsView(
-                  activeTextColor,
-                  pastTextColor,
-                  upcomingTextColor,
-                  glowColor,
-                  pillColor,
-                ),
+          child: lyricsBody,
         ),
         if (!widget.isFullScreen)
           Positioned(
@@ -276,7 +319,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: isDark ? const Color(0x4DFFFFFF) : const Color(0x29000000),
+                  color: isDark ? const Color(0x33FFFFFF) : const Color(0x1A000000),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -291,18 +334,23 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     );
   }
 
-  Widget _buildPlainLyricsView(Color textColor) {
+  Widget _buildPlainLyricsView(Color textColor, Color mutedColor) {
+    final fontSize = widget.isCompact ? 14.0 : (widget.isFullScreen ? 22.0 : 20.0);
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
+      padding: EdgeInsets.symmetric(
+        horizontal: widget.isCompact ? 14 : MusifiedStyle.spaceXl,
+        vertical: widget.isCompact ? 16 : MusifiedStyle.spaceXxl,
+      ),
       physics: const BouncingScrollPhysics(),
       child: Text(
         widget.lyrics,
         style: TextStyle(
           fontFamily: MusifiedStyle.displayFont,
-          fontSize: 20,
+          fontSize: fontSize,
           fontWeight: FontWeight.w600,
           color: textColor,
-          height: 1.6,
+          height: 1.5,
+          letterSpacing: -0.15,
           decoration: TextDecoration.none,
         ),
         textAlign: TextAlign.center,
@@ -314,8 +362,9 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     Color activeTextColor,
     Color pastTextColor,
     Color upcomingTextColor,
-    Color glowColor,
-    Color pillColor,
+    Color activePillColor,
+    Color activeBorderColor,
+    Color accentColor,
   ) {
     final lyrics = _parsedLyrics!;
 
@@ -334,8 +383,8 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
           return ListView.builder(
             controller: _scrollController,
             padding: EdgeInsets.symmetric(
-              vertical: viewportHeight / 2,
-              horizontal: 20,
+              vertical: viewportHeight / (widget.isCompact ? 2.8 : 2.0),
+              horizontal: widget.isCompact ? 12 : 20,
             ),
             physics: const BouncingScrollPhysics(),
             itemCount: lyrics.length,
@@ -366,12 +415,19 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                     duration: const Duration(milliseconds: 280),
                     curve: Curves.easeOutCubic,
                     padding: EdgeInsets.symmetric(
-                      vertical: isCurrent ? 14 : 9,
-                      horizontal: isCurrent ? 16 : 10,
+                      vertical: isCurrent
+                          ? (widget.isCompact ? 8 : 14)
+                          : (widget.isCompact ? 5 : 9),
+                      horizontal: isCurrent
+                          ? (widget.isCompact ? 10 : 16)
+                          : (widget.isCompact ? 6 : 10),
                     ),
                     decoration: BoxDecoration(
-                      color: isCurrent ? pillColor : const Color(0x00000000),
-                      borderRadius: BorderRadius.circular(12),
+                      color: isCurrent ? activePillColor : const Color(0x00000000),
+                      borderRadius: BorderRadius.circular(MusifiedStyle.radiusMd),
+                      border: isCurrent
+                          ? Border.all(color: activeBorderColor, width: 1)
+                          : null,
                     ),
                     child: AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 280),
@@ -379,20 +435,29 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
                       style: TextStyle(
                         fontFamily: MusifiedStyle.displayFont,
                         fontSize: isCurrent
-                            ? (widget.isFullScreen ? 28 : 24)
-                            : (widget.isFullScreen ? 22 : 19),
-                        fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
-                        letterSpacing: isCurrent ? -0.3 : -0.1,
+                            ? (widget.isFullScreen
+                                ? 30
+                                : widget.isCompact
+                                ? 17
+                                : 26)
+                            : (widget.isFullScreen
+                                ? 20
+                                : widget.isCompact
+                                ? 14
+                                : 18),
+                        fontWeight:
+                            isCurrent ? FontWeight.w800 : FontWeight.w500,
+                        letterSpacing: isCurrent ? -0.5 : -0.15,
                         color: isCurrent
                             ? activeTextColor
                             : (isPast ? pastTextColor : upcomingTextColor),
-                        height: 1.28,
+                        height: 1.35,
                         decoration: TextDecoration.none,
                         shadows: isCurrent
                             ? [
                                 Shadow(
-                                  color: glowColor,
-                                  blurRadius: 16,
+                                  color: accentColor.withValues(alpha: 0.35),
+                                  blurRadius: 12,
                                 ),
                               ]
                             : null,

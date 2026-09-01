@@ -22,6 +22,7 @@ import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/source_resolver.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
+import 'package:musified/services/ytdlp_client_sync_service.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
@@ -290,6 +291,7 @@ Future<void> initialisation() async {
     // Restore persisted settings into ValueNotifiers + theme globals
     reloadSettingsFromStorage();
     syncThemeFromSettings();
+    unawaited(YtdlpClientSyncService.instance.ensureLoaded());
     reloadSongLibraryStateFromStorage();
     reloadPlaylistsStateFromStorage();
     OfflinePlaylistService().reloadOfflinePlaylistsFromStorage();

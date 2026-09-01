@@ -10,9 +10,11 @@ import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
+import 'package:musified/services/ytdlp_client_sync_service.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/flutter_toast.dart';
+import 'package:musified/widgets/settings/youtube_client_picker_sheet.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -507,6 +509,27 @@ class SettingsPage extends StatelessWidget {
                         context,
                         'Default provider: ${next == 'youtube' ? 'YouTube Music' : 'JioSaavn 320k Lossless'}',
                       );
+                    },
+                    isDark: isDark,
+                  );
+                },
+              ),
+              _buildDivider(isDark),
+              ValueListenableBuilder<String>(
+                valueListenable:
+                    YtdlpClientSyncService.instance.selectedClientId,
+                builder: (context, _, __) {
+                  final label =
+                      YtdlpClientSyncService.instance.selectedClientLabel();
+                  return _buildSettingRow(
+                    icon: CupertinoIcons.cloud_download,
+                    iconBg: CupertinoColors.systemRed,
+                    title: 'YouTube Stream Client',
+                    subtitle: 'Sync from yt-dlp · pick InnerTube client',
+                    trailingText: label,
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      unawaited(showYoutubeClientPickerSheet(context));
                     },
                     isDark: isDark,
                   );

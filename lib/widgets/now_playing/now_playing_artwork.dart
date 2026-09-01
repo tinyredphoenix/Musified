@@ -90,48 +90,48 @@ class NowPlayingArtwork extends StatelessWidget {
         ),
         child: AsyncLoader<String?>(
           future: getSongLyrics(metadata.artist, metadata.title),
-          emptyWidget: const Center(
+          emptyWidget: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   CupertinoIcons.quote_bubble,
-                  size: 48,
-                  color: CupertinoColors.systemGrey,
+                  size: 36,
+                  color: isDark
+                      ? MusifiedStyle.tertiaryLabel
+                      : MusifiedStyle.lightTertiaryLabel,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: MusifiedStyle.spaceMd),
                 Text(
                   'Lyrics Not Available',
-                  style: TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: CupertinoColors.systemGrey,
-                    decoration: TextDecoration.none,
+                  style: MusifiedStyle.songSubtitle(
+                    isDark
+                        ? MusifiedStyle.secondaryLabel
+                        : MusifiedStyle.lightSecondaryLabel,
                   ),
                   textAlign: TextAlign.center,
                 ),
               ],
             ),
           ),
-          errorBuilder: (ctx, error, stack) => const Center(
+          errorBuilder: (ctx, error, stack) => Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   CupertinoIcons.quote_bubble,
-                  size: 48,
-                  color: CupertinoColors.systemGrey,
+                  size: 36,
+                  color: isDark
+                      ? MusifiedStyle.tertiaryLabel
+                      : MusifiedStyle.lightTertiaryLabel,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: MusifiedStyle.spaceMd),
                 Text(
                   'Lyrics Not Available',
-                  style: TextStyle(
-                    fontFamily: MusifiedStyle.uiFont,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: CupertinoColors.systemGrey,
-                    decoration: TextDecoration.none,
+                  style: MusifiedStyle.songSubtitle(
+                    isDark
+                        ? MusifiedStyle.secondaryLabel
+                        : MusifiedStyle.lightSecondaryLabel,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -144,6 +144,7 @@ class NowPlayingArtwork extends StatelessWidget {
               metadata: metadata,
               lyrics: lyrics ?? context.l10n.lyricsNotAvailable,
               isActive: !isFront,
+              isCompact: true,
             ),
           ),
         ),

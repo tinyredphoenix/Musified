@@ -5,7 +5,7 @@ repository: https://github.com/tinyredphoenix/Musified
 issue_tracker: https://github.com/tinyredphoenix/Musified/issues
 
 publish_to: 'none'
-version: 1.4.0+26
+version: 1.5.0+27
 
 environment:
   sdk: '>=3.12.0 <4.0.0'

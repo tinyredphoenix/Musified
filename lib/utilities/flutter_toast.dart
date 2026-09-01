@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:musified/main.dart';
+import 'package:musified/services/router_service.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/mini_player.dart';
@@ -181,4 +182,15 @@ void _dismissToast() {
   _toastTimer = null;
   _activeToast?.remove();
   _activeToast = null;
+}
+
+/// Toast from services (e.g. audio handler) without a local [BuildContext].
+void showAppToast(
+  String text, {
+  Duration duration = const Duration(seconds: 3),
+  IconData icon = CupertinoIcons.exclamationmark_circle_fill,
+}) {
+  final context = NavigationManager.parentNavigatorKey.currentContext;
+  if (context == null) return;
+  showToast(context, text, duration: duration, icon: icon);
 }

@@ -20,8 +20,10 @@ class FullPageLyricsModal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = isAppDarkMode(context);
-    final bg = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
-    final textColor = isDark ? CupertinoColors.white : CupertinoColors.black;
+    final bg = musifiedCanvas(isDark);
+    final titleColor = isDark ? CupertinoColors.white : MusifiedStyle.lightOnSurface;
+    final subtitleColor =
+        isDark ? MusifiedStyle.secondaryLabel : MusifiedStyle.lightSecondaryLabel;
     final title = metadata.title;
     final artist = metadata.artist ?? 'Musified';
 
@@ -30,44 +32,35 @@ class FullPageLyricsModal extends StatelessWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // Top Bar with artwork thumbnail and close button
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(
+                horizontal: MusifiedStyle.spaceLg,
+                vertical: MusifiedStyle.spaceSm,
+              ),
               child: Row(
                 children: [
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(MusifiedStyle.radiusSm),
                     child: SongArtworkWidget(
                       metadata: metadata,
-                      size: 42,
+                      size: 44,
                       errorWidgetIconSize: 20,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: MusifiedStyle.spaceMd),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           title,
-                          style: TextStyle(
-                            fontFamily: MusifiedStyle.displayFont,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: textColor,
-                            decoration: TextDecoration.none,
-                          ),
+                          style: MusifiedStyle.songTitle(titleColor),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           artist,
-                          style: const TextStyle(
-                            fontFamily: MusifiedStyle.uiFont,
-                            fontSize: 13,
-                            color: CupertinoColors.systemGrey,
-                            decoration: TextDecoration.none,
-                          ),
+                          style: MusifiedStyle.songSubtitle(subtitleColor),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -81,15 +74,15 @@ class FullPageLyricsModal extends StatelessWidget {
                       Navigator.pop(context);
                     },
                     child: Container(
-                      width: 32,
-                      height: 32,
+                      width: 34,
+                      height: 34,
                       decoration: BoxDecoration(
                         color: musifiedSecondarySurface(isDark),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
                         CupertinoIcons.chevron_down,
-                        color: textColor,
+                        color: titleColor,
                         size: 18,
                       ),
                     ),
@@ -97,31 +90,19 @@ class FullPageLyricsModal extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 8),
-            // Live Synced Lyrics Body
             Expanded(
               child: AsyncLoader<String?>(
                 future: getSongLyrics(metadata.artist, metadata.title),
-                emptyWidget: const Center(
+                emptyWidget: Center(
                   child: Text(
                     'No Lyrics Available',
-                    style: TextStyle(
-                      fontFamily: MusifiedStyle.uiFont,
-                      fontSize: 16,
-                      color: CupertinoColors.systemGrey,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: MusifiedStyle.songSubtitle(subtitleColor),
                   ),
                 ),
-                errorBuilder: (_, __, ___) => const Center(
+                errorBuilder: (_, __, ___) => Center(
                   child: Text(
                     'Failed to Load Lyrics',
-                    style: TextStyle(
-                      fontFamily: MusifiedStyle.uiFont,
-                      fontSize: 16,
-                      color: CupertinoColors.systemGrey,
-                      decoration: TextDecoration.none,
-                    ),
+                    style: MusifiedStyle.songSubtitle(subtitleColor),
                   ),
                 ),
                 builder: (context, lyrics) => SyncedLyricsView(
@@ -132,7 +113,6 @@ class FullPageLyricsModal extends StatelessWidget {
                 ),
               ),
             ),
-            // Bottom Mini Scrub Bar
             const Padding(
               padding: EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: PositionSlider(),

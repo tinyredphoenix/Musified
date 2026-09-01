@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/widgets.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
+import 'package:musified/constants/clients.dart';
 import 'package:musified/main.dart' show logger;
 import 'package:musified/services/artist_service.dart' show ytMusicClient;
 import 'package:musified/services/data_manager.dart';
@@ -14,6 +14,7 @@ import 'package:musified/services/playlists_manager.dart';
 import 'package:musified/services/proxy_manager.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/source_resolver.dart';
+import 'package:musified/services/ytdlp_client_sync_service.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
 import 'package:musified/utilities/app_utils.dart';
@@ -119,10 +120,22 @@ void reloadSongLibraryStateFromStorage() {
 const Duration _cacheValidationDuration = Duration(hours: 1);
 const Duration _headRevalidateAge = Duration(minutes: 30);
 
-const List<String> _pipedApiHosts = [
-  'https://pipedapi.kavin.rocks',
-  'https://pipedapi.adminforge.de',
-];
+String? _pendingYoutubeStreamError;
+
+void setYoutubeStreamError(String message) {
+  _pendingYoutubeStreamError = message;
+}
+
+String? consumeYoutubeStreamError() {
+  final message = _pendingYoutubeStreamError;
+  _pendingYoutubeStreamError = null;
+  return message;
+}
+
+String _youtubeStreamFailureMessage() {
+  final label = YtdlpClientSyncService.instance.selectedClientLabel();
+  return "Couldn't load YouTube stream ($label). Sync or change client in Settings.";
+}
 
 String _songStreamCacheKey(String songId, String source) =>
     'song_${songId}_${audioQualitySetting.value}_${source}_url';
@@ -216,10 +229,10 @@ _fetchStreamManifest(String songId) async {
     try {
       final manifest = await ProxyManager()
           .getSongManifest(songId)
-          .timeout(const Duration(seconds: 12));
+          .timeout(const Duration(seconds: 15));
       if (manifest != null && manifest.audioOnly.isNotEmpty) {
         logger.log('YouTube manifest via proxy for $songId');
-        return (manifest: manifest, client: null);
+        return (manifest: manifest, client: selectedYoutubeStreamClient());
       }
     } catch (error) {
       logger.log('Proxy getManifest failed for $songId: $error');
@@ -227,28 +240,18 @@ _fetchStreamManifest(String songId) async {
     return null;
   }
 
-  // Do not pass ytClients on the first attempt: that disables the library's
-  // automatic TV fallback, and wrapping a sequential multi-client loop in a
-  // short timeout always fails.
-  final resolved =
-      await _tryGetManifest(
-        songId,
-        attempt: 'default clients',
-        timeout: const Duration(seconds: 12),
-      ) ??
-      await _tryGetManifest(
-        songId,
-        attempt: 'iOS client',
-        timeout: const Duration(seconds: 10),
-        ytClients: [YoutubeApiClient.ios],
-      ) ??
-      await _tryGetManifest(
-        songId,
-        attempt: 'TV client',
-        timeout: const Duration(seconds: 10),
-        ytClients: [YoutubeApiClient.tv],
-      );
-  return resolved;
+  final client = selectedYoutubeStreamClient();
+  if (client == null) {
+    logger.log('No YouTube InnerTube client selected for $songId');
+    return null;
+  }
+
+  return _tryGetManifest(
+    songId,
+    attempt: YtdlpClientSyncService.instance.selectedClientLabel(),
+    timeout: const Duration(seconds: 20),
+    ytClients: [client],
+  );
 }
 
 DateTime? _parseCacheTimestamp(dynamic raw) {
@@ -285,42 +288,6 @@ Future<bool> _isCachedStreamUrlAlive(
   } catch (_) {
     return false;
   }
-}
-
-/// Emergency fallback when InnerTube manifest fetch fails entirely.
-Future<String?> _fetchPipedAudioUrl(String songId) async {
-  for (final host in _pipedApiHosts) {
-    try {
-      final uri = Uri.parse('$host/streams/$songId');
-      final response = await http.get(uri).timeout(const Duration(seconds: 8));
-      if (response.statusCode != 200) continue;
-
-      final body = jsonDecode(response.body);
-      if (body is! Map) continue;
-      final streams = body['audioStreams'];
-      if (streams is! List || streams.isEmpty) continue;
-
-      Map? pick;
-      for (final entry in streams) {
-        if (entry is! Map) continue;
-        final mime = entry['mimeType']?.toString().toLowerCase() ?? '';
-        final format = entry['format']?.toString().toLowerCase() ?? '';
-        if (mime.contains('mp4') || format.contains('m4a')) {
-          pick = entry;
-          break;
-        }
-        pick ??= entry;
-      }
-      final url = pick?['url']?.toString();
-      if (url != null && url.isNotEmpty) {
-        logger.log('Piped fallback stream for $songId via $host');
-        return url;
-      }
-    } catch (e) {
-      logger.log('Piped fallback failed on $host for $songId: $e');
-    }
-  }
-  return null;
 }
 
 /// Returns a cached song URL if present and still valid.
@@ -369,7 +336,11 @@ Future<List> fetchSongsList(String searchQuery) async {
     final musicTracks = await ytMusicClient.music.searchSongs(searchQuery);
     if (musicTracks.isNotEmpty) {
       return musicTracks
-          .map((video) => returnSongLayout(0, video))
+          .map((video) {
+            final layout = returnSongLayout(0, video);
+            layout['catalogOrigin'] = 'youtube';
+            return layout;
+          })
           .toList();
     }
 
@@ -377,7 +348,11 @@ Future<List> fetchSongsList(String searchQuery) async {
     final List<Video> searchResults =
         await ytClient.search.search('$searchQuery audio');
     return searchResults
-        .map((video) => returnSongLayout(0, video))
+        .map((video) {
+          final layout = returnSongLayout(0, video);
+          layout['catalogOrigin'] = 'youtube';
+          return layout;
+        })
         .toList();
   } catch (e, stackTrace) {
     logger.log('Error in fetchSongsList', error: e, stackTrace: stackTrace);
@@ -860,6 +835,18 @@ void _cacheSelectedAudioStream(
   );
 }
 
+/// Drops cached stream URLs for every song (e.g. after changing InnerTube client).
+Future<void> invalidateAllSongStreamCaches() async {
+  _selectedAudioStreams.clear();
+  if (!Hive.isBoxOpen('cache')) return;
+  final box = Hive.box('cache');
+  for (final key in box.keys) {
+    if (key is String && key.startsWith('song_')) {
+      await deleteData('cache', key);
+    }
+  }
+}
+
 /// Drops both cached forms of a song's stream, so the next request resolves
 /// it again. Used when a cached URL turns out to be dead.
 Future<void> invalidateSongStreamCache(String songId) async {
@@ -937,21 +924,26 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     final preference = (requestedPreference == 'saavn' || requestedPreference == 'jiosaavn')
         ? 'jiosaavn'
         : 'youtube';
+    final catalogOrigin = song['catalogOrigin']?.toString();
+    final resolveYoutube =
+        forceSource == 'youtube' || catalogOrigin == 'youtube' || preference == 'youtube';
 
     logger.log(
       'Resolution start for songId=$songId',
       data: {
         'title': song['title'],
         'force': forceSource ?? '-',
-        'target': preference,
+        'target': resolveYoutube ? 'youtube' : preference,
+        'catalogOrigin': catalogOrigin ?? '-',
         'offlineMode': offlineMode.value,
       },
     );
 
     // Check source-specific cache
-    final sourceKey = _songStreamCacheKey(songId, preference);
+    final cachePreference = resolveYoutube ? 'youtube' : preference;
+    final sourceKey = _songStreamCacheKey(songId, cachePreference);
     final cacheBox = await Hive.openBox('cache');
-    final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, preference));
+    final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, cachePreference));
     final cachedUrl = await _getCachedSongUrl(
       sourceKey,
       cacheDuration,
@@ -960,10 +952,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
           : null,
     );
     if (cachedUrl != null) {
-      if (metadata is Map && metadata['source'] == preference) {
-        final isBadHeAac = preference == 'youtube' && _isCachedHeAacYoutube(metadata);
+      if (metadata is Map && metadata['source'] == cachePreference) {
+        final isBadHeAac = cachePreference == 'youtube' && _isCachedHeAacYoutube(metadata);
         if (!isBadHeAac) {
-          song['resolvedSource'] = preference;
+          song['resolvedSource'] = cachePreference;
           song['resolvedBitrate'] = metadata['bitrate'];
           song['resolvedFormat'] = metadata['format'];
           song['resolvedUserAgent'] = metadata['userAgent'];
@@ -971,18 +963,19 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
             song['highResImage'] = metadata['image'];
             song['image'] = metadata['image'];
           }
-          if (preference == 'youtube') {
+          if (cachePreference == 'youtube') {
             unawaited(ensureYoutubeCatalogDuration(song));
           }
-          logger.log('Using cached $preference URL for $songId');
+          logger.log('Using cached $cachePreference URL for $songId');
           return cachedUrl;
         }
       }
       await invalidateSongStreamCache(songId);
     }
 
-    // Explicit YouTube source switch: skip the JioSaavn 3s wait.
-    if (forceSource != 'youtube' &&
+    // YouTube catalog/search hits: skip JioSaavn wait when track is not on Saavn.
+    if (!resolveYoutube &&
+        forceSource != 'youtube' &&
         preference == 'jiosaavn' &&
         jiosaavnEnabled.value) {
       try {
@@ -1014,24 +1007,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       }
     }
 
-    // YouTube Music resolution
+    // YouTube Music resolution — selected Settings client only, no fallback.
     final selectedStream = await fetchBestAudioStream(songId);
     if (selectedStream == null) {
-      final pipedUrl = await _fetchPipedAudioUrl(songId);
-      if (pipedUrl != null && pipedUrl.isNotEmpty) {
-        song['resolvedSource'] = 'youtube';
-        song['resolvedFormat'] = 'm4a';
-        song['resolvedUserAgent'] =
-            'com.google.ios.youtube/21.26.4 (iPhone16,2; U; CPU iOS 18_3_2 like Mac OS X;)';
-        await _cacheResolvedStream(songId, 'youtube', pipedUrl, {
-          'bitrate': null,
-          'format': 'm4a',
-          'source': 'piped',
-        });
-        unawaited(ensureYoutubeCatalogDuration(song));
-        logger.log('Resolved Piped stream for $songId');
-        return pipedUrl;
-      }
+      setYoutubeStreamError(_youtubeStreamFailureMessage());
       logger.log('fetchSongStreamUrl: no YouTube audio streams for $songId');
       return null;
     }
@@ -1058,7 +1037,8 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     logger.log('Resolved YouTube stream: host=${Uri.tryParse(url)?.host}');
     return url;
   } on TimeoutException catch (_) {
-    logger.log('fetchSongStreamUrl request timed out for $songId');
+    setYoutubeStreamError(_youtubeStreamFailureMessage());
+    logger.log('fetchSongStreamUrl timed out for $songId');
     return null;
   } catch (e, stackTrace) {
     logger.log(
@@ -1197,6 +1177,7 @@ Future<bool> makeSongOffline(
         }
         final audioManifest = await fetchBestAudioStream(ytid);
         if (audioManifest == null) {
+          setYoutubeStreamError(_youtubeStreamFailureMessage());
           logger.log('makeSongOffline: audioManifest is null for $ytid');
           return false;
         }

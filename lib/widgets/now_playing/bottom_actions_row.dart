@@ -314,13 +314,18 @@ Future<void> _toggleOffline(
                 : '';
             showToast(context, 'Downloaded via $actualSource$fallbackNotice');
           } else {
-            final sourceLabel = source == 'saavn' || source == 'jiosaavn'
-                ? 'JioSaavn'
-                : 'YouTube';
-            showToast(
-              context,
-              '$sourceLabel download unavailable for this track. Try the other source.',
-            );
+            final ytError = consumeYoutubeStreamError();
+            if (source == 'youtube' && ytError != null) {
+              showToast(context, ytError);
+            } else {
+              final sourceLabel = source == 'saavn' || source == 'jiosaavn'
+                  ? 'JioSaavn'
+                  : 'YouTube';
+              showToast(
+                context,
+                '$sourceLabel download unavailable for this track.',
+              );
+            }
           }
         } catch (e) {
           logger.log('Error downloading song', error: e);
