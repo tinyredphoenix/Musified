@@ -134,6 +134,11 @@ String? consumeYoutubeStreamError() {
 
 String _youtubeStreamFailureMessage() {
   final label = YtdlpClientSyncService.instance.selectedClientLabel();
+  final entry = YtdlpClientSyncService.instance.selectedEntry();
+  if (entry != null && entry.likelyNeedsDecipher) {
+    return "Couldn't load stream with $label (URLs need deciphering). "
+        'Pick android_vr or visionos in Settings → YouTube Stream Client.';
+  }
   return "Couldn't load YouTube stream ($label). Sync or change client in Settings.";
 }
 
@@ -306,6 +311,14 @@ Future<String?> _getCachedSongUrl(
   );
 
   if (cachedUrl is! String || cachedUrl.isEmpty) {
+    return null;
+  }
+
+  final parsed = Uri.tryParse(cachedUrl);
+  if (parsed == null || !isPlayableYoutubeStreamUrl(parsed)) {
+    logger.log('Cached stream URL invalid for $cacheKey');
+    await deleteData('cache', cacheKey);
+    await deleteData('cache', '${cacheKey}_meta');
     return null;
   }
 
@@ -871,7 +884,13 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
     }
 
     final cachedSelection = _getSelectedAudioStream(songId);
-    if (cachedSelection != null) return cachedSelection.stream;
+    if (cachedSelection != null &&
+        isPlayableYoutubeStreamUrl(cachedSelection.stream.url)) {
+      return cachedSelection.stream;
+    }
+    if (cachedSelection != null) {
+      _selectedAudioStreams.remove(_selectedAudioStreamKey(songId));
+    }
 
     final resolvedManifest = await _fetchStreamManifest(songId);
     final audioStream = resolvedManifest?.manifest.audioOnly;
@@ -880,9 +899,24 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
       return null;
     }
 
+    final playable = audioStream
+        .where((stream) => isPlayableYoutubeStreamUrl(stream.url))
+        .toList();
+    if (playable.isEmpty) {
+      logger.log(
+        'fetchBestAudioStream: no playable URLs for $songId '
+        '(client may need signature deciphering — try android_vr)',
+      );
+      return null;
+    }
+
     final selectedStream = selectAudioOnlyStreamForQuality(
-      audioStream.sortByBitrate(),
+      playable.sortByBitrate(),
     );
+    if (!isPlayableYoutubeStreamUrl(selectedStream.url)) {
+      logger.log('fetchBestAudioStream: selected stream URL invalid for $songId');
+      return null;
+    }
     logger.log(
       'Selected YT stream itag=${selectedStream.tag} '
       'codec=${selectedStream.audioCodec} '
@@ -1016,6 +1050,11 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     }
 
     final url = selectedStream.url.toString();
+    if (!isPlayableYoutubeStreamUrl(selectedStream.url)) {
+      setYoutubeStreamError(_youtubeStreamFailureMessage());
+      logger.log('fetchSongStreamUrl: invalid stream URL for $songId');
+      return null;
+    }
     final selectedClient = _getSelectedAudioStream(songId)?.client;
     final userAgent = selectedClient == null
         ? null

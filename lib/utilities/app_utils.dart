@@ -150,6 +150,14 @@ Duration? _durationFromNumber(int n) {
   return Duration(seconds: n);
 }
 
+/// YouTube CDN URL must be absolute https with a host (not cipher-only stubs).
+bool isPlayableYoutubeStreamUrl(Uri url) {
+  if (url.toString().isEmpty) return false;
+  final scheme = url.scheme.toLowerCase();
+  if (scheme != 'http' && scheme != 'https') return false;
+  return url.host.isNotEmpty;
+}
+
 AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   List<AudioOnlyStreamInfo> availableSources,
 ) {
@@ -168,19 +176,38 @@ AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   }
 
   final aacLcSources = availableSources
-      .where((stream) => isMp4Family(stream) && !isHeAacStream(stream))
+      .where(
+        (stream) =>
+            isPlayableYoutubeStreamUrl(stream.url) &&
+            isMp4Family(stream) &&
+            !isHeAacStream(stream),
+      )
       .toList();
 
   // Last resort only: HE-AAC is playable but MUST be clipped to catalog
   // duration by the player. Never fall through to WebM on iOS.
   final heAacFallback = availableSources
-      .where((stream) => isMp4Family(stream) && isHeAacStream(stream))
+      .where(
+        (stream) =>
+            isPlayableYoutubeStreamUrl(stream.url) &&
+            isMp4Family(stream) &&
+            isHeAacStream(stream),
+      )
+      .toList();
+
+  final anyPlayable = availableSources
+      .where((stream) => isPlayableYoutubeStreamUrl(stream.url))
       .toList();
 
   final selectionPool = aacLcSources.isNotEmpty
       ? aacLcSources
-      : (heAacFallback.isNotEmpty ? heAacFallback : availableSources);
+      : (heAacFallback.isNotEmpty
+          ? heAacFallback
+          : anyPlayable);
   final sortedPool = selectionPool.sortByBitrate();
+  if (sortedPool.isEmpty) {
+    return availableSources.first;
+  }
 
   final qualitySetting = audioQualitySetting.value;
 

@@ -1,5 +1,6 @@
 import 'package:musified/main.dart';
 import 'package:musified/services/common_services.dart';
+import 'package:musified/utilities/app_utils.dart';
 
 import 'package:musified/services/audio/audio_preload_cache.dart';
 
@@ -117,9 +118,12 @@ class AudioPreloadService {
       cache.preloadingYtIds.remove(ytid);
       if (cache.activeCount > 0) cache.activeCount--;
       if (preloadUrl != null && preloadUrl.isNotEmpty) {
-        cache.preloadedYtIds.add(ytid);
-        cache.streamUrls[ytid] = preloadUrl;
-        nextSong['_preloadedStreamUrl'] = preloadUrl;
+        final uri = Uri.tryParse(preloadUrl);
+        if (uri != null && isPlayableYoutubeStreamUrl(uri)) {
+          cache.preloadedYtIds.add(ytid);
+          cache.streamUrls[ytid] = preloadUrl;
+          nextSong['_preloadedStreamUrl'] = preloadUrl;
+        }
       }
     }
   }

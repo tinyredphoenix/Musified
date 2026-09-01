@@ -113,7 +113,15 @@ class YtdlpClientSyncService {
       await addOrUpdateData(
         'settings',
         'youtubeInnertubeClientsJson',
-        jsonEncode(merged.map((e) => e.toJson()).toList()),
+        jsonEncode(
+          merged.map((e) {
+            try {
+              return e.toJson();
+            } catch (err) {
+              throw FormatException('Client ${e.id} not serializable: $err');
+            }
+          }).toList(),
+        ),
       );
       await addOrUpdateData(
         'settings',
@@ -198,14 +206,19 @@ class YtdlpClientSyncService {
       byId[entry.id] = entry;
     }
     final merged = byId.values.toList();
-    merged.sort((a, b) => a.id.compareTo(b.id));
+    merged.sort((a, b) {
+      if (a.isRecommended != b.isRecommended) {
+        return a.isRecommended ? -1 : 1;
+      }
+      return a.id.compareTo(b.id);
+    });
     return merged;
   }
 
   List<YoutubeInnertubeClientEntry> _builtinCatalog() {
     return [
-      _fromStatic('android_vr', YoutubeApiClient.androidVr),
-      _fromStatic('visionos', YoutubeApiClient.visionOs),
+      _fromStatic('android_vr', YoutubeApiClient.androidVr, recommended: true),
+      _fromStatic('visionos', YoutubeApiClient.visionOs, recommended: true),
       _fromStatic('android', YoutubeApiClient.android),
       _fromStatic('mweb', YoutubeApiClient.mweb),
       _fromStatic('web_safari', YoutubeApiClient.safari),
@@ -213,7 +226,11 @@ class YtdlpClientSyncService {
     ];
   }
 
-  YoutubeInnertubeClientEntry _fromStatic(String id, YoutubeApiClient client) {
+  YoutubeInnertubeClientEntry _fromStatic(
+    String id,
+    YoutubeApiClient client, {
+    bool recommended = false,
+  }) {
     final payload = Map<String, dynamic>.from(client.payload);
     final clientMap = payload['context']?['client'] as Map?;
     return YoutubeInnertubeClientEntry(
@@ -225,6 +242,7 @@ class YtdlpClientSyncService {
       apiUrl: client.apiUrl,
       userAgent: clientMap?['userAgent']?.toString(),
       isBuiltin: true,
+      isRecommended: recommended,
     );
   }
 
@@ -253,6 +271,9 @@ class YtdlpClientSyncResult {
   factory YtdlpClientSyncResult.failed(String error) =>
       YtdlpClientSyncResult._(ok: false, error: error);
 }
+
+List<YoutubeInnertubeClientEntry> parseInnertubeClientsFromYtdlp(String source) =>
+    _parseInnertubeClients(source);
 
 List<YoutubeInnertubeClientEntry> _parseInnertubeClients(String source) {
   final start = source.indexOf('INNERTUBE_CLIENTS = {');
@@ -361,6 +382,7 @@ YoutubeInnertubeClientEntry? _parseClientBlock(String id, String block) {
     payload: payload,
     apiUrl: apiUrl,
     userAgent: client['userAgent']?.toString(),
+    isRecommended: id == 'android_vr' || id == 'visionos',
   );
 }
 

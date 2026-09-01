@@ -1155,7 +1155,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       _queueMapStream.add(List.unmodifiable(_hub.queue.items));
       queueItemCount.value = _hub.queue.items.length;
 
-      if (_hub.queue.currentIndex < mediaItems.length &&
+      if (_hub.queue.currentIndex >= 0 &&
+          _hub.queue.currentIndex < mediaItems.length &&
           _currentLoadingTransitionId < 0) {
         _publishMediaItem(mediaItems[_hub.queue.currentIndex]);
       }

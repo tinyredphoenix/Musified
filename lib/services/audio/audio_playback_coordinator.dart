@@ -6,6 +6,7 @@ import 'package:musified/main.dart';
 import 'package:musified/services/audio/audio_playback_install.dart';
 import 'package:musified/services/audio/playback_source.dart';
 import 'package:musified/services/common_services.dart';
+import 'package:musified/utilities/app_utils.dart';
 
 typedef PlaybackLogFn = void Function(
   String message, {
@@ -175,12 +176,19 @@ class AudioPlaybackCoordinator {
     final ytid = song['ytid']?.toString();
     final warmed = song['_preloadedStreamUrl']?.toString();
     if (warmed != null && warmed.isNotEmpty) {
-      logger.log('Using pre-warmed stream URL for $ytid');
-      return warmed;
+      final warmedUri = Uri.tryParse(warmed);
+      if (warmedUri != null && isPlayableYoutubeStreamUrl(warmedUri)) {
+        logger.log('Using pre-warmed stream URL for $ytid');
+        return warmed;
+      }
     }
     if (ytid != null && preloadedUrls.containsKey(ytid)) {
-      logger.log('Using preloaded stream URL for $ytid');
-      return preloadedUrls[ytid];
+      final cached = preloadedUrls[ytid];
+      final cachedUri = cached != null ? Uri.tryParse(cached) : null;
+      if (cachedUri != null && isPlayableYoutubeStreamUrl(cachedUri)) {
+        logger.log('Using preloaded stream URL for $ytid');
+        return cached;
+      }
     }
 
     return fetchSongStreamUrl(song, song['isLive'] ?? false);

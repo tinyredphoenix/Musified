@@ -12,6 +12,7 @@ class YoutubeInnertubeClientEntry {
     this.userAgent,
     this.requiresAuth = false,
     this.isBuiltin = false,
+    this.isRecommended = false,
   });
 
   final String id;
@@ -23,11 +24,30 @@ class YoutubeInnertubeClientEntry {
   final String? userAgent;
   final bool requiresAuth;
   final bool isBuiltin;
+  final bool isRecommended;
 
   String get displayLabel => '$clientName $clientVersion';
 
+  /// Clients that often return ciphered URLs Musified cannot decipher (no JS solver).
+  bool get likelyNeedsDecipher {
+    switch (clientName) {
+      case 'ANDROID':
+      case 'IOS':
+      case 'MWEB':
+      case 'WEB_REMIX':
+      case 'WEB_CREATOR':
+        return true;
+      case 'WEB':
+        return userAgent == null;
+      default:
+        return false;
+    }
+  }
+
   String get pickerSubtitle {
     final parts = <String>[id.replaceAll('_', ' ')];
+    if (isRecommended) parts.add('recommended');
+    if (likelyNeedsDecipher) parts.add('may not play');
     if (requiresAuth) parts.add('login required');
     if (isBuiltin) parts.add('built-in');
     return parts.join(' · ');
@@ -59,6 +79,7 @@ class YoutubeInnertubeClientEntry {
         'userAgent': userAgent,
         'requiresAuth': requiresAuth,
         'isBuiltin': isBuiltin,
+        'isRecommended': isRecommended,
       };
 
   factory YoutubeInnertubeClientEntry.fromJson(Map<String, dynamic> json) {
@@ -72,6 +93,7 @@ class YoutubeInnertubeClientEntry {
       userAgent: json['userAgent']?.toString(),
       requiresAuth: json['requiresAuth'] == true,
       isBuiltin: json['isBuiltin'] == true,
+      isRecommended: json['isRecommended'] == true,
     );
   }
 }
