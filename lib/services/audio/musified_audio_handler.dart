@@ -551,6 +551,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       catalogFromExtras: _catalogDurationFromExtras,
       triggerCompleted: () =>
           _handleProcessingStateChange(ProcessingState.completed),
+      prepareNextTrack: _eagerlyPrepareNextTrack,
     );
   }
 
@@ -1357,8 +1358,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       return false;
     }
 
-    // Drop in-flight YouTube preloads so a skip does not compete with them.
-    _resetPreloadingState();
+    // Drop in-flight preloads on manual skip — keep warmed URLs when auto-
+    // advancing at track end (lock screen / cross-source handoff).
+    if (!_completion.eventPending) {
+      _resetPreloadingState();
+    }
 
     // Start new transition
     _songTransitionCounter++;
@@ -1375,6 +1379,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       _hub.queue.currentIndex = index;
 
       final currentSong = _hub.queue.items[_hub.queue.currentIndex];
+      _scrubStaleStreamState(currentSong);
       _logPlayer(
         'playFromQueue → ${currentSong['title']}',
         extra: {
@@ -1482,6 +1487,90 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         );
       }
     });
+  }
+
+  /// While the current track plays, resolve the next track's stream URL so
+  /// lock-screen auto-advance does not need a cold network fetch (especially
+  /// when switching YouTube ↔ JioSaavn).
+  void _eagerlyPrepareNextTrack() {
+    if (offlineMode.value || _currentLoadingTransitionId != -1) return;
+    final nextIndex = _hub.queue.currentIndex + 1;
+    if (nextIndex < 0 || nextIndex >= _hub.queue.items.length) return;
+
+    final nextSong = _hub.queue.items[nextIndex];
+    final ytid = nextSong['ytid']?.toString();
+    if (ytid == null || ytid.isEmpty) return;
+
+    final warmed = nextSong['_preloadedStreamUrl']?.toString();
+    if (warmed != null &&
+        warmed.isNotEmpty &&
+        streamUrlMatchesPreferredSource(warmed, nextSong)) {
+      return;
+    }
+    final cached = _hub.preloadCache.streamUrls[ytid];
+    if (cached != null &&
+        cached.isNotEmpty &&
+        streamUrlMatchesPreferredSource(cached, nextSong)) {
+      nextSong['_preloadedStreamUrl'] = cached;
+      return;
+    }
+
+    unawaited(
+      _hub.preload
+          .preloadSingle(
+            nextSong,
+            offlineModeEnabled: offlineMode.value,
+            isLoadInProgress: () => _currentLoadingTransitionId != -1,
+          )
+          .catchError((Object e, StackTrace st) {
+            logger.log(
+              'Eager preload for next track failed',
+              error: e,
+              stackTrace: st,
+            );
+          }),
+    );
+  }
+
+  void _scrubStaleStreamState(Map song) {
+    final preferred = preferredStreamSourceForSong(song);
+    final resolved = song['resolvedSource']?.toString();
+    if (resolved != null &&
+        resolved != 'offline' &&
+        resolved != preferred) {
+      song
+        ..remove('resolvedSource')
+        ..remove('resolvedBitrate')
+        ..remove('resolvedFormat')
+        ..remove('resolvedUserAgent')
+        ..remove('resolvedItag');
+    }
+
+    final warmed = song['_preloadedStreamUrl']?.toString();
+    if (warmed != null &&
+        warmed.isNotEmpty &&
+        !streamUrlMatchesPreferredSource(warmed, song)) {
+      song.remove('_preloadedStreamUrl');
+    }
+
+    final ytid = song['ytid']?.toString();
+    if (ytid != null && ytid.isNotEmpty) {
+      final cached = _hub.preloadCache.streamUrls[ytid];
+      if (cached != null &&
+          cached.isNotEmpty &&
+          !streamUrlMatchesPreferredSource(cached, song)) {
+        _hub.preloadCache.drop(ytid);
+      }
+    }
+  }
+
+  bool _isInterruptingActivePlayback() {
+    if (audioPlayer.playing) return true;
+    final state = audioPlayer.processingState;
+    if (state == ProcessingState.completed || state == ProcessingState.idle) {
+      return false;
+    }
+    return audioPlayer.audioSource != null;
   }
 
   Stream<List<Map>> get queueAsMapStream => _queueMapStream.stream;
@@ -1766,6 +1855,18 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       return;
     }
 
+    if (!audioPlayer.playing &&
+        audioPlayer.audioSource != null &&
+        playbackState.valueOrNull?.playing == true) {
+      _logPlayer('Resume: UI shows playing but AVPlayer idle — nudging play()');
+      try {
+        await play();
+      } catch (e, st) {
+        logger.log('Resume nudge play failed', error: e, stackTrace: st);
+      }
+      return;
+    }
+
     final uiThinksPlaying = playbackState.valueOrNull?.playing == true;
     final shouldPlay =
         uiThinksPlaying ||
@@ -1804,6 +1905,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       } catch (_) {}
     }
     if (audioPlayer.audioSource == null) return;
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (_) {}
     _logPlayer('Playback idle after source change; issuing one play()');
     // A gentle play() resumes from the current position; it does not seek to 0.
     // Deliberately NOT calling session.setActive(true) here — the session is
@@ -1976,12 +2081,16 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         return false;
       }
 
-      _resetPreloadingState();
+      if (!_completion.eventPending) {
+        _resetPreloadingState();
+      }
       _playback.lastError = null;
+      _scrubStaleStreamState(songData);
 
-      // Detach AVPlayer before any await — pause leaves googlevideo attached
-      // and the next setAudioSources fails with iOS -1004.
-      if (resumeAt == null) {
+      // Detach only when interrupting mid-track playback. At natural track end
+      // (lock screen auto-advance) keep the session warm until the next URL is
+      // resolved — otherwise cross-source fetches fail in the background.
+      if (resumeAt == null && _isInterruptingActivePlayback()) {
         await _playback.detachCurrentStream();
       }
 

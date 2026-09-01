@@ -45,7 +45,7 @@ class LyricsTheme {
   }) {
     switch (layout) {
       case LyricsLayout.compact:
-        return isActive ? 18.5 : 14.0;
+        return isActive ? 20.5 : 14.5;
       case LyricsLayout.stage:
         return isActive ? 34 : 20;
     }
@@ -71,15 +71,16 @@ class LyricsTheme {
       fontWeight: fontWeight(isActive: isActive),
       letterSpacing: letterSpacing(isActive: isActive, layout: layout),
       height: layout == LyricsLayout.stage ? 1.28 : 1.22,
-      color: isActive && layout == LyricsLayout.stage
-          ? accent
+      color: isActive
+          ? (layout == LyricsLayout.stage ? accent : onCanvas)
           : lineColor(isActive: isActive, isPast: isPast),
       decoration: TextDecoration.none,
-      shadows: isActive && layout == LyricsLayout.stage
+      shadows: isActive
           ? [
               Shadow(
-                color: accent.withValues(alpha: 0.35),
-                blurRadius: 18,
+                color: (layout == LyricsLayout.stage ? accent : onCanvas)
+                    .withValues(alpha: layout == LyricsLayout.stage ? 0.35 : 0.18),
+                blurRadius: layout == LyricsLayout.stage ? 18 : 10,
               ),
             ]
           : null,

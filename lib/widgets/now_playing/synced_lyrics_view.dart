@@ -142,7 +142,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     final progressChanged =
         (newProgress - _lineProgress).abs() > 0.02 || newProgress == 0;
 
-    if (indexChanged || (widget.isFullScreen && progressChanged)) {
+    if (indexChanged || progressChanged) {
       setState(() {
         if (indexChanged) _currentIndex = newIndex;
         _lineProgress = newProgress.clamp(0.0, 1.0);
@@ -248,6 +248,7 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
       return CompactLyricsPanel(
         lines: _parsedLyrics!,
         currentIndex: _currentIndex,
+        lineProgress: _lineProgress,
         theme: theme,
         onSeek: _seek,
         onExpand: _openFullScreen,

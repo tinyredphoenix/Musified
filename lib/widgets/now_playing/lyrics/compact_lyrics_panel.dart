@@ -3,12 +3,13 @@ import 'package:flutter/services.dart';
 import 'package:musified/widgets/now_playing/lyrics/lrc_parser.dart';
 import 'package:musified/widgets/now_playing/lyrics/lyrics_theme.dart';
 
-/// Flip-card synced lyrics — tight spotlight stack (no scroll list).
+/// Flip-card synced lyrics — centered spotlight stack matching full-screen stage.
 class CompactLyricsPanel extends StatelessWidget {
   const CompactLyricsPanel({
     super.key,
     required this.lines,
     required this.currentIndex,
+    required this.lineProgress,
     required this.theme,
     required this.onSeek,
     required this.onExpand,
@@ -16,6 +17,7 @@ class CompactLyricsPanel extends StatelessWidget {
 
   final List<LrcLine> lines;
   final int currentIndex;
+  final double lineProgress;
   final LyricsTheme theme;
   final ValueChanged<Duration> onSeek;
   final VoidCallback onExpand;
@@ -53,15 +55,17 @@ class CompactLyricsPanel extends StatelessWidget {
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 for (final slot in slots)
                   _CompactLineSlot(
                     line: lines[slot.index],
                     role: slot.role,
                     theme: theme,
+                    lineProgress: slot.role == _SlotRole.active ? lineProgress : 0,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       onSeek(lines[slot.index].time);
@@ -105,12 +109,14 @@ class _CompactLineSlot extends StatelessWidget {
     required this.line,
     required this.role,
     required this.theme,
+    required this.lineProgress,
     required this.onTap,
   });
 
   final LrcLine line;
   final _SlotRole role;
   final LyricsTheme theme;
+  final double lineProgress;
   final VoidCallback onTap;
 
   @override
@@ -118,69 +124,100 @@ class _CompactLineSlot extends StatelessWidget {
     final isActive = role == _SlotRole.active;
     final isPast = role == _SlotRole.past;
 
-    final baseStyle = theme.lineStyle(
+    final style = theme.lineStyle(
       isActive: isActive,
       isPast: isPast,
       layout: LyricsLayout.compact,
     );
-    final style = baseStyle;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedPadding(
-        duration: const Duration(milliseconds: 260),
+        duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(
-          vertical: isActive ? 6 : 3,
-        ),
-        child: isActive
-            ? Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 3,
-                    height: (style.fontSize ?? 18) * 1.15,
-                    margin: const EdgeInsets.only(top: 2),
-                    decoration: BoxDecoration(
-                      color: theme.accent,
-                      borderRadius: BorderRadius.circular(2),
-                    ),
+        padding: EdgeInsets.symmetric(vertical: isActive ? 8 : 4),
+        child: AnimatedScale(
+          duration: const Duration(milliseconds: 280),
+          curve: Curves.easeOutCubic,
+          scale: isActive ? 1.0 : 0.94,
+          alignment: Alignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) => FadeTransition(
+                  opacity: animation,
+                  child: SlideTransition(
+                    position: Tween<Offset>(
+                      begin: const Offset(0, 0.08),
+                      end: Offset.zero,
+                    ).animate(animation),
+                    child: child,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 320),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) => FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.12),
-                            end: Offset.zero,
-                          ).animate(animation),
-                          child: child,
-                        ),
-                      ),
-                      child: Text(
-                        line.text,
-                        key: ValueKey(line.text),
-                        style: style,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-              )
-            : Text(
-                line.text,
-                style: style,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.left,
+                ),
+                child: Text(
+                  line.text,
+                  key: ValueKey('${line.time}-${line.text}'),
+                  style: style,
+                  textAlign: TextAlign.center,
+                  maxLines: isActive ? 4 : 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              if (isActive) ...[
+                const SizedBox(height: 10),
+                _LineProgressBar(
+                  progress: lineProgress,
+                  accent: theme.accent,
+                  track: theme.hairline,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LineProgressBar extends StatelessWidget {
+  const _LineProgressBar({
+    required this.progress,
+    required this.accent,
+    required this.track,
+  });
+
+  final double progress;
+  final Color accent;
+  final Color track;
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = progress.clamp(0.0, 1.0);
+    return SizedBox(
+      width: 56,
+      height: 3,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: track,
+          borderRadius: BorderRadius.circular(2),
+        ),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            width: 56 * clamped,
+            height: 3,
+            decoration: BoxDecoration(
+              color: accent,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
       ),
     );
   }

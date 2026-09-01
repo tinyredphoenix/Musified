@@ -21,6 +21,7 @@ class NearEndSkipContext {
     required this.canonicalDuration,
     required this.catalogFromExtras,
     required this.triggerCompleted,
+    required this.prepareNextTrack,
   });
 
   final Duration position;
@@ -38,6 +39,7 @@ class NearEndSkipContext {
       canonicalDuration;
   final Duration? Function(Map<String, dynamic>? extras) catalogFromExtras;
   final void Function() triggerCompleted;
+  final void Function() prepareNextTrack;
 }
 
 /// Inputs for track-finished processing (gapless advance, sleep timer, queue).
@@ -241,6 +243,10 @@ class AudioCompletionCoordinator {
 
     if (duration < const Duration(seconds: 5)) return;
     final remaining = duration - ctx.position;
+    if (remaining > const Duration(seconds: 3)) {
+      ctx.prepareNextTrack();
+      return;
+    }
     if (remaining > const Duration(milliseconds: 450) || remaining.isNegative) {
       return;
     }
