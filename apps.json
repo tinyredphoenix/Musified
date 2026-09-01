@@ -14,11 +14,11 @@
       "localizedDescription": "Musified is a fast, clean, Apple Music style streaming app with YouTube Music & JioSaavn 320kbps integration, background playback, and offline caching.",
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
-      "version": "2.0.0",
-      "versionDate": "2026-09-01T17:19:33Z",
-      "versionDescription": "Musified v2.0.0: Apple Music UI with YouTube Music & JioSaavn 320k lossless audio, karaoke synced lyrics, and OLED black theme.",
+      "version": "2.1.0",
+      "versionDate": "2026-09-01T17:38:24Z",
+      "versionDescription": "Musified v2.1.0: Apple Music UI with YouTube Music & JioSaavn 320k lossless audio, karaoke synced lyrics, and OLED black theme.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/latest/download/Musified.ipa",
-      "size": 13489162
+      "size": 13502358
     }
   ]
 }
