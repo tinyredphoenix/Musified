@@ -7,10 +7,11 @@ import 'package:musified/main.dart';
 import 'package:musified/services/common_services.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/theme/app_themes.dart';
-import 'package:musified/theme/musified_style.dart';
 import 'package:musified/utilities/async_loader.dart';
 import 'package:musified/utilities/flutter_toast.dart';
 import 'package:musified/widgets/flip_card.dart';
+import 'package:musified/widgets/now_playing/lyrics/lyrics_empty_state.dart';
+import 'package:musified/widgets/now_playing/lyrics/lyrics_theme.dart';
 import 'package:musified/widgets/now_playing/synced_lyrics_view.dart';
 import 'package:musified/widgets/song_artwork.dart';
 
@@ -76,8 +77,17 @@ class NowPlayingArtwork extends StatelessWidget {
         width: imageSize,
         height: imageSize,
         decoration: BoxDecoration(
-          color: musifiedCanvas(isDark),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isDark
+                ? [const Color(0xFF1E1E24), const Color(0xFF141418)]
+                : [const Color(0xFFFAFAFC), const Color(0xFFF0F0F5)],
+          ),
           borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(
+            color: isDark ? const Color(0x14FFFFFF) : const Color(0x0D000000),
+          ),
           boxShadow: [
             BoxShadow(
               color: CupertinoColors.black.withValues(
@@ -90,53 +100,21 @@ class NowPlayingArtwork extends StatelessWidget {
         ),
         child: AsyncLoader<String?>(
           future: getSongLyrics(metadata.artist, metadata.title),
-          emptyWidget: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.quote_bubble,
-                  size: 36,
-                  color: isDark
-                      ? MusifiedStyle.tertiaryLabel
-                      : MusifiedStyle.lightTertiaryLabel,
-                ),
-                const SizedBox(height: MusifiedStyle.spaceMd),
-                Text(
-                  'Lyrics Not Available',
-                  style: MusifiedStyle.songSubtitle(
-                    isDark
-                        ? MusifiedStyle.secondaryLabel
-                        : MusifiedStyle.lightSecondaryLabel,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+          emptyWidget: LyricsEmptyState(
+            theme: LyricsTheme(
+              isDark: isDark,
+              accent: CupertinoTheme.of(context).primaryColor,
             ),
+            message: 'Lyrics not available',
+            compact: true,
           ),
-          errorBuilder: (ctx, error, stack) => Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  CupertinoIcons.quote_bubble,
-                  size: 36,
-                  color: isDark
-                      ? MusifiedStyle.tertiaryLabel
-                      : MusifiedStyle.lightTertiaryLabel,
-                ),
-                const SizedBox(height: MusifiedStyle.spaceMd),
-                Text(
-                  'Lyrics Not Available',
-                  style: MusifiedStyle.songSubtitle(
-                    isDark
-                        ? MusifiedStyle.secondaryLabel
-                        : MusifiedStyle.lightSecondaryLabel,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+          errorBuilder: (ctx, error, stack) => LyricsEmptyState(
+            theme: LyricsTheme(
+              isDark: isDark,
+              accent: CupertinoTheme.of(context).primaryColor,
             ),
+            message: 'Lyrics not available',
+            compact: true,
           ),
           builder: (context, lyrics) => ValueListenableBuilder<bool>(
             valueListenable: lyricsController.isFront,

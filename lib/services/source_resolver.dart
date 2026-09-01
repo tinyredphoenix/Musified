@@ -69,10 +69,15 @@ class SourceResolver {
       logger.log('JioSaavn cache read error: $e');
     }
 
-    // Try query with artist first, then title-only fallback
+    // Try several query shapes — YouTube search titles often carry extra words.
     final title = song['title']?.toString() ?? '';
     final artist = song['artist']?.toString() ?? '';
-    final queries = <String>['$title $artist'.trim(), title.trim()];
+    final queries = <String>{
+      '$title $artist'.trim(),
+      '$artist $title'.trim(),
+      title.trim(),
+      ...TrackMatcher.getTitleCandidates(title),
+    }.where((q) => q.isNotEmpty).toList();
 
     for (final query in queries) {
       if (query.isEmpty) continue;

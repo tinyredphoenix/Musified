@@ -1026,6 +1026,8 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     }
 
     // YouTube catalog/search hits: skip JioSaavn wait when track is not on Saavn.
+    final forceJiosaavn =
+        forceSource == 'jiosaavn' || forceSource == 'saavn';
     if (!resolveYoutube &&
         forceSource != 'youtube' &&
         preference == 'jiosaavn' &&
@@ -1033,7 +1035,10 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
-            .timeout(const Duration(seconds: 5), onTimeout: () => null);
+            .timeout(
+              Duration(seconds: forceJiosaavn ? 10 : 5),
+              onTimeout: () => null,
+            );
         if (saavnSource != null && saavnSource['url'] != null) {
           final url = saavnSource['url'] as String;
           if (url.isNotEmpty) {
@@ -1053,10 +1058,23 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
             return url;
           }
         }
+        if (forceJiosaavn) {
+          logger.log('JioSaavn forced but no match for $songId');
+          return null;
+        }
         logger.log('JioSaavn match not found for $songId, falling back to YouTube');
       } catch (e) {
+        if (forceJiosaavn) {
+          logger.log('JioSaavn forced resolution failed for $songId: $e');
+          return null;
+        }
         logger.log('JioSaavn resolution error: $e, falling back to YouTube');
       }
+    }
+
+    if (forceJiosaavn) {
+      logger.log('JioSaavn forced but unavailable for $songId');
+      return null;
     }
 
     // YouTube Music resolution — selected Settings client only, no fallback.

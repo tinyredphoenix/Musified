@@ -204,9 +204,11 @@ bool isUsableYoutubePlaybackUrl(String url) {
 }
 
 /// Prefer YouTube over JioSaavn when the catalog entry is from YouTube.
+/// Explicit [forceSource] always wins over catalog metadata.
 bool songShouldResolveYoutube(Map song) {
   final force = song['forceSource']?.toString();
   if (force == 'youtube') return true;
+  if (force == 'jiosaavn' || force == 'saavn') return false;
   if (song['catalogOrigin']?.toString() == 'youtube') return true;
   if (song['resolvedSource']?.toString() == 'youtube') return true;
   final pref = force ?? preferredSource.value;

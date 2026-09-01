@@ -90,8 +90,9 @@ String upgradeArtworkUrl(String url, {int targetSize = 400}) {
   // 2. JioSaavn CDN artwork (e.g. 50x50.jpg, 150x150.jpg -> 500x500.jpg)
   if (upgraded.contains('saavncdn.com')) {
     upgraded = upgraded
-        .replaceAll('50x50.jpg', '500x500.jpg')
-        .replaceAll('150x150.jpg', '500x500.jpg');
+        .replaceAll('50x50.jpg', '1500x1500.jpg')
+        .replaceAll('150x150.jpg', '1500x1500.jpg')
+        .replaceAll('500x500.jpg', '1500x1500.jpg');
   }
 
   // 3. YouTube ytimg: keep hqdefault (4:3) for square lock-screen crops.

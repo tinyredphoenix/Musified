@@ -28,13 +28,18 @@ class SongArtworkWidget extends StatelessWidget {
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final cacheDimension = (size * devicePixelRatio).round().clamp(64, 800);
 
+    final resolvedSource = metadata.extras?['resolvedSource']?.toString();
     final rawArtUri = metadata.artUri?.toString();
     final isValidUri =
         rawArtUri != null && rawArtUri.isNotEmpty && rawArtUri != 'null';
 
-    final fallbackUrl = metadata.extras?['highResImage']?.toString() ??
-        metadata.extras?['image']?.toString() ??
-        'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/hqdefault.jpg';
+    final extrasImage = metadata.extras?['highResImage']?.toString() ??
+        metadata.extras?['image']?.toString();
+
+    final fallbackUrl = resolvedSource == 'jiosaavn' && extrasImage != null
+        ? extrasImage
+        : extrasImage ??
+            'https://i.ytimg.com/vi/${metadata.extras?['ytid'] ?? metadata.id}/hqdefault.jpg';
 
     final imageUrl = upgradeArtworkUrl(
       isValidUri ? rawArtUri : fallbackUrl,

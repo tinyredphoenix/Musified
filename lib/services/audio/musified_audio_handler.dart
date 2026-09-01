@@ -1046,12 +1046,9 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       for (var i = 0; i < songs.length; i++) {
         final song = songs[i];
         if (song['ytid'] != null && song['ytid'].toString().isNotEmpty) {
-          if (song['catalogOrigin'] == null) {
-            if (song['resolvedSource'] == 'youtube') {
-              song['catalogOrigin'] = 'youtube';
-            } else if (song['resolvedSource'] == null) {
-              song['catalogOrigin'] = 'youtube';
-            }
+          if (song['catalogOrigin'] == null &&
+              song['resolvedSource'] == 'youtube') {
+            song['catalogOrigin'] = 'youtube';
           }
           _hub.queue.items.add(_hub.queue.entryIds.createSong(song));
 
