@@ -45,7 +45,7 @@ class LyricsTheme {
   }) {
     switch (layout) {
       case LyricsLayout.compact:
-        return isActive ? 17 : 12.5;
+        return isActive ? 18.5 : 14.0;
       case LyricsLayout.stage:
         return isActive ? 34 : 20;
     }

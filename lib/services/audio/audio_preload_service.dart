@@ -120,7 +120,9 @@ class AudioPreloadService {
       cache.preloadingYtIds.remove(ytid);
       if (cache.activeCount > 0) cache.activeCount--;
       if (preloadUrl != null && preloadUrl.isNotEmpty) {
-        if (isUsableYoutubePlaybackUrl(preloadUrl)) {
+        final usableYoutube = isUsableYoutubePlaybackUrl(preloadUrl);
+        final usableSaavn = isUsableJiosaavnPlaybackUrl(preloadUrl);
+        if (usableYoutube || usableSaavn) {
           cache.preloadedYtIds.add(ytid);
           cache.streamUrls[ytid] = preloadUrl;
           nextSong['_preloadedStreamUrl'] = preloadUrl;
@@ -128,10 +130,12 @@ class AudioPreloadService {
             'Preloaded stream for $ytid',
             data: {
               'host': Uri.tryParse(preloadUrl)?.host ?? '-',
-              'dur': youtubeStreamDurationSeconds(
-                Uri.parse(preloadUrl),
-              )?.toString() ??
-                  '-',
+              'dur': usableYoutube
+                  ? youtubeStreamDurationSeconds(
+                      Uri.parse(preloadUrl),
+                    )?.toString() ??
+                      '-'
+                  : '-',
             },
           );
         } else {
@@ -152,7 +156,7 @@ class AudioPreloadService {
     final warmed = nextSong['_preloadedStreamUrl']?.toString();
     if (warmed != null &&
         warmed.isNotEmpty &&
-        isUsableYoutubePlaybackUrl(warmed)) {
+        streamUrlMatchesPreferredSource(warmed, nextSong)) {
       return warmed;
     }
     if (warmed != null && warmed.isNotEmpty) {
@@ -162,7 +166,7 @@ class AudioPreloadService {
     final cached = cache.streamUrls[ytid];
     if (cached != null &&
         cached.isNotEmpty &&
-        isUsableYoutubePlaybackUrl(cached)) {
+        streamUrlMatchesPreferredSource(cached, nextSong)) {
       return cached;
     }
     if (cached != null && cached.isNotEmpty) {
@@ -184,7 +188,8 @@ class AudioPreloadService {
       );
       if (url != null &&
           url.isNotEmpty &&
-          isUsableYoutubePlaybackUrl(url)) {
+          (isUsableYoutubePlaybackUrl(url) ||
+              isUsableJiosaavnPlaybackUrl(url))) {
         cache.streamUrls[ytid] = url;
         nextSong['_preloadedStreamUrl'] = url;
         return url;

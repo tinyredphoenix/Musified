@@ -13,7 +13,13 @@ Map mediaItemToMap(MediaItem mediaItem) {
     'title': mediaItem.title,
     'artistId': extras?['artistId'],
     'videoAuthor': extras?['videoAuthor'],
-    'highResImage': extras?['highResImage'] ?? mediaItem.artUri?.toString(),
+    'highResImage': extras?['highResImage'] ??
+        extras?['image'] ??
+        mediaItem.artUri?.toString(),
+    'image': extras?['image'] ??
+        extras?['highResImage'] ??
+        mediaItem.artUri?.toString(),
+    'lowResImage': extras?['lowResImage'],
     'lowResImage': extras?['lowResImage'],
     'isLive': extras?['isLive'] ?? false,
     'isOffline': extras?['isOffline'] ?? false,
@@ -63,6 +69,16 @@ String? resolveMediaArtworkUrl(
   }
   chosen ??= candidates.isNotEmpty ? candidates.first : null;
 
+  final resolvedSource = song['resolvedSource']?.toString();
+  final catalogYoutube =
+      resolvedSource == 'youtube' || song['catalogOrigin']?.toString() == 'youtube';
+  if (catalogYoutube && ytid != null && ytid.isNotEmpty) {
+    final square = chosen != null && _isSquareArtworkCdn(chosen);
+    if (!square) {
+      return 'https://i.ytimg.com/vi/$ytid/hqdefault.jpg';
+    }
+  }
+
   if (chosen != null) {
     return upgradeArtworkUrl(chosen, targetSize: targetSize);
   }
@@ -87,12 +103,13 @@ String upgradeArtworkUrl(String url, {int targetSize = 400}) {
         .replaceAll(RegExp(r'=s\d+(?:-[a-zA-Z0-9]+)*'), '=s$targetSize');
   }
 
-  // 2. JioSaavn CDN artwork (e.g. 50x50.jpg, 150x150.jpg -> 500x500.jpg)
+  // 2. JioSaavn CDN artwork — 500x500 is reliably square on the CDN.
   if (upgraded.contains('saavncdn.com')) {
     upgraded = upgraded
-        .replaceAll('50x50.jpg', '1500x1500.jpg')
-        .replaceAll('150x150.jpg', '1500x1500.jpg')
-        .replaceAll('500x500.jpg', '1500x1500.jpg');
+        .replaceAll('50x50.jpg', '500x500.jpg')
+        .replaceAll('150x150.jpg', '500x500.jpg')
+        .replaceAll('500x500.jpg', '500x500.jpg')
+        .replaceAll('1500x1500.jpg', '500x500.jpg');
   }
 
   // 3. YouTube ytimg: keep hqdefault (4:3) for square lock-screen crops.
@@ -130,15 +147,17 @@ MediaItem mapToMediaItem(Map song) {
   final downloadSource =
       song['downloadSource'] ?? offlineSong['downloadSource'];
 
-  final highQualityImageUrl = resolveMediaArtworkUrl(song, ytid: ytid);
+  final artworkUrl = resolveMediaArtworkUrl(song, ytid: ytid);
 
   final artUri = isOffline && offlineSong['artworkPath'] != null
       ? Uri.file(offlineSong['artworkPath'].toString())
-      : (highQualityImageUrl != null &&
-              highQualityImageUrl.isNotEmpty &&
-              highQualityImageUrl != 'null'
-          ? Uri.parse(highQualityImageUrl)
-          : Uri.parse('https://i.ytimg.com/vi/${ytid ?? ''}/hqdefault.jpg'));
+      : (artworkUrl != null &&
+              artworkUrl.isNotEmpty &&
+              artworkUrl != 'null'
+          ? Uri.parse(artworkUrl)
+          : (ytid != null && ytid.isNotEmpty
+              ? Uri.parse('https://i.ytimg.com/vi/$ytid/hqdefault.jpg')
+              : null));
   // ytid is the canonical track identity shared by YouTube and JioSaavn.
   // Provider URLs, source labels, and queue-entry ids must never change it.
   final stableId = (ytid == null || ytid.isEmpty)
@@ -170,9 +189,10 @@ MediaItem mapToMediaItem(Map song) {
       'isLive': song['isLive'],
       'isOffline': isOffline,
       'downloadSource': downloadSource,
-      'highResImage': song['highResImage'],
+      'highResImage': artworkUrl ?? song['highResImage'] ?? song['image'],
       'artWorkPath': artworkFilePath,
       'artworkPath': artworkFilePath,
+      'image': artworkUrl ?? song['image'] ?? song['highResImage'],
       'resolvedSource': song['resolvedSource'],
       'resolvedBitrate': song['resolvedBitrate'],
       'resolvedFormat': song['resolvedFormat'],

@@ -264,10 +264,10 @@ class PlayerControlButtons extends StatelessWidget {
           minHeight: minButtonSize,
         );
 
-        const controlIconSize = 30.0;
-        const miniControlSize = 20.0;
+        const controlIconSize = 32.0;
+        const miniControlSize = 22.0;
         const playPadding = EdgeInsets.all(
-          (56.0 - 30.0) / 2, // to make total size 56
+          (64.0 - 32.0) / 2,
         );
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: horizontalPadding),

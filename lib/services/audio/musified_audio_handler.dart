@@ -1260,18 +1260,26 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   }) {
     if (_hub.queue.items.isEmpty) {
       _hub.queue.currentIndex = -1;
-    } else {
+    }
+    // Keep the user's selection — do not rewind queue index on load failure.
+    final currentIndex = _hub.queue.currentIndex;
+    if (currentIndex >= 0 && currentIndex < _hub.queue.items.length) {
+      _publishMediaItem(
+        _getMediaItemForQueue(_hub.queue.items[currentIndex]),
+        force: true,
+      );
+    } else if (previousMediaItem != null) {
       _hub.queue.currentIndex = previousQueueIndex.clamp(
         0,
         _hub.queue.items.length - 1,
       );
-    }
-    if (previousMediaItem != null) {
       _publishMediaItem(previousMediaItem, force: true);
     }
     _updatePlaybackState();
     if (resumePlayback &&
+        previousMediaItem != null &&
         audioPlayer.audioSource != null &&
+        mediaItem.valueOrNull?.id == previousMediaItem.id &&
         !audioPlayer.playing) {
       unawaited(audioPlayer.play().catchError((_) {}));
     }
@@ -2133,6 +2141,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     _hub.queue.markLoading(_hub.queue.currentIndex, _hub.queue.currentSong);
     _currentLoadingTransitionId = transitionId;
     final request = cloneMap(song)..remove('resolvedSource');
+    request.remove('_preloadedStreamUrl');
+    _hub.preload.cache.drop(ytid);
     if (source == 'offline') {
       request.remove('forceSource');
     } else {

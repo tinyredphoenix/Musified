@@ -713,15 +713,15 @@ class SettingsPage extends StatelessWidget {
   // ---------------------------------------------------------------------------
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.only(left: 4, bottom: 6),
       child: Text(
         title,
         style: const TextStyle(
           fontFamily: MusifiedStyle.uiFont,
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: FontWeight.w700,
+          letterSpacing: 1.1,
           color: CupertinoColors.systemGrey,
-          letterSpacing: 0.5,
         ),
       ),
     );

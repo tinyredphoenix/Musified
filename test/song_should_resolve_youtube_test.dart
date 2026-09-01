@@ -20,11 +20,19 @@ void main() {
     expect(songShouldResolveYoutube(song), true);
   });
 
-  test('catalog youtube without force prefers youtube', () {
-    final song = {
-      'ytid': 'abc',
-      'catalogOrigin': 'youtube',
-    };
-    expect(songShouldResolveYoutube(song), true);
+  test('saavn URL is not treated as youtube playback URL', () {
+    expect(
+      isUsableYoutubePlaybackUrl('https://aac.saavncdn.com/song.mp4'),
+      false,
+    );
+  });
+
+  test('googlevideo URL is treated as youtube playback URL', () {
+    expect(
+      isUsableYoutubePlaybackUrl(
+        'https://rr1---sn-test.googlevideo.com/videoplayback?expire=9999999999',
+      ),
+      true,
+    );
   });
 }

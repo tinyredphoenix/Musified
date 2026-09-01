@@ -183,6 +183,18 @@ bool isValidYoutubeVideoId(String? id) {
   return _youtubeVideoIdPattern.hasMatch(id.trim());
 }
 
+/// YouTube CDN hosts only — not JioSaavn or other HTTPS streams.
+bool isYoutubeCdnHost(String host) {
+  final lower = host.toLowerCase();
+  return lower.contains('googlevideo.com') ||
+      lower.contains('youtube.com') ||
+      lower.contains('ytimg.com');
+}
+
+bool isJiosaavnStreamHost(String host) {
+  return host.toLowerCase().contains('saavncdn.com');
+}
+
 /// Signed googlevideo URLs expire; stale preloads cause iOS -1004 on load.
 bool isYoutubeStreamUrlExpired(
   Uri url, {
@@ -199,8 +211,32 @@ bool isYoutubeStreamUrlExpired(
 bool isUsableYoutubePlaybackUrl(String url) {
   final uri = Uri.tryParse(url);
   if (uri == null || !isPlayableYoutubeStreamUrl(uri)) return false;
+  if (!isYoutubeCdnHost(uri.host)) return false;
   if (isYoutubeStreamUrlExpired(uri)) return false;
   return true;
+}
+
+bool isUsableJiosaavnPlaybackUrl(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null || !isPlayableYoutubeStreamUrl(uri)) return false;
+  return isJiosaavnStreamHost(uri.host);
+}
+
+/// Which streaming provider this song should play from right now.
+String preferredStreamSourceForSong(Map song) {
+  final force = song['forceSource']?.toString();
+  if (force == 'youtube') return 'youtube';
+  if (force == 'jiosaavn' || force == 'saavn') return 'jiosaavn';
+  final resolved = song['resolvedSource']?.toString();
+  if (resolved == 'youtube' || resolved == 'jiosaavn') return resolved!;
+  return songShouldResolveYoutube(song) ? 'youtube' : 'jiosaavn';
+}
+
+bool streamUrlMatchesPreferredSource(String url, Map song) {
+  final preferred = preferredStreamSourceForSong(song);
+  if (preferred == 'youtube') return isUsableYoutubePlaybackUrl(url);
+  if (preferred == 'jiosaavn') return isUsableJiosaavnPlaybackUrl(url);
+  return false;
 }
 
 /// Prefer YouTube over JioSaavn when the catalog entry is from YouTube.

@@ -244,10 +244,14 @@ void showAddToPlaylistDialog(
   BuildContext context, {
   required dynamic song,
 }) {
+  final playlists = getUserCustomPlaylists();
   showCupertinoModalPopup<void>(
     context: context,
     builder: (ctx) => CupertinoActionSheet(
       title: const Text('Add Track to Playlist'),
+      message: playlists.isEmpty
+          ? const Text('Create a playlist to save this track')
+          : null,
       actions: [
         CupertinoActionSheetAction(
           onPressed: () {
@@ -263,15 +267,16 @@ void showAddToPlaylistDialog(
             ],
           ),
         ),
-        ...userCustomPlaylists.value.map((playlist) {
-          final p = playlist;
-          final name = p['title']?.toString() ?? 'Custom Playlist';
-          final id = p['id']?.toString() ?? p['ytid']?.toString() ?? '';
+        ...playlists.map((playlist) {
+          final name = playlist['title']?.toString() ?? 'Custom Playlist';
+          final id = playlist['id']?.toString() ??
+              playlist['ytid']?.toString() ??
+              '';
 
           return CupertinoActionSheetAction(
             onPressed: () {
               Navigator.pop(ctx);
-              if (song is Map) {
+              if (song is Map && id.isNotEmpty) {
                 final result = addSongInCustomPlaylist(context, id, song);
                 showToast(context, result);
               }

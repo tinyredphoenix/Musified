@@ -188,7 +188,7 @@ class AudioPlaybackCoordinator {
 
     final warmed = song['_preloadedStreamUrl']?.toString();
     if (warmed != null && warmed.isNotEmpty) {
-      if (isUsableYoutubePlaybackUrl(warmed)) {
+      if (streamUrlMatchesPreferredSource(warmed, song)) {
         logger.log('Using pre-warmed stream URL for $ytid');
         return warmed;
       }
@@ -196,7 +196,7 @@ class AudioPlaybackCoordinator {
     }
     if (ytid != null && preloadedUrls.containsKey(ytid)) {
       final cached = preloadedUrls[ytid]!;
-      if (isUsableYoutubePlaybackUrl(cached)) {
+      if (streamUrlMatchesPreferredSource(cached, song)) {
         logger.log('Using preloaded stream URL for $ytid');
         return cached;
       }

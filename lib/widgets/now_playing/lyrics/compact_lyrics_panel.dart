@@ -4,7 +4,7 @@ import 'package:musified/theme/musified_style.dart';
 import 'package:musified/widgets/now_playing/lyrics/lrc_parser.dart';
 import 'package:musified/widgets/now_playing/lyrics/lyrics_theme.dart';
 
-/// Flip-card live lyrics — fixed spotlight stack (no cramped scroll list).
+/// Flip-card synced lyrics — tight spotlight stack (no scroll list).
 class CompactLyricsPanel extends StatelessWidget {
   const CompactLyricsPanel({
     super.key,
@@ -28,36 +28,33 @@ class CompactLyricsPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 10, 4),
-          child: Row(
-            children: [
-              _LiveChip(theme: theme),
-              const Spacer(),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(32, 32),
-                onPressed: onExpand,
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: theme.chipFill,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    CupertinoIcons.fullscreen,
-                    size: 15,
-                    color: theme.onCanvas,
-                  ),
+        Align(
+          alignment: Alignment.topRight,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+            child: CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size(32, 32),
+              onPressed: onExpand,
+              child: Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: theme.chipFill,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  CupertinoIcons.fullscreen,
+                  size: 15,
+                  color: theme.onCanvas,
                 ),
               ),
-            ],
+            ),
           ),
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -92,56 +89,11 @@ class CompactLyricsPanel extends StatelessWidget {
     if (idx + 1 < lines.length) {
       slots.add(_Slot(index: idx + 1, role: _SlotRole.future));
     }
-    if (idx + 2 < lines.length) {
-      slots.add(_Slot(index: idx + 2, role: _SlotRole.futureDim));
-    }
     return slots;
   }
 }
 
-class _LiveChip extends StatelessWidget {
-  const _LiveChip({required this.theme});
-
-  final LyricsTheme theme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: theme.accent.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(MusifiedStyle.radiusPill),
-        border: Border.all(
-          color: theme.accent.withValues(alpha: 0.35),
-          width: 0.5,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: theme.accent,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'LIVE',
-            style: theme.captionStyle().copyWith(
-              color: theme.accent,
-              letterSpacing: 1.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-enum _SlotRole { past, active, future, futureDim }
+enum _SlotRole { past, active, future }
 
 class _Slot {
   const _Slot({required this.index, required this.role});
@@ -166,28 +118,22 @@ class _CompactLineSlot extends StatelessWidget {
   Widget build(BuildContext context) {
     final isActive = role == _SlotRole.active;
     final isPast = role == _SlotRole.past;
-    final isDim = role == _SlotRole.futureDim;
 
     final baseStyle = theme.lineStyle(
       isActive: isActive,
       isPast: isPast,
       layout: LyricsLayout.compact,
     );
-    final style = baseStyle.copyWith(
-      fontSize: isDim ? 11.5 : baseStyle.fontSize,
-      color: isDim
-          ? theme.faint.withValues(alpha: 0.5)
-          : baseStyle.color,
-    );
+    final style = baseStyle;
 
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedPadding(
-        duration: const Duration(milliseconds: 280),
+        duration: const Duration(milliseconds: 260),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          vertical: isActive ? 10 : (isDim ? 3 : 5),
+          vertical: isActive ? 6 : 3,
         ),
         child: isActive
             ? Row(
@@ -195,7 +141,7 @@ class _CompactLineSlot extends StatelessWidget {
                 children: [
                   Container(
                     width: 3,
-                    height: (style.fontSize ?? 17) * 1.15,
+                    height: (style.fontSize ?? 18) * 1.15,
                     margin: const EdgeInsets.only(top: 2),
                     decoration: BoxDecoration(
                       color: theme.accent,
@@ -212,7 +158,7 @@ class _CompactLineSlot extends StatelessWidget {
                         opacity: animation,
                         child: SlideTransition(
                           position: Tween<Offset>(
-                            begin: const Offset(0, 0.15),
+                            begin: const Offset(0, 0.12),
                             end: Offset.zero,
                           ).animate(animation),
                           child: child,
@@ -232,7 +178,7 @@ class _CompactLineSlot extends StatelessWidget {
             : Text(
                 line.text,
                 style: style,
-                maxLines: isDim ? 1 : 2,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.left,
               ),
