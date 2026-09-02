@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:audio_session/audio_session.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:musified/main.dart';
 import 'package:musified/services/audio/audio_playback_install.dart';
@@ -333,10 +334,17 @@ class AudioPlaybackCoordinator {
 
       if (isStale(transitionId)) return false;
 
-      // Fully detach the previous item before loading a new remote stream.
-      if (!gaplessSourceActive && !isOffline) {
+      // Skip detach when the previous track already ended — stopping again leaves
+      // AVPlayer idle on the lock screen and play() often never fires until unlock.
+      final atNaturalEnd =
+          audioPlayer.processingState == ProcessingState.completed ||
+          (audioPlayer.processingState == ProcessingState.idle &&
+              !audioPlayer.playing &&
+              audioPlayer.audioSource != null);
+
+      if (!gaplessSourceActive && !isOffline && !atNaturalEnd) {
         await detachCurrentStream();
-      } else if (!gaplessSourceActive && audioPlayer.audioSource != null) {
+      } else if (!gaplessSourceActive && isOffline && audioPlayer.audioSource != null) {
         try {
           await audioPlayer.stop().timeout(const Duration(seconds: 2));
         } catch (e) {
@@ -413,18 +421,40 @@ class AudioPlaybackCoordinator {
             stackTrace: st,
           );
         }
+      } else {
+        try {
+          await audioPlayer.seek(Duration.zero).timeout(const Duration(seconds: 2));
+        } catch (e, st) {
+          logger.log(
+            'Seek to start failed',
+            error: e,
+            stackTrace: st,
+          );
+        }
       }
 
-      unawaited(
-        audioPlayer.play().catchError((Object e, StackTrace stackTrace) {
-          logger.log(
-            'Error starting playback',
-            error: e,
-            stackTrace: stackTrace,
-          );
-          lastError = e.toString();
-        }),
-      );
+      try {
+        final session = await AudioSession.instance;
+        await session.setActive(true);
+      } catch (e, st) {
+        logger.log('setActive before play failed', error: e, stackTrace: st);
+      }
+
+      try {
+        await audioPlayer.play().timeout(const Duration(seconds: 4));
+        logPlayer(
+          'play() after install',
+          extra: {'playing': audioPlayer.playing, 'pos': audioPlayer.position.inSeconds},
+        );
+      } catch (e, stackTrace) {
+        logger.log(
+          'Error starting playback',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        lastError = e.toString();
+      }
+
       unawaited(ensureActuallyPlaying(transitionId));
       unawaited(onRecentlyPlayed(song));
 

@@ -64,6 +64,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   final ValueNotifier<String?> currentPlayingYtid = ValueNotifier<String?>(null);
   final ValueNotifier<int> queueItemCount = ValueNotifier<int>(0);
   String? _lastPublishedMediaSignature;
+  int? _eagerPreparedForNextIndex;
 
   
   // Resolve only the next item, and never compete with the foreground load.
@@ -1403,6 +1404,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
       if (success) {
         succeeded = true;
+        _eagerPreparedForNextIndex = null;
         _completion.clearConsecutiveErrors();
         _preloadUpcomingSongs();
         if (playNextSongAutomatically.value) {
@@ -1496,6 +1498,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     if (offlineMode.value || _currentLoadingTransitionId != -1) return;
     final nextIndex = _hub.queue.currentIndex + 1;
     if (nextIndex < 0 || nextIndex >= _hub.queue.items.length) return;
+    if (_eagerPreparedForNextIndex == nextIndex) return;
 
     final nextSong = _hub.queue.items[nextIndex];
     final ytid = nextSong['ytid']?.toString();
@@ -1505,6 +1508,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     if (warmed != null &&
         warmed.isNotEmpty &&
         streamUrlMatchesPreferredSource(warmed, nextSong)) {
+      _eagerPreparedForNextIndex = nextIndex;
       return;
     }
     final cached = _hub.preloadCache.streamUrls[ytid];
@@ -1512,9 +1516,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         cached.isNotEmpty &&
         streamUrlMatchesPreferredSource(cached, nextSong)) {
       nextSong['_preloadedStreamUrl'] = cached;
+      _eagerPreparedForNextIndex = nextIndex;
       return;
     }
 
+    _eagerPreparedForNextIndex = nextIndex;
     unawaited(
       _hub.preload
           .preloadSingle(
@@ -1891,33 +1897,39 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> _ensureActuallyPlaying(int? transitionId) async {
-    await Future<void>.delayed(const Duration(milliseconds: 500));
-    if (_isStaleTransition(transitionId)) return;
-    if (audioPlayer.playing) return;
-    final state = audioPlayer.processingState;
-    if (state == ProcessingState.loading ||
-        state == ProcessingState.buffering) {
-      return;
-    }
-    if (state == ProcessingState.completed) {
+    for (final delayMs in [350, 1000, 2200]) {
+      await Future<void>.delayed(Duration(milliseconds: delayMs));
+      if (_isStaleTransition(transitionId)) return;
+      if (audioPlayer.playing) return;
+
+      final state = audioPlayer.processingState;
+      if (state == ProcessingState.loading ||
+          state == ProcessingState.buffering) {
+        continue;
+      }
+
+      if (audioPlayer.audioSource == null) return;
+
+      if (state == ProcessingState.completed) {
+        try {
+          await audioPlayer.seek(Duration.zero);
+        } catch (_) {}
+      }
+
       try {
-        await audioPlayer.seek(Duration.zero);
+        final session = await AudioSession.instance;
+        await session.setActive(true);
       } catch (_) {}
+
+      _logPlayer('Playback idle after install — play() attempt');
+      try {
+        await audioPlayer.play().timeout(const Duration(seconds: 3));
+        _updatePlaybackState();
+        if (audioPlayer.playing) return;
+      } catch (e, st) {
+        logger.log('ensureActuallyPlaying play() failed', error: e, stackTrace: st);
+      }
     }
-    if (audioPlayer.audioSource == null) return;
-    try {
-      final session = await AudioSession.instance;
-      await session.setActive(true);
-    } catch (_) {}
-    _logPlayer('Playback idle after source change; issuing one play()');
-    // A gentle play() resumes from the current position; it does not seek to 0.
-    // Deliberately NOT calling session.setActive(true) here — the session is
-    // already active from the load, and re-activating resets the pipeline.
-    unawaited(
-      audioPlayer.play().catchError((Object e, StackTrace st) {
-        logger.log('Retry play() failed', error: e, stackTrace: st);
-      }),
-    );
   }
 
   @override

@@ -244,9 +244,9 @@ class AudioCompletionCoordinator {
     if (duration < const Duration(seconds: 5)) return;
     final remaining = duration - ctx.position;
     if (remaining > const Duration(seconds: 3)) {
-      ctx.prepareNextTrack();
       return;
     }
+    ctx.prepareNextTrack();
     if (remaining > const Duration(milliseconds: 450) || remaining.isNegative) {
       return;
     }
