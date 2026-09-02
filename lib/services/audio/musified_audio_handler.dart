@@ -208,6 +208,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     logger.log(message, error: error, stackTrace: stackTrace);
   }
 
+  bool _isStalePlayFutureTimeout(String? error) {
+    return error != null && error.contains('Future not completed');
+  }
+
   void _setupEventSubscriptions() {
     _subscriptions
       ..add(
@@ -271,7 +275,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
             (state) {
               if (state.processingState == ProcessingState.idle &&
                   !state.playing &&
-                  _playback.lastError != null) {
+                  _playback.lastError != null &&
+                  !_isStalePlayFutureTimeout(_playback.lastError)) {
                 Future.microtask(
                   () => _completion.handlePlaybackError(_playbackErrorContext()),
                 );
@@ -1923,11 +1928,16 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
       _logPlayer('Playback idle after install — play() attempt');
       try {
-        await audioPlayer.play().timeout(const Duration(seconds: 3));
+        await _playback.beginPlaybackAfterInstall(
+          isStale: _isStaleTransition,
+          logPlayer: _logPlayer,
+          transitionId: transitionId,
+          timeout: const Duration(seconds: 4),
+        );
         _updatePlaybackState();
         if (audioPlayer.playing) return;
       } catch (e, st) {
-        logger.log('ensureActuallyPlaying play() failed', error: e, stackTrace: st);
+        logger.log('ensureActuallyPlaying failed', error: e, stackTrace: st);
       }
     }
   }

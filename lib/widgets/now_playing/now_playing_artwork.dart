@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show max, min;
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/cupertino.dart';
@@ -33,15 +34,24 @@ class NowPlayingArtwork extends StatelessWidget {
     final screenHeight = size.height;
     final isLandscape = screenWidth > screenHeight;
     final isDesktop = screenWidth > 800;
-    final imageSize = isDesktop
-        ? (screenWidth * 0.42).clamp(280.0, screenHeight * 0.5)
+    final maxByHeight = screenHeight * 0.5;
+    final maxPortrait = screenHeight * 0.48;
+    final double imageSize = (isDesktop
+        ? (screenWidth * 0.42).clamp(
+            200.0,
+            maxByHeight < 200.0 ? 200.0 : maxByHeight,
+          )
         : isLandscape
         ? screenHeight * 0.52
         : screenWidth < 360
         ? screenWidth * 0.9
         : screenWidth < 600
         ? screenWidth * 0.92
-        : (screenWidth * 0.72).clamp(320.0, screenHeight * 0.48);
+        : (screenWidth * 0.72).clamp(
+            maxPortrait < 200.0 ? 200.0 : min(320.0, maxPortrait),
+            maxPortrait < 200.0 ? 200.0 : max(maxPortrait, 320.0),
+          ))
+        .toDouble();
 
     const borderRadius = 22.0;
 

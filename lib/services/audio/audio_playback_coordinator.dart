@@ -81,6 +81,71 @@ class AudioPlaybackCoordinator {
     }
   }
 
+  /// just_audio [AudioPlayer.play] completes when playback *stops*, not when it
+  /// starts — never await it with a short timeout. Poll until AVPlayer is
+  /// actually playing/buffering instead.
+  Future<bool> beginPlaybackAfterInstall({
+    required bool Function(int?) isStale,
+    required PlaybackLogFn logPlayer,
+    int? transitionId,
+    Duration timeout = const Duration(seconds: 15),
+  }) async {
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (e, st) {
+      logger.log('setActive before play failed', error: e, stackTrace: st);
+    }
+
+    unawaited(
+      audioPlayer.play().catchError((Object e, StackTrace st) {
+        logger.log('play() error', error: e, stackTrace: st);
+        lastError = e.toString();
+      }),
+    );
+
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (isStale(transitionId)) return false;
+
+      final state = audioPlayer.processingState;
+      if (audioPlayer.playing &&
+          state != ProcessingState.idle &&
+          state != ProcessingState.completed) {
+        lastError = null;
+        logPlayer(
+          'playback started',
+          extra: {
+            'state': state.name,
+            'pos': audioPlayer.position.inSeconds,
+          },
+        );
+        return true;
+      }
+
+      if (state == ProcessingState.loading ||
+          state == ProcessingState.buffering) {
+        await Future<void>.delayed(const Duration(milliseconds: 80));
+        continue;
+      }
+
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+    }
+
+    final playing = audioPlayer.playing;
+    if (playing) {
+      lastError = null;
+    }
+    logPlayer(
+      'playback start wait finished',
+      extra: {
+        'playing': playing,
+        'state': audioPlayer.processingState.name,
+      },
+    );
+    return playing;
+  }
+
   Future<bool> resolveOfflineAndSetPaths(Map songData) async {
     try {
       final ytid = songData['ytid']?.toString();
@@ -334,16 +399,24 @@ class AudioPlaybackCoordinator {
 
       if (isStale(transitionId)) return false;
 
-      // Skip detach when the previous track already ended — stopping again leaves
-      // AVPlayer idle on the lock screen and play() often never fires until unlock.
       final atNaturalEnd =
           audioPlayer.processingState == ProcessingState.completed ||
           (audioPlayer.processingState == ProcessingState.idle &&
               !audioPlayer.playing &&
               audioPlayer.audioSource != null);
 
-      if (!gaplessSourceActive && !isOffline && !atNaturalEnd) {
-        await detachCurrentStream();
+      // Reset AVPlayer before loading the next item (required for lock-screen
+      // skip/advance — replacing in-place leaves stale position/duration).
+      if (!gaplessSourceActive && !isOffline && audioPlayer.audioSource != null) {
+        if (atNaturalEnd) {
+          try {
+            await audioPlayer.stop().timeout(const Duration(seconds: 2));
+          } catch (e) {
+            logger.log('stop at track end before switch failed: $e');
+          }
+        } else {
+          await detachCurrentStream();
+        }
       } else if (!gaplessSourceActive && isOffline && audioPlayer.audioSource != null) {
         try {
           await audioPlayer.stop().timeout(const Duration(seconds: 2));
@@ -433,27 +506,11 @@ class AudioPlaybackCoordinator {
         }
       }
 
-      try {
-        final session = await AudioSession.instance;
-        await session.setActive(true);
-      } catch (e, st) {
-        logger.log('setActive before play failed', error: e, stackTrace: st);
-      }
-
-      try {
-        await audioPlayer.play().timeout(const Duration(seconds: 4));
-        logPlayer(
-          'play() after install',
-          extra: {'playing': audioPlayer.playing, 'pos': audioPlayer.position.inSeconds},
-        );
-      } catch (e, stackTrace) {
-        logger.log(
-          'Error starting playback',
-          error: e,
-          stackTrace: stackTrace,
-        );
-        lastError = e.toString();
-      }
+      await beginPlaybackAfterInstall(
+        isStale: isStale,
+        logPlayer: logPlayer,
+        transitionId: transitionId,
+      );
 
       unawaited(ensureActuallyPlaying(transitionId));
       unawaited(onRecentlyPlayed(song));
