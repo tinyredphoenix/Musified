@@ -15,10 +15,10 @@
       "iconURL": "https://raw.githubusercontent.com/tinyredphoenix/Musified/main/assets/icons/musify_icon.png",
       "tintColor": "007AFF",
       "version": "3.0.2",
-      "versionDate": "2026-09-30T11:52:16Z",
-      "versionDescription": "Musified v3.0.1: lock screen keeps playing when the queue mixes YouTube and JioSaavn.",
+      "versionDate": "2026-09-30T17:40:01Z",
+      "versionDescription": "Musified v3.0.2: Apple Music UI with YouTube Music & JioSaavn 320k lossless audio, karaoke synced lyrics, and OLED black theme.",
       "downloadURL": "https://github.com/tinyredphoenix/Musified/releases/latest/download/Musified.ipa",
-      "size": 13464652
+      "size": 13461802
     }
   ]
 }
