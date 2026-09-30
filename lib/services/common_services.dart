@@ -1221,7 +1221,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       unawaited(_cacheSaavnMatchInBackground(song));
     }
     logger.log('Resolved YouTube stream: host=${Uri.tryParse(url)?.host}');
-    return url
+    return url;
   } on TimeoutException catch (_) {
     setYoutubeStreamError(_youtubeStreamFailureMessage());
     logger.log('fetchSongStreamUrl timed out for $songId');
