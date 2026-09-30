@@ -125,6 +125,7 @@ class AudioPreloadService {
         if (usableYoutube || usableSaavn) {
           cache.preloadedYtIds.add(ytid);
           cache.streamUrls[ytid] = preloadUrl;
+          cache.trimIfNeeded();
           nextSong['_preloadedStreamUrl'] = preloadUrl;
           logger.log(
             'Preloaded stream for $ytid',

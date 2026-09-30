@@ -52,6 +52,7 @@ ValueNotifier<List> userRecentlyPlayed = ValueNotifier<List>(
 );
 
 final trendingSongs = ValueNotifier<List>([]);
+final trendingError = ValueNotifier<String?>(null);
 
 ValueNotifier<List> userOfflineSongs = ValueNotifier<List>(
   _safeUserNoBackupGet<List>('offlineSongs', []),
@@ -88,6 +89,7 @@ dynamic nextRecommendedSong;
 
 var _songLikeUpdateToken = 0;
 final _latestSongLikeUpdateTokens = <String, int>{};
+const _maxSongLikeTokenEntries = 200;
 
 final lyrics = ValueNotifier<String?>(null);
 String? lastFetchedLyrics;
@@ -379,131 +381,10 @@ bool _isMusicOnlySearchResult(Map layout) {
       lower.contains('reaction')) {
     return false;
   }
+  // Block non-music content: videos over 15 minutes are unlikely to be songs.
+  final dur = video.duration;
+  if (dur != null && dur.inSeconds > 900) return false;
   return true;
-}
-
-DateTime? _lastRecTime;
-List _cachedRecs = [];
-
-Future<List> getRecommendedSongs({bool forceRefresh = false}) async {
-  try {
-    if (!forceRefresh &&
-        _cachedRecs.isNotEmpty &&
-        _lastRecTime != null &&
-        DateTime.now().difference(_lastRecTime!).inSeconds < 60) {
-      return _cachedRecs;
-    }
-
-    List results;
-    if (externalRecommendations.value &&
-        (userRecentlyPlayed.value.isNotEmpty ||
-            userLikedSongsList.value.isNotEmpty)) {
-      results = await _getRecommendationsFromRecentlyPlayed();
-    } else {
-      results = await _getRecommendationsFromMixedSources();
-    }
-    if (results.isNotEmpty) {
-      _cachedRecs = results;
-      _lastRecTime = DateTime.now();
-    }
-    return results.isNotEmpty ? results : _cachedRecs;
-  } catch (e, stackTrace) {
-    logger.log(
-      'Error in getRecommendedSongs',
-      error: e,
-      stackTrace: stackTrace,
-    );
-    return _cachedRecs;
-  }
-}
-
-Future<List> _getRecommendationsFromRecentlyPlayed() async {
-  // Keep the most recently played items first. Shuffling the seeds made the
-  // shelf appear unrelated to the user's latest listening and prevented the
-  // home page from feeling responsive to new history.
-  final seeds = <Map>[];
-  final seenSeeds = <String>{};
-  for (final raw in [
-    ...userRecentlyPlayed.value,
-    ...userLikedSongsList.value,
-  ]) {
-    if (raw is! Map) continue;
-    final id = raw['ytid']?.toString();
-    if (id != null && id.isNotEmpty && seenSeeds.add(id)) {
-      seeds.add(raw);
-    }
-    if (seeds.length >= 5) break;
-  }
-  final recent = seeds;
-  if (recent.isEmpty) return [];
-
-  final scores = <String, double>{};
-  final songMap = <String, Map>{};
-
-  final futures = recent.asMap().entries.map((entry) async {
-    final seedIndex = entry.key;
-    final songData = entry.value;
-    try {
-      final song = await ytClient.videos.get(songData['ytid']);
-      final related = await ytClient.videos.getRelatedVideos(song) ?? [];
-      for (var i = 0; i < related.length && i < 8; i++) {
-        final s = returnSongLayout(0, related[i]);
-        final id = s['ytid'];
-        final positionWeight = 1.0 - (i / 8);
-        final recencyWeight = 1.0 - (seedIndex / recent.length);
-        scores[id] = (scores[id] ?? 0) + positionWeight * recencyWeight;
-        songMap[id] = s;
-      }
-    } catch (e, st) {
-      logger.log(
-        'related videos error for ${songData['ytid']}',
-        error: e,
-        stackTrace: st,
-      );
-    }
-  }).toList();
-
-  await Future.wait(futures);
-
-  final sorted = scores.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
-  return sorted.take(15).map((e) => songMap[e.key]).whereType<Map>().toList();
-}
-
-Future<List> _getRecommendationsFromMixedSources() async {
-  final playlistSongs = [
-    ...userLikedSongsList.value,
-    ...userRecentlyPlayed.value,
-  ];
-
-  if (userCustomPlaylists.value.isNotEmpty) {
-    for (final userPlaylist in userCustomPlaylists.value) {
-      final rawList = userPlaylist['list'];
-      if (rawList is List && rawList.isNotEmpty) {
-        final list = List.from(rawList)..shuffle();
-        playlistSongs.addAll(list.take(5));
-      }
-    }
-  }
-
-  return _deduplicateAndShuffle(playlistSongs);
-}
-
-List _deduplicateAndShuffle(List playlistSongs) {
-  final seenYtIds = <String>{};
-  final uniqueSongs = <Map>[];
-
-  playlistSongs.shuffle();
-
-  for (final song in playlistSongs) {
-    if (song['ytid'] != null && seenYtIds.add(song['ytid'])) {
-      uniqueSongs.add(song);
-      // Early exit when we have enough songs
-      if (uniqueSongs.length >= 15) break;
-    }
-  }
-
-  return uniqueSongs;
 }
 
 Future<void> updateSongLikeStatus(
@@ -517,6 +398,15 @@ Future<void> updateSongLikeStatus(
 
     final updateToken = ++_songLikeUpdateToken;
     _latestSongLikeUpdateTokens[normalizedSongId] = updateToken;
+    // Prevent unbounded growth: evict oldest entries.
+    if (_latestSongLikeUpdateTokens.length > _maxSongLikeTokenEntries) {
+      final keysToRemove = _latestSongLikeUpdateTokens.keys
+          .take(_latestSongLikeUpdateTokens.length - _maxSongLikeTokenEntries)
+          .toList();
+      for (final k in keysToRemove) {
+        _latestSongLikeUpdateTokens.remove(k);
+      }
+    }
 
     final songToAdd = add
         ? await _resolveSongForLikedStatus(normalizedSongId, songData)
@@ -697,8 +587,10 @@ bool _isPlayableAudioFile(String? path) {
   if (path == null || path.isEmpty) return false;
   try {
     final file = File(path);
-    return file.existsSync() && file.lengthSync() > 8192;
-  } catch (_) {
+    // 50 KB minimum — 8 KB was too low and marked truncated files as valid.
+    return file.existsSync() && file.lengthSync() > 51200;
+  } catch (e) {
+    logger.log('_isPlayableAudioFile check failed', error: e);
     return false;
   }
 }
@@ -801,7 +693,10 @@ Future<void> getSimilarSong(String songYtId) async {
     final relatedSongs = await ytClient.videos.getRelatedVideos(song) ?? [];
 
     if (relatedSongs.isNotEmpty) {
-      nextRecommendedSong = returnSongLayout(0, relatedSongs[0]);
+      final layout = returnSongLayout(0, relatedSongs[0]);
+      layout['catalogOrigin'] = 'youtube';
+      layout['source'] = 'youtube';
+      nextRecommendedSong = layout;
     } else {
       logger.log('No related songs found for $songYtId');
     }
@@ -988,7 +883,12 @@ Future<void> _cacheSaavnMatchInBackground(Map song) async {
 }
 
 /// Resolves a playable stream URL for a song (cached when possible).
-Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
+Future<String?> fetchSongStreamUrl(
+  Map song,
+  bool isLive, {
+  bool Function()? abandon,
+}) async {
+  if (abandon?.call() == true) return null;
   final songId = song['ytid']?.toString() ?? '';
   try {
     if (songId.isEmpty) {
@@ -1120,7 +1020,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
             .timeout(
               // Explicit source-picker force may wait longer; preference-only
               // path stays sub-second so lock-screen gaps never stall.
-              Duration(milliseconds: forceJiosaavn ? 8000 : 700),
+              Duration(milliseconds: forceJiosaavn ? 8000 : 0),
               onTimeout: () {
                 logger.log(
                   'JioSaavn search timed out for $songId — '
@@ -1172,6 +1072,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     }
 
     // YouTube Music resolution — coverage path for auto / youtube / Saavn miss.
+    if (abandon?.call() == true) return null;
     final selectedStream = await fetchBestAudioStream(songId);
     if (selectedStream == null) {
       setYoutubeStreamError(_youtubeStreamFailureMessage());
@@ -1433,19 +1334,12 @@ Future<bool> makeSongOffline(
     try {
       if (offlineSong['highResImage'] != null &&
           offlineSong['highResImage'].toString().isNotEmpty) {
-        final _artworkFile = await _downloadAndSaveArtworkFile(
+        // Fire-and-forget: don't block the download pipeline for a JPEG.
+        unawaited(_downloadAndSaveArtworkFile(
           offlineSong['highResImage'],
           artworkPath,
-        );
-
-        if (_artworkFile != null && await _artworkFile.exists()) {
-          offlineSong['artworkPath'] = artworkPath;
-        } else {
-          logger.log(
-            'Artwork download failed or file does not exist for $ytid',
-          );
-          offlineSong['artworkPath'] = null;
-        }
+        ));
+        offlineSong['artworkPath'] = artworkPath;
       }
     } catch (e, stackTrace) {
       logger.log('Error downloading artwork', error: e, stackTrace: stackTrace);

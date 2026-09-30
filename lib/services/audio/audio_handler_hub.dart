@@ -14,11 +14,11 @@ class AudioHandlerHub {
     this.maxConcurrentPreloads = defaultMaxConcurrentPreloads,
   });
 
-  /// Only the immediate next track is warmed, so a song can end without a gap.
-  /// Further songs are not preloaded: a fast skip cancels the in-flight load
-  /// and resolves only the track the user landed on.
-  static const int defaultQueueLookahead = 1;
-  static const int defaultMaxConcurrentPreloads = 1;
+  /// Warm URLs for the next several tracks so lock-screen auto-advance and
+  /// rapid skipping always land on a pre-resolved URL. iOS suspends the app
+  /// during any silence gap between tracks, so cold-fetching is fatal.
+  static const int defaultQueueLookahead = 3;
+  static const int defaultMaxConcurrentPreloads = 2;
 
   final int queueLookahead;
   final int maxConcurrentPreloads;

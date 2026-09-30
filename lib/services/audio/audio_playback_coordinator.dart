@@ -67,17 +67,25 @@ class AudioPlaybackCoordinator {
     lastError = null;
   }
 
-  /// Detach the current AVPlayer item before resolving a new stream URL.
-  /// iOS returns -1004 if a new googlevideo URL loads while the previous item
-  /// is still attached (pause alone is not enough).
+  /// Detach the current AVPlayer item before installing a new stream URL.
+  /// 
+  /// Previously this called `audioPlayer.stop()`, which deactivated the iOS
+  /// audio session. A deactivated session causes iOS to suspend the app while
+  /// backgrounded — killing lock-screen playback between tracks.
+  ///
+  /// Now we `pause()` instead: the old source stays attached (keeping the
+  /// session alive) until `setAudioSources([newSource])` atomically replaces
+  /// it. No overlap, no gap, no session death.
   Future<void> detachCurrentStream() async {
     gaplessSourceActive = false;
     installedSourceTransitionId = null;
     if (audioPlayer.audioSource == null) return;
     try {
-      await audioPlayer.stop().timeout(const Duration(seconds: 2));
+      if (audioPlayer.playing) {
+        await audioPlayer.pause().timeout(const Duration(seconds: 2));
+      }
     } catch (e) {
-      logger.log('detachCurrentStream stop failed: $e');
+      logger.log('detachCurrentStream pause failed: $e');
     }
   }
 
@@ -245,6 +253,7 @@ class AudioPlaybackCoordinator {
     Map song,
     Map<String, String> preloadedUrls, {
     required bool isOffline,
+    bool Function()? abandon,
   }) async {
     if (isOffline) {
       return getOfflineSongUrl(
@@ -283,14 +292,20 @@ class AudioPlaybackCoordinator {
       rejectStale('preloaded', cached);
     }
 
-    return fetchSongStreamUrl(song, song['isLive'] ?? false);
+    return fetchSongStreamUrl(
+      song,
+      song['isLive'] ?? false,
+      abandon: abandon,
+    );
   }
 
   Future<PlaybackSource?> resolvePlaybackSource(
     Map songData, {
     required bool offlineModeEnabled,
     required Map<String, String> preloadedUrls,
+    bool Function()? abandon,
   }) async {
+    if (abandon?.call() == true) return null;
     final forceSource = songData['forceSource']?.toString();
     final skipOffline =
         (forceSource == 'youtube' || forceSource == 'jiosaavn') &&
@@ -342,11 +357,16 @@ class AudioPlaybackCoordinator {
       }
     }
 
+    if (abandon?.call() == true) return null;
+
     final songUrl = await getPlaybackUrl(
       songData,
       preloadedUrls,
       isOffline: false,
+      abandon: abandon,
     ).timeout(const Duration(seconds: 36));
+
+    if (abandon?.call() == true) return null;
 
     if (songUrl == null || songUrl.isEmpty) {
       logger.log(
@@ -405,22 +425,24 @@ class AudioPlaybackCoordinator {
               !audioPlayer.playing &&
               audioPlayer.audioSource != null);
 
+      // A cancelled skip must not reach stop(). stop() is the lock-screen
+      // kill: iOS will not restart audio after the session goes idle.
+      if (isStale(transitionId)) return false;
+
       // Manual skip still detaches the current item (a new googlevideo URL
-      // loaded onto a live AVPlayer item returns -1004). Natural completion
-      // must NOT call stop(): that deactivates the audio session, and iOS
-      // will not restart playback on the lock screen — especially when the
-      // next song is a different host (YouTube ↔ JioSaavn). seek(0) after
-      // install clears the stale lock-screen position.
+      // loaded onto a live AVPlayer item returns -1004). Do it only after the
+      // next URL is already resolved, then keep the session active across the
+      // swap. Natural completion must NOT call stop().
       if (!gaplessSourceActive &&
-          !isOffline &&
           !atNaturalEnd &&
           audioPlayer.audioSource != null) {
         await detachCurrentStream();
-      } else if (!gaplessSourceActive && isOffline && audioPlayer.audioSource != null) {
+        if (isStale(transitionId)) return false;
         try {
-          await audioPlayer.stop().timeout(const Duration(seconds: 2));
+          final session = await AudioSession.instance;
+          await session.setActive(true);
         } catch (e) {
-          logger.log('stop before offline switch failed: $e');
+          logger.log('setActive during source swap failed: $e');
         }
       }
 
@@ -607,12 +629,20 @@ class AudioPlaybackCoordinator {
   }
 
   /// Clears a poisoned AVPlayer session after -1004 / timeout load failures.
+  /// Uses pause() (via detachCurrentStream) instead of stop() so the iOS
+  /// audio session stays alive and lock-screen controls remain functional.
   Future<void> recoverPlayerAfterLoadFailure() async {
     gaplessSourceActive = false;
     installedSourceTransitionId = null;
     lastInstalledWasOffline = false;
     lastInstalledWasClipped = false;
     await detachCurrentStream();
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+    } catch (e) {
+      logger.log('recoverPlayerAfterLoadFailure setActive failed: $e');
+    }
   }
 
   Future<bool> attemptOfflineFallback({

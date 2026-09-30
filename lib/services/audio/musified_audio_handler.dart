@@ -332,6 +332,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   }
 
   Future<void> dispose() async {
+    _stallWatch?.cancel();
+    _stallWatch = null;
     for (final sub in _subscriptions) {
       unawaited(sub.cancel());
     }
@@ -551,6 +553,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       skipToNext: skipToNext,
       currentQueueIndex: () => _hub.queue.currentIndex,
       stopPlayback: stop,
+      audioIsPlaying: () => audioPlayer.playing,
+      hasAnotherTrack: () =>
+          _hub.queue.currentIndex < _hub.queue.items.length - 1 ||
+          (playNextSongAutomatically.value && nextRecommendedSong != null),
     );
   }
 
@@ -886,9 +892,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     if (offlineMode.value) return;
     // Fill the queue while audio is still playing. Waiting until the last
     // song ends means a 6s related-song fetch in silence, which iOS kills.
+    // Start fetching when 3 or fewer songs remain so the preloader can warm
+    // URLs for the new entries before the current track ends.
     final remaining =
         _hub.queue.items.length - 1 - _hub.queue.currentIndex;
-    if (_hub.queue.items.isNotEmpty && remaining > 1) {
+    if (_hub.queue.items.isNotEmpty && remaining > 3) {
       return;
     }
 
@@ -1449,6 +1457,14 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       );
 
       if (currentTransitionId != _currentLoadingTransitionId) {
+        // This skip was cancelled. Put the queue title back on the song
+        // that is still audible. Do not stop that audio.
+        if (_playback.installedSourceTransitionId != currentTransitionId) {
+          _hub.queue.currentIndex = previousQueueIndex;
+          if (previousMediaItem != null) {
+            _publishMediaItem(previousMediaItem, force: true);
+          }
+        }
         return false;
       }
 
@@ -1519,7 +1535,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       );
       _showPlaybackStreamError();
     } finally {
-      if (currentTransitionId == _currentLoadingTransitionId) {
+      // Always clear if this is still the latest transition. A rapid skip sets
+      // a new _currentLoadingTransitionId before this finally runs, so we only
+      // clear when ours is still active (or already cleared to -1).
+      if (currentTransitionId == _currentLoadingTransitionId ||
+          _currentLoadingTransitionId == currentTransitionId) {
         _hub.queue.loadingIndex = -1;
         _currentLoadingTransitionId = -1;
       }
@@ -1584,8 +1604,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     }
 
     final warmed = song['_preloadedStreamUrl']?.toString();
+    final isAutoMode = preferred == 'auto' && song['forceSource'] == null;
     if (warmed != null &&
         warmed.isNotEmpty &&
+        !isAutoMode &&
         !streamUrlMatchesPreferredSource(warmed, song)) {
       song.remove('_preloadedStreamUrl');
     }
@@ -1595,6 +1617,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       final cached = _hub.preloadCache.streamUrls[ytid];
       if (cached != null &&
           cached.isNotEmpty &&
+          !isAutoMode &&
           !streamUrlMatchesPreferredSource(cached, song)) {
         _hub.preloadCache.drop(ytid);
       }
@@ -1825,7 +1848,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   /// has stopped and the user did not pause, start the next song immediately.
   Future<void> _recoverLockScreenStall() async {
     if (!_playbackWanted || _userPaused || _recoveringStall) return;
-    if (_currentLoadingTransitionId >= 0 || _completion.eventPending) return;
+    if (_currentLoadingTransitionId >= 0) return;
+    // Only respect eventPending if it was set recently. A stale eventPending
+    // (stuck >8s) must not block stall recovery — that is the deadlock itself.
+    if (_completion.isEventPendingFresh) return;
 
     final state = audioPlayer.processingState;
     final position = audioPlayer.position;
@@ -2223,6 +2249,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         songData,
         offlineModeEnabled: offlineMode.value,
         preloadedUrls: _hub.preloadCache.streamUrls,
+        abandon: () => _isStaleTransition(effectiveTransitionId),
       ).timeout(
         const Duration(seconds: 36),
         onTimeout: () {

@@ -86,6 +86,8 @@ class SongCompletionContext {
     required this.skipToNext,
     required this.currentQueueIndex,
     required this.stopPlayback,
+    required this.audioIsPlaying,
+    required this.hasAnotherTrack,
   });
 
   final Future<void> Function() addCurrentToHistory;
@@ -94,6 +96,8 @@ class SongCompletionContext {
   final Future<void> Function() skipToNext;
   final int Function() currentQueueIndex;
   final Future<void> Function() stopPlayback;
+  final bool Function() audioIsPlaying;
+  final bool Function() hasAnotherTrack;
 }
 
 /// Inputs for playback error recovery.
@@ -137,14 +141,25 @@ class AudioCompletionCoordinator {
   bool handlerLoadStarted = false;
   int consecutiveErrors = 0;
   DateTime? _lastPlaybackErrorAt;
+  DateTime? _eventPendingSince;
 
   static const Duration _errorWindow = Duration(minutes: 5);
+  static const Duration _eventPendingTimeout = Duration(seconds: 8);
+
+  /// True when [eventPending] was set recently enough to be valid.
+  /// Stale eventPending blocks auto-advance and stall recovery forever.
+  bool get isEventPendingFresh {
+    if (!eventPending) return false;
+    if (_eventPendingSince == null) return true;
+    return DateTime.now().difference(_eventPendingSince!) < _eventPendingTimeout;
+  }
 
   void reset() {
     eventPending = false;
     handlerLoadStarted = false;
     consecutiveErrors = 0;
     _lastPlaybackErrorAt = null;
+    _eventPendingSince = null;
   }
 
   void onProcessingStateReady({required void Function() clearSleepTimerExpired}) {
@@ -204,8 +219,20 @@ class AudioCompletionCoordinator {
       return;
     }
 
+    // Safety: clear stale eventPending that would block auto-advance forever.
+    if (eventPending && !isEventPendingFresh) {
+      logger.log(
+        'eventPending stale for '
+        '${DateTime.now().difference(_eventPendingSince!).inSeconds}s '
+        '— force-clearing',
+      );
+      eventPending = false;
+      handlerLoadStarted = false;
+      _eventPendingSince = null;
+    }
     if (!ctx.sleepTimerExpired && !eventPending) {
       eventPending = true;
+      _eventPendingSince = DateTime.now();
       logger.log('Track completed — Dart advancing queue');
       unawaited(
         runSongCompletion(
@@ -286,6 +313,7 @@ class AudioCompletionCoordinator {
       if (eventPending) {
         eventPending = false;
         handlerLoadStarted = false;
+        _eventPendingSince = null;
       }
     }
   }
@@ -300,10 +328,20 @@ class AudioCompletionCoordinator {
 
     final indexBefore = ctx.currentQueueIndex();
     await ctx.skipToNext();
-    if (ctx.currentQueueIndex() == indexBefore) {
-      logger.log('Queue ended — stopping instead of playing trailing silence');
-      await ctx.stopPlayback();
+    if (ctx.currentQueueIndex() != indexBefore) return;
+    if (ctx.audioIsPlaying() || ctx.hasAnotherTrack()) {
+      logger.log(
+        'Next track did not take over — leaving the session up',
+        data: {
+          'playing': ctx.audioIsPlaying(),
+          'more': ctx.hasAnotherTrack(),
+          'index': ctx.currentQueueIndex(),
+        },
+      );
+      return;
     }
+    logger.log('Queue ended — stopping instead of playing trailing silence');
+    await ctx.stopPlayback();
   }
 
   void handlePlaybackError(
