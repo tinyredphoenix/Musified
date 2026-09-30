@@ -3,14 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:musified/widgets/now_playing/lyrics/lrc_parser.dart';
 import 'package:musified/widgets/now_playing/lyrics/lyrics_theme.dart';
 
-/// Full-screen Apple Music-style synced lyrics.
-///
-/// - Active line: left-aligned, large, bold, full brightness.
-/// - Past lines: muted ~40% opacity, smaller, aligned left.
-/// - Future lines: very dim ~20%, smaller.
-/// - Smooth color/size transitions via [AnimatedDefaultTextStyle].
-/// - No underline progress bar — Apple Music doesn't have one.
-/// - Tap any line to seek.
+/// Full-screen synced lyrics with center-aligned active line,
+/// pink accent highlight, auto-scrolling, and smooth transitions.
 class LyricsStage extends StatelessWidget {
   const LyricsStage({
     super.key,
@@ -21,7 +15,7 @@ class LyricsStage extends StatelessWidget {
     required this.lineKeys,
     required this.onUserScroll,
     required this.onSeek,
-    this.lineProgress = 0, // retained in signature for caller compatibility
+    this.lineProgress = 0,
   });
 
   final List<LrcLine> lines;
@@ -82,7 +76,7 @@ class LyricsStage extends StatelessWidget {
             },
           ),
         ),
-        // Top vignette — fades lines smoothly into background at top edge.
+        // Top vignette.
         Positioned(
           top: 0,
           left: 0,
@@ -160,9 +154,7 @@ class _StageLine extends StatelessWidget {
           duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
           scale: isCurrent ? 1.0 : 0.92,
-          alignment: Alignment.centerLeft,
-          // AnimatedDefaultTextStyle transitions color, size, weight smoothly —
-          // this is what makes Apple Music lyrics feel alive vs an abrupt switch.
+          alignment: Alignment.center,
           child: AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 340),
             curve: Curves.easeOutCubic,
@@ -173,7 +165,7 @@ class _StageLine extends StatelessWidget {
             ),
             child: Text(
               line.text,
-              textAlign: TextAlign.left,
+              textAlign: TextAlign.center,
             ),
           ),
         ),

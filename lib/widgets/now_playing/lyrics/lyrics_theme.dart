@@ -1,13 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:musified/theme/musified_style.dart';
 
-/// Visual tokens for live / synced lyrics — Apple Music style.
+/// Visual tokens for live / synced lyrics.
 ///
-/// Active line: full opacity, large, heavy weight, subtle glow.
+/// Active line: center-aligned, highlighted in accent pink, bold, large.
 /// Past lines:  muted ~40% — clearly read, clearly behind.
-/// Future lines: very dim ~20% — readable but receding.
-/// No accent colour on text; always white (dark) or black (light).
-/// No progress underline bar — Apple Music does not have one.
+/// Future lines: very dim ~22% — readable but receding.
 class LyricsTheme {
   LyricsTheme({
     required this.isDark,
@@ -24,13 +22,16 @@ class LyricsTheme {
   Color get onCanvas =>
       isDark ? CupertinoColors.white : CupertinoColors.black;
 
+  /// Active line uses a warm pink accent for clear highlighting.
+  Color get activeColor => const Color(0xFFFF375F);
+
   /// Past lines — clearly visible but receded.
   Color get pastColor =>
-      onCanvas.withValues(alpha: isDark ? 0.42 : 0.38);
+      onCanvas.withValues(alpha: isDark ? 0.40 : 0.36);
 
   /// Future / upcoming lines — very dim.
   Color get futureColor =>
-      onCanvas.withValues(alpha: isDark ? 0.20 : 0.18);
+      onCanvas.withValues(alpha: isDark ? 0.22 : 0.18);
 
   // Keep muted/faint/hairline/chipFill for other widgets that use LyricsTheme.
   Color get muted =>
@@ -49,7 +50,7 @@ class LyricsTheme {
     required bool isActive,
     required bool isPast,
   }) {
-    if (isActive) return onCanvas;
+    if (isActive) return activeColor;
     if (isPast) return pastColor;
     return futureColor;
   }
@@ -60,11 +61,9 @@ class LyricsTheme {
   }) {
     switch (layout) {
       case LyricsLayout.compact:
-        // Mini-player: active line noticeably larger.
-        return isActive ? 22 : 15;
+        return isActive ? 21 : 15;
       case LyricsLayout.stage:
-        // Full-screen: Apple Music uses ~34–38pt active, ~22pt inactive.
-        return isActive ? 36 : 22;
+        return isActive ? 34 : 22;
     }
   }
 
@@ -72,7 +71,7 @@ class LyricsTheme {
       isActive ? FontWeight.w800 : FontWeight.w600;
 
   double letterSpacing({required bool isActive, required LyricsLayout layout}) {
-    if (layout == LyricsLayout.stage && isActive) return -1.2;
+    if (layout == LyricsLayout.stage && isActive) return -1.0;
     if (isActive) return -0.5;
     return -0.2;
   }
@@ -91,12 +90,12 @@ class LyricsTheme {
       height: layout == LyricsLayout.stage ? 1.25 : 1.20,
       color: color,
       decoration: TextDecoration.none,
-      // Subtle glow on the active line in full-screen mode only.
+      // Soft pink glow on active line in full-screen.
       shadows: isActive && layout == LyricsLayout.stage
           ? [
               Shadow(
-                color: onCanvas.withValues(alpha: isDark ? 0.22 : 0.12),
-                blurRadius: 20,
+                color: activeColor.withValues(alpha: 0.35),
+                blurRadius: 24,
               ),
             ]
           : null,

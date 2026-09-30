@@ -21,6 +21,10 @@ import 'package:musified/widgets/section_header.dart';
 final ValueNotifier<List<Map<String, dynamic>>> saavnCharts =
     ValueNotifier([]);
 
+/// YouTube Music chart playlists (Top 100, etc.) fetched once per session.
+final ValueNotifier<List<Map<String, dynamic>>> ytChartPlaylists =
+    ValueNotifier([]);
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -41,6 +45,7 @@ class _HomePageState extends State<HomePage> {
       await Future.wait([
         YouTubeMusicSyncService().fetchTrendingTracks(),
         _loadSaavnCharts(),
+        _loadYtChartPlaylists(),
       ]);
     } catch (e) {
       logger.log('Error loading trending: $e');
@@ -49,11 +54,21 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadSaavnCharts() async {
     try {
-      if (saavnCharts.value.isNotEmpty) return; // already loaded
+      if (saavnCharts.value.isNotEmpty) return;
       final charts = await JioSaavnService().fetchTopCharts(limit: 15);
       if (charts.isNotEmpty) saavnCharts.value = charts;
     } catch (e) {
       logger.log('Error loading Saavn charts: $e');
+    }
+  }
+
+  Future<void> _loadYtChartPlaylists() async {
+    try {
+      if (ytChartPlaylists.value.isNotEmpty) return;
+      final playlists = await YouTubeMusicSyncService().fetchChartPlaylists();
+      if (playlists.isNotEmpty) ytChartPlaylists.value = playlists;
+    } catch (e) {
+      logger.log('Error loading YT chart playlists: $e');
     }
   }
 
@@ -64,6 +79,10 @@ class _HomePageState extends State<HomePage> {
       () async {
         final charts = await JioSaavnService().fetchTopCharts(limit: 15);
         if (charts.isNotEmpty) saavnCharts.value = charts;
+      }(),
+      () async {
+        final playlists = await YouTubeMusicSyncService().fetchChartPlaylists();
+        if (playlists.isNotEmpty) ytChartPlaylists.value = playlists;
       }(),
     ];
     if (YouTubeAuthService().isSignedIn.value) {
@@ -120,6 +139,7 @@ class _HomePageState extends State<HomePage> {
                       _buildLikedSongsSection(isDark),
                       _buildTopPlayedSection(isDark),
                       _buildTrendingSection(isDark),
+                      _buildYtChartsSection(isDark),
                       _buildSaavnChartsSection(isDark),
                       _buildPlaylistsSection(),
                       _buildMostPlayedSection(isDark),
@@ -217,6 +237,103 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildYtChartsSection(bool isDark) {
+    return ValueListenableBuilder<List<Map<String, dynamic>>>(
+      valueListenable: ytChartPlaylists,
+      builder: (context, playlists, _) {
+        if (playlists.isEmpty) return const SizedBox.shrink();
+
+        final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionHeader(
+              title: 'YouTube Charts',
+              icon: CupertinoIcons.music_note_list,
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: playlistHeight + 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: playlists.length,
+                itemBuilder: (context, index) {
+                  final playlist = playlists[index];
+                  final id = playlist['ytid']?.toString() ?? '';
+                  final title = playlist['title']?.toString() ?? 'Chart';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        if (id.isNotEmpty) {
+                          context.push(
+                            '/home/playlist/$id',
+                            extra: {
+                              'title': title,
+                              'image': playlist['image'],
+                            },
+                          );
+                        }
+                      },
+                      child: SizedBox(
+                        width: playlistHeight,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            PlaylistCube(
+                              {
+                                'title': title,
+                                'image': playlist['image']?.toString() ?? '',
+                                'ytid': id,
+                              },
+                              size: playlistHeight,
+                              showTypeLabel: false,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.2,
+                                color: isDark
+                                    ? CupertinoColors.white
+                                    : CupertinoColors.black,
+                              ),
+                            ),
+                            Text(
+                              playlist['subtitle']?.toString() ?? 'YouTube Music',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 11,
+                                color: CupertinoColors.systemGrey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildSaavnChartsSection(bool isDark) {
     return ValueListenableBuilder<List<Map<String, dynamic>>>(
       valueListenable: saavnCharts,
@@ -229,12 +346,12 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SectionHeader(
-              title: 'JioSaavn Charts',
+              title: 'Top Charts',
               icon: CupertinoIcons.chart_bar_square_fill,
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: playlistHeight,
+              height: playlistHeight + 40,
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -242,35 +359,49 @@ class _HomePageState extends State<HomePage> {
                 itemCount: charts.length,
                 itemBuilder: (context, index) {
                   final chart = charts[index];
-                  final id = chart['saavnPlaylistId']?.toString() ?? '';
                   final title = chart['title']?.toString() ?? 'Chart';
-                  final image = chart['image']?.toString() ?? '';
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: GestureDetector(
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        if (id.isNotEmpty) {
-                          context.push(
-                            '/home/playlist/saavn_chart_$id',
-                            extra: {
+                    child: SizedBox(
+                      width: playlistHeight,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          PlaylistCube(
+                            {
                               'title': title,
-                              'image': image,
-                              'saavnPlaylistId': id,
-                              'source': 'saavn',
-                              'type': 'chart',
+                              'image': chart['image']?.toString() ?? '',
                             },
-                          );
-                        }
-                      },
-                      child: PlaylistCube(
-                        {
-                          'title': title,
-                          'image': image,
-                          'ytid': 'saavn_chart_$id',
-                        },
-                        size: playlistHeight,
+                            size: playlistHeight,
+                            showTypeLabel: false,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontFamily: MusifiedStyle.uiFont,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -0.2,
+                              color: isDark
+                                  ? CupertinoColors.white
+                                  : CupertinoColors.black,
+                            ),
+                          ),
+                          Text(
+                            chart['subtitle']?.toString() ?? 'JioSaavn',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: MusifiedStyle.uiFont,
+                              fontSize: 11,
+                              color: CupertinoColors.systemGrey,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );

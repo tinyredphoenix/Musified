@@ -278,6 +278,68 @@ class YouTubeMusicSyncService {
     }
   }
 
+  /// Fetch chart playlists (Top 100, Top Songs, etc.) from YouTube Music.
+  /// Returns playlist-like maps with real `ytid` playlist IDs that can be
+  /// loaded by the playlist page.
+  Future<List<Map<String, dynamic>>> fetchChartPlaylists() async {
+    try {
+      Map<String, dynamic> response;
+      try {
+        response = await _authenticatedPost('/browse', {'browseId': 'FEmusic_charts'});
+      } catch (_) {
+        response = await _publicPost('/browse', {'browseId': 'FEmusic_charts'});
+      }
+
+      final playlists = <Map<String, dynamic>>[];
+      final seen = <String>{};
+
+      for (final item in _findRenderers(response, 'musicTwoRowItemRenderer')) {
+        final nav = item['navigationEndpoint'] as Map?;
+        final browseEndpoint = nav?['browseEndpoint'] as Map?;
+        final browseId = browseEndpoint?['browseId']?.toString();
+
+        // Skip songs (they have a videoId, not a playlist browseId)
+        final videoId = _extractVideoId(item);
+        if (videoId != null && _isValidYouTubeVideoId(videoId)) continue;
+
+        if (browseId == null || browseId.isEmpty) continue;
+        if (!browseId.startsWith('VL') && !browseId.startsWith('RDCLAK')) continue;
+        final playlistId = browseId.startsWith('VL') ? browseId.substring(2) : browseId;
+        if (seen.contains(playlistId)) continue;
+        seen.add(playlistId);
+
+        final title = _runsText(item['title'] as Map<String, dynamic>?) ?? '';
+        final subtitle = _runsText(item['subtitle'] as Map<String, dynamic>?) ?? '';
+
+        String? imageUrl;
+        final thumbnailRenderer = item['thumbnailRenderer'] as Map?;
+        final musicThumbnailRenderer =
+            thumbnailRenderer?['musicThumbnailRenderer'] as Map?;
+        final thumbnail = musicThumbnailRenderer?['thumbnail'] as Map?;
+        final thumbnails = thumbnail?['thumbnails'];
+        if (thumbnails is List && thumbnails.isNotEmpty) {
+          final lastThumb = thumbnails.last as Map?;
+          imageUrl = lastThumb?['url']?.toString();
+        }
+
+        if (title.isEmpty) continue;
+
+        playlists.add({
+          'ytid': playlistId,
+          'title': title,
+          'subtitle': subtitle,
+          'image': imageUrl ?? '',
+          'source': 'youtube',
+        });
+      }
+
+      return playlists;
+    } catch (e) {
+      logger.log('Error fetching chart playlists: $e');
+      return [];
+    }
+  }
+
   Future<List<Map<String, dynamic>>> _browseChartTracks(String browseId) async {
     Map<String, dynamic> response;
     try {

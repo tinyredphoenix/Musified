@@ -3,20 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:musified/widgets/now_playing/lyrics/lrc_parser.dart';
 import 'package:musified/widgets/now_playing/lyrics/lyrics_theme.dart';
 
-/// Compact (mini-player) Apple Music-style lyrics panel.
+/// Compact (mini-player) synced lyrics panel.
 ///
-/// Shows 3 lines centered vertically:
-///   - Previous line: past color (~40% opacity), smaller.
-///   - Active line:   full brightness, large, bold.
-///   - Next line:     future color (~20% opacity), smaller.
-///
-/// No progress bar. Tap any line to seek. Tap expand button for full screen.
+/// Shows 3 lines centered: previous (past), active (pink highlight), next (dim).
+/// Center-aligned text. No progress bar. Tap to seek. Tap expand for full screen.
 class CompactLyricsPanel extends StatelessWidget {
   const CompactLyricsPanel({
     super.key,
     required this.lines,
     required this.currentIndex,
-    required this.lineProgress, // retained in signature, not displayed
+    required this.lineProgress,
     required this.theme,
     required this.onSeek,
     required this.onExpand,
@@ -65,7 +61,7 @@ class CompactLyricsPanel extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 for (final slot in slots)
                   _CompactLineSlot(
@@ -135,7 +131,7 @@ class _CompactLineSlot extends StatelessWidget {
           duration: const Duration(milliseconds: 320),
           curve: Curves.easeOutCubic,
           scale: isActive ? 1.0 : 0.91,
-          alignment: Alignment.centerLeft,
+          alignment: Alignment.center,
           child: AnimatedDefaultTextStyle(
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOutCubic,
@@ -146,7 +142,7 @@ class _CompactLineSlot extends StatelessWidget {
             ),
             child: Text(
               line.text,
-              textAlign: TextAlign.left,
+              textAlign: TextAlign.center,
               maxLines: isActive ? 4 : 2,
               overflow: TextOverflow.ellipsis,
             ),

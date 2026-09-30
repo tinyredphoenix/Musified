@@ -342,11 +342,11 @@ Future<List> fetchSongsList(String searchQuery) async {
             layout['catalogOrigin'] = 'youtube';
             return layout;
           })
-          .where(_isMusicOnlySearchResult)
+          .where(_isMusicSearchResult)
           .toList();
     }
 
-    // Soft fallback only when YTM songs shelf is empty — still filter hard.
+    // Soft fallback only when YTM songs shelf is empty — filter hard.
     final List<Video> searchResults =
         await ytClient.search.search('$searchQuery audio');
     return searchResults
@@ -355,7 +355,7 @@ Future<List> fetchSongsList(String searchQuery) async {
           layout['catalogOrigin'] = 'youtube';
           return layout;
         })
-        .where(_isMusicOnlySearchResult)
+        .where(_isGenericVideoMusicResult)
         .toList();
   } catch (e, stackTrace) {
     logger.log('Error in fetchSongsList', error: e, stackTrace: stackTrace);
@@ -363,8 +363,34 @@ Future<List> fetchSongsList(String searchQuery) async {
   }
 }
 
-/// Drop trailers / non-music / incomplete rows from merged search results.
-bool _isMusicOnlySearchResult(Map layout) {
+/// Lenient filter for YouTube Music Songs shelf results.
+/// YTM's searchSongs endpoint only returns songs, so we trust the source
+/// and don't reject results with missing duration (which is common for YTM
+/// Video objects where duration isn't populated).
+bool _isMusicSearchResult(Map layout) {
+  final title = layout['title']?.toString().trim() ?? '';
+  final artist = layout['artist']?.toString().trim() ?? '';
+  if (title.isEmpty || artist.isEmpty) return false;
+  final lower = '$title $artist'.toLowerCase();
+  if (lower.contains('trailer') ||
+      lower.contains('teaser') ||
+      lower.contains('behind the scenes') ||
+      lower.contains('interview') ||
+      lower.contains('reaction')) {
+    return false;
+  }
+  // If duration IS available, still cap at 15 min.
+  final duration = layout['duration'];
+  final seconds = duration is int
+      ? duration
+      : int.tryParse(duration?.toString() ?? '');
+  if (seconds != null && seconds > 900) return false;
+  return true;
+}
+
+/// Strict filter for generic YouTube video search fallback.
+/// Requires valid duration to block podcasts, lectures, non-music videos.
+bool _isGenericVideoMusicResult(Map layout) {
   final title = layout['title']?.toString().trim() ?? '';
   final artist = layout['artist']?.toString().trim() ?? '';
   if (title.isEmpty || artist.isEmpty) return false;
@@ -381,7 +407,6 @@ bool _isMusicOnlySearchResult(Map layout) {
       lower.contains('reaction')) {
     return false;
   }
-  // Block non-music content: entries over 15 minutes are unlikely to be songs.
   if (seconds > 900) return false;
   return true;
 }
