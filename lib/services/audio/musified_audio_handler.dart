@@ -1402,12 +1402,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       return false;
     }
 
-    // Drop in-flight preloads on manual skip — keep warmed URLs when auto-
-    // advancing at track end (lock screen / cross-source handoff).
-    if (!_completion.eventPending) {
-      _resetPreloadingState();
-    }
-
+    // Keep warmed URLs on a manual skip. Wiping them forces every later
+    // lock-screen skip to cold-fetch, and iOS suspends during that silence.
     // Start new transition
     _songTransitionCounter++;
     final currentTransitionId = _songTransitionCounter;
@@ -1592,15 +1588,6 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         _hub.preloadCache.drop(ytid);
       }
     }
-  }
-
-  bool _isInterruptingActivePlayback() {
-    if (audioPlayer.playing) return true;
-    final state = audioPlayer.processingState;
-    if (state == ProcessingState.completed || state == ProcessingState.idle) {
-      return false;
-    }
-    return audioPlayer.audioSource != null;
   }
 
   Stream<List<Map>> get queueAsMapStream => _queueMapStream.stream;
@@ -2123,19 +2110,13 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       }
 
       if (!_completion.eventPending) {
-        _resetPreloadingState();
+        _playback.lastError = null;
       }
-      _playback.lastError = null;
       _scrubStaleStreamState(songData);
 
-      // Detach only when interrupting mid-track playback. At natural track end
-      // (lock screen auto-advance) keep the session warm until the next URL is
-      // resolved — otherwise cross-source fetches fail in the background.
-      if (resumeAt == null && _isInterruptingActivePlayback()) {
-        await _playback.detachCurrentStream();
-      }
-
-      // INSTANT UI FEEDBACK: emit loading state before any await
+      // Do not stop the player before the URL exists. A lock-screen skip onto
+      // a song that is not warmed yet must keep the current audio running
+      // while YouTube or JioSaavn resolves; stop() here ends the session.
       _emitOptimisticLoadingState(
         song: songData,
         includeMediaItem: true,
