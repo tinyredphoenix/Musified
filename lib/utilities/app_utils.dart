@@ -252,13 +252,25 @@ String preferredStreamSourceForSong(Map song) {
 }
 
 bool streamUrlMatchesPreferredSource(String url, Map song) {
-  final preferred = preferredStreamSourceForSong(song);
-  if (preferred == 'auto') {
-    return isUsableYoutubePlaybackUrl(url) || isUsableJiosaavnPlaybackUrl(url);
+  final force = song['forceSource']?.toString();
+  if (force == 'youtube') return isUsableYoutubePlaybackUrl(url);
+  if (force == 'jiosaavn' || force == 'saavn') {
+    return isUsableJiosaavnPlaybackUrl(url);
   }
-  if (preferred == 'youtube') return isUsableYoutubePlaybackUrl(url);
-  if (preferred == 'jiosaavn') return isUsableJiosaavnPlaybackUrl(url);
-  return false;
+  // No per-song pin. A warm YouTube URL must survive a later JioSaavn cache
+  // hit (and the reverse). Dropping it forces a cold fetch in the silence
+  // between tracks, and iOS suspends lock-screen audio during that gap.
+  final preferred = preferredStreamSourceForSong(song);
+  if (preferred == 'youtube' && preferredSource.value == 'youtube') {
+    return isUsableYoutubePlaybackUrl(url);
+  }
+  if ((preferred == 'jiosaavn') &&
+      (preferredSource.value == 'jiosaavn' ||
+          preferredSource.value == 'saavn') &&
+      song['resolvedSource'] == null) {
+    return isUsableJiosaavnPlaybackUrl(url);
+  }
+  return isUsableYoutubePlaybackUrl(url) || isUsableJiosaavnPlaybackUrl(url);
 }
 
 /// Whether the playback path should go straight to YouTube (no Saavn search).

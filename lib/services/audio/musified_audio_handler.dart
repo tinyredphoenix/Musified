@@ -501,23 +501,21 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     );
   }
 
-  /// Swap Saavn ↔ YouTube once for the same queue entry after a stream failure.
+  /// JioSaavn failure falls through to YouTube. The reverse is not attempted:
+  /// a Saavn title search takes seconds of silence, and iOS suspends the
+  /// lock screen before it returns. The next queue item plays instead.
   Future<bool> _tryAlternateSourceOnce(Map song) async {
     if (offlineMode.value) return false;
     final current = song['forceSource']?.toString() ??
         song['resolvedSource']?.toString() ??
         preferredStreamSourceForSong(song);
-    final alternate = (current == 'jiosaavn' || current == 'saavn')
-        ? 'youtube'
-        : 'jiosaavn';
-    if (alternate == 'jiosaavn' && !jiosaavnEnabled.value) return false;
+    if (current != 'jiosaavn' && current != 'saavn') {
+      return false;
+    }
 
-    logger.log(
-      'Trying alternate source $alternate after failure '
-      '(was ${current == 'auto' ? 'auto/youtube' : current})',
-    );
+    logger.log('JioSaavn failed — playing YouTube without a search gap');
     song
-      ..['forceSource'] = alternate
+      ..['forceSource'] = 'youtube'
       ..remove('resolvedSource')
       ..remove('_preloadedStreamUrl');
     final ytid = _songYtid(song);
@@ -878,7 +876,11 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   Future<void> _backgroundAddSongsToQueue() async {
     // Fire and forget - this runs as a background task without blocking playback
     if (offlineMode.value) return;
-    if (_hub.queue.items.isNotEmpty && _hub.queue.currentIndex < _hub.queue.items.length - 1) {
+    // Fill the queue while audio is still playing. Waiting until the last
+    // song ends means a 6s related-song fetch in silence, which iOS kills.
+    final remaining =
+        _hub.queue.items.length - 1 - _hub.queue.currentIndex;
+    if (_hub.queue.items.isNotEmpty && remaining > 1) {
       return;
     }
 
@@ -2477,34 +2479,17 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       } else if (repeatNotifier.value == AudioServiceRepeatMode.all &&
           _hub.queue.items.isNotEmpty) {
         await _playFromQueue(0);
-      } else if (playNextSongAutomatically.value) {
-        final baseSong = _getCurrentSongForRecommendations();
-        if (baseSong != null) {
-          final ytid = baseSong['ytid']?.toString();
-          if (ytid != null && ytid.isNotEmpty) {
-            await getSimilarSong(ytid).timeout(
-              const Duration(seconds: 6),
-              onTimeout: () {
-                logger.log('Auto-play similar song fetch timed out');
-              },
-            );
-            if (nextRecommendedSong != null) {
-              final songToAdd = nextRecommendedSong;
-              nextRecommendedSong = null;
-              if (songToAdd != null) {
-                await _insertRecommendedSong(songToAdd);
-                if (_hub.queue.currentIndex < _hub.queue.items.length - 1) {
-                  await _playFromQueue(_hub.queue.currentIndex + 1);
-                }
-              }
-            } else {
-              logger.log(
-                'Auto-play: no similar song found for $ytid',
-              );
-            }
+      } else if (playNextSongAutomatically.value &&
+          nextRecommendedSong != null) {
+        // Only a song already fetched while the previous track was playing.
+        // A network fetch here is silence, and the lock screen will not resume.
+        final songToAdd = nextRecommendedSong;
+        nextRecommendedSong = null;
+        if (songToAdd != null) {
+          await _insertRecommendedSong(songToAdd);
+          if (_hub.queue.currentIndex < _hub.queue.items.length - 1) {
+            await _playFromQueue(_hub.queue.currentIndex + 1);
           }
-        } else {
-          logger.log('Auto-play: no base song for recommendations');
         }
       }
 

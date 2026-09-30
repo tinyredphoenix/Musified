@@ -405,18 +405,17 @@ class AudioPlaybackCoordinator {
               !audioPlayer.playing &&
               audioPlayer.audioSource != null);
 
-      // Reset AVPlayer before loading the next item (required for lock-screen
-      // skip/advance — replacing in-place leaves stale position/duration).
-      if (!gaplessSourceActive && !isOffline && audioPlayer.audioSource != null) {
-        if (atNaturalEnd) {
-          try {
-            await audioPlayer.stop().timeout(const Duration(seconds: 2));
-          } catch (e) {
-            logger.log('stop at track end before switch failed: $e');
-          }
-        } else {
-          await detachCurrentStream();
-        }
+      // Manual skip still detaches the current item (a new googlevideo URL
+      // loaded onto a live AVPlayer item returns -1004). Natural completion
+      // must NOT call stop(): that deactivates the audio session, and iOS
+      // will not restart playback on the lock screen — especially when the
+      // next song is a different host (YouTube ↔ JioSaavn). seek(0) after
+      // install clears the stale lock-screen position.
+      if (!gaplessSourceActive &&
+          !isOffline &&
+          !atNaturalEnd &&
+          audioPlayer.audioSource != null) {
+        await detachCurrentStream();
       } else if (!gaplessSourceActive && isOffline && audioPlayer.audioSource != null) {
         try {
           await audioPlayer.stop().timeout(const Duration(seconds: 2));

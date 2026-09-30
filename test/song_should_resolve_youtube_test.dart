@@ -41,6 +41,28 @@ void main() {
     expect(songShouldResolveYoutube(song), true);
   });
 
+  test('warm youtube URL is kept when a saavn match is also cached', () {
+    final song = {
+      'ytid': 'abc',
+      'resolvedSource': 'jiosaavn',
+      'source': 'youtube',
+    };
+    expect(
+      streamUrlMatchesPreferredSource(
+        'https://rr1---sn-test.googlevideo.com/videoplayback?expire=9999999999',
+        song,
+      ),
+      true,
+    );
+    expect(
+      streamUrlMatchesPreferredSource(
+        'https://aac.saavncdn.com/song.mp4',
+        song,
+      ),
+      true,
+    );
+  });
+
   test('cached jiosaavn resolvedSource skips youtube-first path', () {
     final song = {
       'ytid': 'abc',
