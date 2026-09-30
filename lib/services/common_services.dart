@@ -381,9 +381,8 @@ bool _isMusicOnlySearchResult(Map layout) {
       lower.contains('reaction')) {
     return false;
   }
-  // Block non-music content: videos over 15 minutes are unlikely to be songs.
-  final dur = video.duration;
-  if (dur != null && dur.inSeconds > 900) return false;
+  // Block non-music content: entries over 15 minutes are unlikely to be songs.
+  if (seconds > 900) return false;
   return true;
 }
 
