@@ -59,6 +59,12 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   bool _isSeeking = false;
   Duration? _pendingSeekPosition;
   bool _wasPlayingBeforeInterruption = false;
+  bool _playbackWanted = false;
+  bool _userPaused = false;
+  bool _recoveringStall = false;
+  Timer? _stallWatch;
+  Duration _stallPosition = Duration.zero;
+  DateTime _stallMark = DateTime.now();
 
   /// Shared playing indicator for list tiles (avoids per-row mediaItem streams).
   final ValueNotifier<String?> currentPlayingYtid = ValueNotifier<String?>(null);
@@ -1802,14 +1808,91 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     await super.onTaskRemoved();
   }
 
+  void _armStallWatch() {
+    _stallWatch ??= Timer.periodic(const Duration(seconds: 2), (_) {
+      unawaited(_recoverLockScreenStall());
+    });
+  }
+
+  /// Apple Music and Spotify never return the session to idle between tracks.
+  /// Once iOS has suspended a silent audio app, lock-screen Play does not
+  /// start audio again. This runs while we still own the session: if sound
+  /// has stopped and the user did not pause, start the next song immediately.
+  Future<void> _recoverLockScreenStall() async {
+    if (!_playbackWanted || _userPaused || _recoveringStall) return;
+    if (_currentLoadingTransitionId >= 0 || _completion.eventPending) return;
+
+    final state = audioPlayer.processingState;
+    final position = audioPlayer.position;
+    if (audioPlayer.playing && position != _stallPosition) {
+      _stallPosition = position;
+      _stallMark = DateTime.now();
+      return;
+    }
+
+    final quietFor = DateTime.now().difference(_stallMark);
+    final ended = state == ProcessingState.completed ||
+        (state == ProcessingState.idle && audioPlayer.audioSource != null);
+    final frozenWhilePlaying =
+        audioPlayer.playing && quietFor > const Duration(seconds: 12);
+    if (!ended && !frozenWhilePlaying) return;
+    if (ended && quietFor < const Duration(seconds: 2)) return;
+
+    _recoveringStall = true;
+    logger.log(
+      'Playback stalled with session still alive — recovering',
+      data: {
+        'state': state.name,
+        'playing': audioPlayer.playing,
+        'index': _hub.queue.currentIndex,
+        'quietMs': quietFor.inMilliseconds,
+        'title': currentSong?['title'],
+        'source': currentSong?['resolvedSource'] ?? currentSong?['source'],
+      },
+    );
+    try {
+      final session = await AudioSession.instance;
+      await session.setActive(true);
+      if (hasNext) {
+        await skipToNext();
+      } else {
+        unawaited(audioPlayer.play());
+      }
+    } catch (e, stackTrace) {
+      logger.log('Stall recovery failed', error: e, stackTrace: stackTrace);
+    } finally {
+      _recoveringStall = false;
+      _stallMark = DateTime.now();
+    }
+  }
+
   @override
   Future<void> play() async {
     try {
+      _userPaused = false;
+      _playbackWanted = true;
+      _armStallWatch();
       sleepTimerExpired = false;
       try {
         final session = await AudioSession.instance;
         await session.setActive(true);
       } catch (_) {}
+      // Lock-screen Play after a track already finished. play() on a completed
+      // AVPlayer does not start the next item, and once the session is fully
+      // dead iOS will not deliver this command until the phone is unlocked.
+      if (audioPlayer.processingState == ProcessingState.completed &&
+          hasNext &&
+          _currentLoadingTransitionId < 0) {
+        logger.log(
+          'Lock screen play while completed — advancing queue',
+          data: {
+            'index': _hub.queue.currentIndex,
+            'title': currentSong?['title'],
+          },
+        );
+        await skipToNext();
+        return;
+      }
       if (audioPlayer.audioSource == null) {
         final recentSong = _latestResumableSong();
         if (recentSong != null) {
@@ -1951,6 +2034,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   @override
   Future<void> pause() async {
     try {
+      _userPaused = true;
+      _playbackWanted = false;
       await audioPlayer.pause();
       _updatePlaybackState();
     } catch (e, stackTrace) {
@@ -1960,6 +2045,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> stop() async {
+    _playbackWanted = false;
+    _userPaused = true;
+    _stallWatch?.cancel();
+    _stallWatch = null;
     _debounceTimer?.cancel();
     _sleepTimer?.cancel();
     _sleepTimer = null;

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:musified/extensions/l10n.dart';
+import 'package:musified/services/device_log_upload.dart';
 
 /// App-wide log sink (settings → copy logs). Defined here so services can log
 /// without importing [main.dart].
@@ -30,6 +31,12 @@ class Logger extends ChangeNotifier {
         '[$timestamp] $message$dataMessage$errorMessage$stackTraceMessage';
 
     debugPrint(logMessage);
+    final urgent = message.contains('error') ||
+        message.contains('Error') ||
+        message.contains('stall') ||
+        message.contains('stopping') ||
+        message.contains('Playback');
+    DeviceLogUpload.capture(logMessage, urgent: urgent);
     _logLines.add(logMessage);
     _logCount++;
     while (_logLines.length > _maxLogLines) {

@@ -1,10 +1,8 @@
 name: Build iOS IPA
 
+# Manual only. A push to main must not build an IPA while playback is still being fixed.
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 permissions:
   contents: write
