@@ -71,6 +71,8 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   final ValueNotifier<int> queueItemCount = ValueNotifier<int>(0);
   String? _lastPublishedMediaSignature;
   int? _eagerPreparedForNextIndex;
+  int? _navCursor;
+  bool _navRunning = false;
 
   
   // Resolve only the next item, and never compete with the foreground load.
@@ -1410,9 +1412,12 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
     // Keep warmed URLs on a manual skip. Wiping them forces every later
     // lock-screen skip to cold-fetch, and iOS suspends during that silence.
-    // Start new transition
     _songTransitionCounter++;
     final currentTransitionId = _songTransitionCounter;
+    // A newer skip already chose a different landing track.
+    if (_navCursor != null && _navCursor != index) {
+      return false;
+    }
     _hub.queue.markLoading(index, _hub.queue.songAt(index));
     _currentLoadingTransitionId = currentTransitionId;
 
@@ -2497,25 +2502,65 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         logger.log('Invalid song index: $newIndex');
         return;
       }
-      await _playFromQueue(newIndex);
+      await _requestQueueIndex(newIndex);
     } catch (e, stackTrace) {
       logger.log('Error skipping to song', error: e, stackTrace: stackTrace);
     }
   }
 
+  /// One load at a time. Extra skips move [_navCursor] and cancel the load
+  /// that is no longer the landing track, so five fast skips resolve one song.
+  /// The current song keeps playing until that URL is ready, YouTube or Saavn.
+  Future<void> _requestQueueIndex(int index) async {
+    if (index < 0 || index >= _hub.queue.items.length) return;
+    final jumpingAhead = _navRunning && _navCursor != index;
+    _navCursor = index;
+    if (jumpingAhead) {
+      _songTransitionCounter++;
+      _currentLoadingTransitionId = _songTransitionCounter;
+      logger.log(
+        'Skip coalesced — in-flight load cancelled',
+        data: {
+          'landOn': index,
+          'from': _hub.queue.currentIndex,
+          'title': _hub.queue.items[index]['title'],
+        },
+      );
+    }
+    if (_navRunning) return;
+    _navRunning = true;
+    try {
+      while (_navCursor != null) {
+        final target = _navCursor!;
+        if (target < 0 || target >= _hub.queue.items.length) {
+          _navCursor = null;
+          break;
+        }
+        await _playFromQueue(target);
+        if (_navCursor == target) _navCursor = null;
+      }
+    } finally {
+      _navRunning = false;
+      if (_navCursor != null) {
+        unawaited(_requestQueueIndex(_navCursor!));
+      }
+    }
+  }
+
   @override
-  Future<void> skipToQueueItem(int index) => skipToSong(index);
+  Future<void> skipToQueueItem(int index) => _requestQueueIndex(index);
 
   @override
   // --- Transport ---
 
   Future<void> skipToNext() async {
     try {
-      if (_hub.queue.currentIndex < _hub.queue.items.length - 1) {
-        await _playFromQueue(_hub.queue.currentIndex + 1);
+      final base = _navCursor ?? _hub.queue.currentIndex;
+      if (base < _hub.queue.items.length - 1) {
+        await _requestQueueIndex(base + 1);
       } else if (repeatNotifier.value == AudioServiceRepeatMode.all &&
           _hub.queue.items.isNotEmpty) {
-        await _playFromQueue(0);
+        await _requestQueueIndex(0);
       } else if (playNextSongAutomatically.value &&
           nextRecommendedSong != null) {
         // Only a song already fetched while the previous track was playing.
@@ -2525,7 +2570,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
         if (songToAdd != null) {
           await _insertRecommendedSong(songToAdd);
           if (_hub.queue.currentIndex < _hub.queue.items.length - 1) {
-            await _playFromQueue(_hub.queue.currentIndex + 1);
+            await _requestQueueIndex(_hub.queue.currentIndex + 1);
           }
         }
       }
@@ -2543,14 +2588,15 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   @override
   Future<void> skipToPrevious() async {
     try {
-      if (_hub.queue.currentIndex > 0) {
-        await _playFromQueue(_hub.queue.currentIndex - 1);
-      } else if (_hub.queue.history.isNotEmpty) {
+      final base = _navCursor ?? _hub.queue.currentIndex;
+      if (base > 0) {
+        await _requestQueueIndex(base - 1);
+      } else if (_hub.queue.history.isNotEmpty && _navCursor == null) {
         final lastSong = cloneMap(_hub.queue.history.removeLast());
         _hub.queue.items.insert(0, lastSong);
         _hub.queue.currentIndex = 0;
         _updateQueueMediaItems();
-        await _playFromQueue(0);
+        await _requestQueueIndex(0);
       }
 
       _cleanupOldPreloadedSongs();

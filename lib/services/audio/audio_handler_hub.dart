@@ -14,11 +14,11 @@ class AudioHandlerHub {
     this.maxConcurrentPreloads = defaultMaxConcurrentPreloads,
   });
 
-  /// Warm this many upcoming tracks so a burst of lock-screen skips still
-  /// hits a resolved URL. Anything past this window is fetched while the
-  /// current song keeps playing — the player is not stopped first.
-  static const int defaultQueueLookahead = 5;
-  static const int defaultMaxConcurrentPreloads = 2;
+  /// Only the immediate next track is warmed, so a song can end without a gap.
+  /// Further songs are not preloaded: a fast skip cancels the in-flight load
+  /// and resolves only the track the user landed on.
+  static const int defaultQueueLookahead = 1;
+  static const int defaultMaxConcurrentPreloads = 1;
 
   final int queueLookahead;
   final int maxConcurrentPreloads;
