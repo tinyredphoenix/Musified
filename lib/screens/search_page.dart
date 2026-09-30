@@ -14,7 +14,6 @@ import 'package:musified/widgets/artist_bar.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
 import 'package:musified/widgets/playlist_bar.dart';
 import 'package:musified/widgets/section_header.dart';
-import 'package:musified/widgets/song_tile.dart';
 
 final ValueNotifier<List> searchHistoryNotifier = ValueNotifier<List>([]);
 
@@ -29,7 +28,6 @@ class _SearchPageState extends State<SearchPage> {
   final TextEditingController _searchBar = TextEditingController();
   final FocusNode _inputNode = FocusNode();
   bool _isSearching = false;
-  List<dynamic> _songsSearchResult = [];
   List<Map<String, dynamic>> _artistsSearchResult = [];
   List<dynamic> _playlistsSearchResult = [];
   List<String> _suggestionsList = [];
@@ -71,7 +69,6 @@ class _SearchPageState extends State<SearchPage> {
 
     if (query.isEmpty) {
       setState(() {
-        _songsSearchResult = [];
         _artistsSearchResult = [];
         _playlistsSearchResult = [];
         _isSearching = false;
@@ -93,18 +90,15 @@ class _SearchPageState extends State<SearchPage> {
       }
 
       final results = await Future.wait([
-        fetchSongsList(query),
         searchArtists(query),
         getPlaylists(query: query),
       ]);
       if (requestId != _latestSearchRequest || !mounted) return;
 
-      final songResults = results[0];
-      final artistResults = results[1] as List<Map<String, dynamic>>;
-      final playlistResults = results[2];
+      final artistResults = results[0] as List<Map<String, dynamic>>;
+      final playlistResults = results[1];
 
       setState(() {
-        _songsSearchResult = songResults;
         _artistsSearchResult = artistResults;
         _playlistsSearchResult = playlistResults;
         _isSearching = false;
@@ -125,7 +119,6 @@ class _SearchPageState extends State<SearchPage> {
       setState(() {
         _suggestionsList = [];
         _isSearching = false;
-        _songsSearchResult = [];
         _artistsSearchResult = [];
         _playlistsSearchResult = [];
       });
@@ -152,8 +145,7 @@ class _SearchPageState extends State<SearchPage> {
   Widget build(BuildContext context) {
     final isDark = isAppDarkMode(context);
     final navBarColor = isDark ? const Color(0xB3121214) : const Color(0xB3FFFFFF);
-    final hasResults = _songsSearchResult.isNotEmpty ||
-        _artistsSearchResult.isNotEmpty ||
+    final hasResults = _artistsSearchResult.isNotEmpty ||
         _playlistsSearchResult.isNotEmpty;
 
     return CupertinoPageScaffold(
@@ -184,7 +176,7 @@ class _SearchPageState extends State<SearchPage> {
               child: CupertinoSearchTextField(
                 controller: _searchBar,
                 focusNode: _inputNode,
-                placeholder: 'Artists, songs, or playlists',
+                placeholder: 'Artists or playlists',
                 onChanged: _onQueryChanged,
                 onSubmitted: _submitSearch,
                 style: TextStyle(
@@ -230,21 +222,6 @@ class _SearchPageState extends State<SearchPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (_songsSearchResult.isNotEmpty) ...[
-                      const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        child: SectionHeader(title: 'Songs', icon: CupertinoIcons.music_note_list),
-                      ),
-                      ..._songsSearchResult.map(
-                        (s) => SongTile(
-                          song: s is Map ? s : {},
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            audioHandler.playSingleSong(s is Map ? s : {});
-                          },
-                        ),
-                      ),
-                    ],
                     if (_artistsSearchResult.isNotEmpty) ...[
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),

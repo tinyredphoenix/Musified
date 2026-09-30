@@ -3,13 +3,20 @@ import 'package:flutter/services.dart';
 import 'package:musified/widgets/now_playing/lyrics/lrc_parser.dart';
 import 'package:musified/widgets/now_playing/lyrics/lyrics_theme.dart';
 
-/// Flip-card synced lyrics — centered spotlight stack matching full-screen stage.
+/// Compact (mini-player) Apple Music-style lyrics panel.
+///
+/// Shows 3 lines centered vertically:
+///   - Previous line: past color (~40% opacity), smaller.
+///   - Active line:   full brightness, large, bold.
+///   - Next line:     future color (~20% opacity), smaller.
+///
+/// No progress bar. Tap any line to seek. Tap expand button for full screen.
 class CompactLyricsPanel extends StatelessWidget {
   const CompactLyricsPanel({
     super.key,
     required this.lines,
     required this.currentIndex,
-    required this.lineProgress,
+    required this.lineProgress, // retained in signature, not displayed
     required this.theme,
     required this.onSeek,
     required this.onExpand,
@@ -55,17 +62,16 @@ class CompactLyricsPanel extends StatelessWidget {
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 for (final slot in slots)
                   _CompactLineSlot(
                     line: lines[slot.index],
                     role: slot.role,
                     theme: theme,
-                    lineProgress: slot.role == _SlotRole.active ? lineProgress : 0,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       onSeek(lines[slot.index].time);
@@ -81,13 +87,9 @@ class CompactLyricsPanel extends StatelessWidget {
 
   List<_Slot> _visibleSlots() {
     if (lines.isEmpty) return const [];
-
     final idx = currentIndex < 0 ? 0 : currentIndex;
     final slots = <_Slot>[];
-
-    if (idx > 0) {
-      slots.add(_Slot(index: idx - 1, role: _SlotRole.past));
-    }
+    if (idx > 0) slots.add(_Slot(index: idx - 1, role: _SlotRole.past));
     slots.add(_Slot(index: idx, role: _SlotRole.active));
     if (idx + 1 < lines.length) {
       slots.add(_Slot(index: idx + 1, role: _SlotRole.future));
@@ -109,14 +111,12 @@ class _CompactLineSlot extends StatelessWidget {
     required this.line,
     required this.role,
     required this.theme,
-    required this.lineProgress,
     required this.onTap,
   });
 
   final LrcLine line;
   final _SlotRole role;
   final LyricsTheme theme;
-  final double lineProgress;
   final VoidCallback onTap;
 
   @override
@@ -124,97 +124,31 @@ class _CompactLineSlot extends StatelessWidget {
     final isActive = role == _SlotRole.active;
     final isPast = role == _SlotRole.past;
 
-    final style = theme.lineStyle(
-      isActive: isActive,
-      isPast: isPast,
-      layout: LyricsLayout.compact,
-    );
-
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedPadding(
-        duration: const Duration(milliseconds: 280),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeOutCubic,
-        padding: EdgeInsets.symmetric(vertical: isActive ? 8 : 4),
+        padding: EdgeInsets.symmetric(vertical: isActive ? 10 : 5),
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 280),
+          duration: const Duration(milliseconds: 320),
           curve: Curves.easeOutCubic,
-          scale: isActive ? 1.0 : 0.94,
-          alignment: Alignment.center,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 300),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: SlideTransition(
-                    position: Tween<Offset>(
-                      begin: const Offset(0, 0.08),
-                      end: Offset.zero,
-                    ).animate(animation),
-                    child: child,
-                  ),
-                ),
-                child: Text(
-                  line.text,
-                  key: ValueKey('${line.time}-${line.text}'),
-                  style: style,
-                  textAlign: TextAlign.center,
-                  maxLines: isActive ? 4 : 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (isActive) ...[
-                const SizedBox(height: 10),
-                _LineProgressBar(
-                  progress: lineProgress,
-                  accent: theme.accent,
-                  track: theme.hairline,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LineProgressBar extends StatelessWidget {
-  const _LineProgressBar({
-    required this.progress,
-    required this.accent,
-    required this.track,
-  });
-
-  final double progress;
-  final Color accent;
-  final Color track;
-
-  @override
-  Widget build(BuildContext context) {
-    final clamped = progress.clamp(0.0, 1.0);
-    return SizedBox(
-      width: 56,
-      height: 3,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: track,
-          borderRadius: BorderRadius.circular(2),
-        ),
-        child: Align(
+          scale: isActive ? 1.0 : 0.91,
           alignment: Alignment.centerLeft,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: 56 * clamped,
-            height: 3,
-            decoration: BoxDecoration(
-              color: accent,
-              borderRadius: BorderRadius.circular(2),
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOutCubic,
+            style: theme.lineStyle(
+              isActive: isActive,
+              isPast: isPast,
+              layout: LyricsLayout.compact,
+            ),
+            child: Text(
+              line.text,
+              textAlign: TextAlign.left,
+              maxLines: isActive ? 4 : 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ),

@@ -3,7 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:musified/widgets/now_playing/lyrics/lrc_parser.dart';
 import 'package:musified/widgets/now_playing/lyrics/lyrics_theme.dart';
 
-/// Full-screen cinematic synced lyrics with spotlight scroll and edge vignette.
+/// Full-screen Apple Music-style synced lyrics.
+///
+/// - Active line: left-aligned, large, bold, full brightness.
+/// - Past lines: muted ~40% opacity, smaller, aligned left.
+/// - Future lines: very dim ~20%, smaller.
+/// - Smooth color/size transitions via [AnimatedDefaultTextStyle].
+/// - No underline progress bar — Apple Music doesn't have one.
+/// - Tap any line to seek.
 class LyricsStage extends StatelessWidget {
   const LyricsStage({
     super.key,
@@ -14,7 +21,7 @@ class LyricsStage extends StatelessWidget {
     required this.lineKeys,
     required this.onUserScroll,
     required this.onSeek,
-    this.lineProgress = 0,
+    this.lineProgress = 0, // retained in signature for caller compatibility
   });
 
   final List<LrcLine> lines;
@@ -45,9 +52,11 @@ class LyricsStage extends StatelessWidget {
                   : MediaQuery.sizeOf(context).height;
               return ListView.builder(
                 controller: scrollController,
-                padding: EdgeInsets.symmetric(
-                  vertical: viewportHeight * 0.34,
-                  horizontal: 28,
+                padding: EdgeInsets.only(
+                  top: viewportHeight * 0.36,
+                  bottom: viewportHeight * 0.36,
+                  left: 28,
+                  right: 28,
                 ),
                 physics: const BouncingScrollPhysics(),
                 itemCount: lines.length,
@@ -63,7 +72,6 @@ class LyricsStage extends StatelessWidget {
                     isCurrent: isCurrent,
                     isPast: isPast,
                     theme: theme,
-                    lineProgress: isCurrent ? lineProgress : 0,
                     onTap: () {
                       HapticFeedback.selectionClick();
                       onSeek(line.time);
@@ -74,12 +82,12 @@ class LyricsStage extends StatelessWidget {
             },
           ),
         ),
-        // Top vignette
+        // Top vignette — fades lines smoothly into background at top edge.
         Positioned(
           top: 0,
           left: 0,
           right: 0,
-          height: 120,
+          height: 130,
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -87,7 +95,7 @@ class LyricsStage extends StatelessWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    theme.canvas.withValues(alpha: theme.isDark ? 0.92 : 0.95),
+                    theme.canvas.withValues(alpha: 0.98),
                     theme.canvas.withValues(alpha: 0),
                   ],
                 ),
@@ -95,12 +103,12 @@ class LyricsStage extends StatelessWidget {
             ),
           ),
         ),
-        // Bottom vignette
+        // Bottom vignette.
         Positioned(
           bottom: 0,
           left: 0,
           right: 0,
-          height: 100,
+          height: 110,
           child: IgnorePointer(
             child: DecoratedBox(
               decoration: BoxDecoration(
@@ -108,7 +116,7 @@ class LyricsStage extends StatelessWidget {
                   begin: Alignment.bottomCenter,
                   end: Alignment.topCenter,
                   colors: [
-                    theme.canvas.withValues(alpha: theme.isDark ? 0.88 : 0.92),
+                    theme.canvas.withValues(alpha: 0.98),
                     theme.canvas.withValues(alpha: 0),
                   ],
                 ),
@@ -128,7 +136,6 @@ class _StageLine extends StatelessWidget {
     required this.isCurrent,
     required this.isPast,
     required this.theme,
-    required this.lineProgress,
     required this.onTap,
   });
 
@@ -136,96 +143,37 @@ class _StageLine extends StatelessWidget {
   final bool isCurrent;
   final bool isPast;
   final LyricsTheme theme;
-  final double lineProgress;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final style = theme.lineStyle(
-      isActive: isCurrent,
-      isPast: isPast,
-      layout: LyricsLayout.stage,
-    );
-
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: AnimatedPadding(
-        duration: const Duration(milliseconds: 300),
+        duration: const Duration(milliseconds: 380),
         curve: Curves.easeOutCubic,
         padding: EdgeInsets.symmetric(
-          vertical: isCurrent ? 16 : 9,
+          vertical: isCurrent ? 20 : 10,
         ),
         child: AnimatedScale(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 400),
           curve: Curves.easeOutCubic,
-          scale: isCurrent ? 1.0 : 0.94,
-          alignment: Alignment.center,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 320),
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) => FadeTransition(
-                  opacity: animation,
-                  child: child,
-                ),
-                child: Text(
-                  line.text,
-                  key: ValueKey('${line.time}-${line.text}'),
-                  style: style,
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              if (isCurrent) ...[
-                const SizedBox(height: 12),
-                _LineProgressBar(
-                  progress: lineProgress,
-                  accent: theme.accent,
-                  track: theme.hairline,
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _LineProgressBar extends StatelessWidget {
-  const _LineProgressBar({
-    required this.progress,
-    required this.accent,
-    required this.track,
-  });
-
-  final double progress;
-  final Color accent;
-  final Color track;
-
-  @override
-  Widget build(BuildContext context) {
-    final clamped = progress.clamp(0.0, 1.0);
-    return SizedBox(
-      width: 72,
-      height: 3,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: track,
-          borderRadius: BorderRadius.circular(2),
-        ),
-        child: Align(
+          scale: isCurrent ? 1.0 : 0.92,
           alignment: Alignment.centerLeft,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 120),
-            width: 72 * clamped,
-            height: 3,
-            decoration: BoxDecoration(
-              color: accent,
-              borderRadius: BorderRadius.circular(2),
+          // AnimatedDefaultTextStyle transitions color, size, weight smoothly —
+          // this is what makes Apple Music lyrics feel alive vs an abrupt switch.
+          child: AnimatedDefaultTextStyle(
+            duration: const Duration(milliseconds: 340),
+            curve: Curves.easeOutCubic,
+            style: theme.lineStyle(
+              isActive: isCurrent,
+              isPast: isPast,
+              layout: LyricsLayout.stage,
+            ),
+            child: Text(
+              line.text,
+              textAlign: TextAlign.left,
             ),
           ),
         ),

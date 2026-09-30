@@ -12,9 +12,14 @@ import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
 import 'package:musified/theme/app_themes.dart';
 import 'package:musified/theme/musified_style.dart';
+import 'package:musified/services/jiosaavn_service.dart';
 import 'package:musified/widgets/mini_player_bottom_space.dart';
 import 'package:musified/widgets/playlist_cube.dart';
 import 'package:musified/widgets/section_header.dart';
+
+/// JioSaavn top-chart playlists (fetched once per app launch).
+final ValueNotifier<List<Map<String, dynamic>>> saavnCharts =
+    ValueNotifier([]);
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -33,9 +38,22 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadTrending() async {
     try {
-      await YouTubeMusicSyncService().fetchTrendingTracks();
+      await Future.wait([
+        YouTubeMusicSyncService().fetchTrendingTracks(),
+        _loadSaavnCharts(),
+      ]);
     } catch (e) {
-      logger.log('Error loading trending tracks: $e');
+      logger.log('Error loading trending: $e');
+    }
+  }
+
+  Future<void> _loadSaavnCharts() async {
+    try {
+      if (saavnCharts.value.isNotEmpty) return; // already loaded
+      final charts = await JioSaavnService().fetchTopCharts(limit: 15);
+      if (charts.isNotEmpty) saavnCharts.value = charts;
+    } catch (e) {
+      logger.log('Error loading Saavn charts: $e');
     }
   }
 
@@ -43,6 +61,10 @@ class _HomePageState extends State<HomePage> {
     unawaited(HapticFeedback.mediumImpact());
     final futures = <Future<void>>[
       YouTubeMusicSyncService().fetchTrendingTracks(),
+      () async {
+        final charts = await JioSaavnService().fetchTopCharts(limit: 15);
+        if (charts.isNotEmpty) saavnCharts.value = charts;
+      }(),
     ];
     if (YouTubeAuthService().isSignedIn.value) {
       futures.add(YouTubeMusicSyncService().fullSync());
@@ -98,6 +120,7 @@ class _HomePageState extends State<HomePage> {
                       _buildLikedSongsSection(isDark),
                       _buildTopPlayedSection(isDark),
                       _buildTrendingSection(isDark),
+                      _buildSaavnChartsSection(isDark),
                       _buildPlaylistsSection(),
                       _buildMostPlayedSection(isDark),
                       _buildEmptyStateIfNeeded(isDark),
@@ -186,9 +209,76 @@ class _HomePageState extends State<HomePage> {
         final displayList = songs.take(20).toList();
         return _buildHorizontalSongSection(
           isDark: isDark,
-          title: 'Trending',
+          title: 'Trending on YouTube',
           icon: CupertinoIcons.flame_fill,
           songs: displayList,
+        );
+      },
+    );
+  }
+
+  Widget _buildSaavnChartsSection(bool isDark) {
+    return ValueListenableBuilder<List<Map<String, dynamic>>>(
+      valueListenable: saavnCharts,
+      builder: (context, charts, _) {
+        if (charts.isEmpty) return const SizedBox.shrink();
+
+        final playlistHeight = MediaQuery.sizeOf(context).height * 0.25 / 1.1;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionHeader(
+              title: 'JioSaavn Charts',
+              icon: CupertinoIcons.chart_bar_square_fill,
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: playlistHeight,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                itemCount: charts.length,
+                itemBuilder: (context, index) {
+                  final chart = charts[index];
+                  final id = chart['saavnPlaylistId']?.toString() ?? '';
+                  final title = chart['title']?.toString() ?? 'Chart';
+                  final image = chart['image']?.toString() ?? '';
+
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        if (id.isNotEmpty) {
+                          context.push(
+                            '/home/playlist/saavn_chart_$id',
+                            extra: {
+                              'title': title,
+                              'image': image,
+                              'saavnPlaylistId': id,
+                              'source': 'saavn',
+                              'type': 'chart',
+                            },
+                          );
+                        }
+                      },
+                      child: PlaylistCube(
+                        {
+                          'title': title,
+                          'image': image,
+                          'ytid': 'saavn_chart_$id',
+                        },
+                        size: playlistHeight,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
         );
       },
     );

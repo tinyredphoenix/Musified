@@ -144,4 +144,58 @@ class JioSaavnService {
       'source': 'saavn',
     };
   }
+
+  /// Fetch JioSaavn top chart playlists (no auth required).
+  /// Returns a list of playlist-like maps suitable for display in a shelf.
+  Future<List<Map<String, dynamic>>> fetchTopCharts({int limit = 10}) async {
+    try {
+      final url = Uri.parse(
+        'https://www.jiosaavn.com/api.php?__call=content.getCharts'
+        '&_format=json&_marker=0&api_version=4&ctx=web6dot0&n=$limit',
+      );
+      final response = await http
+          .get(url, headers: {
+            'User-Agent':
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+                'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            'Accept': 'application/json',
+            'Referer': 'https://www.jiosaavn.com/',
+          })
+          .timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return [];
+      final body = response.body.trim();
+      // Response may be JSON array or wrapped in an object — find the first '['.
+      final arrStart = body.indexOf('[');
+      if (arrStart == -1) return [];
+      final raw = jsonDecode(body.substring(arrStart));
+      if (raw is! List) return [];
+      final charts = <Map<String, dynamic>>[];
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final id = item['id']?.toString() ?? '';
+        var title = (item['title']?.toString() ?? item['listname']?.toString() ?? '')
+            .replaceAll('&quot;', '"')
+            .replaceAll('&amp;', '&')
+            .replaceAll('&#039;', "'")
+            .trim();
+        var image = item['image']?.toString() ?? '';
+        if (image.contains('150x150')) image = image.replaceAll('150x150', '500x500');
+        if (image.contains('50x50')) image = image.replaceAll('50x50', '500x500');
+        if (id.isEmpty || title.isEmpty) continue;
+        charts.add({
+          'ytid': 'saavn_chart_$id',
+          'saavnPlaylistId': id,
+          'title': title,
+          'image': image,
+          'source': 'saavn',
+          'type': 'chart',
+          'subtitle': item['subtitle']?.toString() ?? '',
+        });
+      }
+      return charts;
+    } catch (e) {
+      logger.log('JioSaavn fetchTopCharts error: $e');
+      return [];
+    }
+  }
 }
