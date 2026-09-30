@@ -1031,6 +1031,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
 
       _updateQueueMediaItems();
       _cleanupOldPreloadedSongs();
+      if (!shouldPlayInsertedSong) {
+        _eagerPreparedForNextIndex = null;
+        _preloadUpcomingSongs();
+      }
 
       if (shouldPlayInsertedSong) {
         await _playFromQueue(insertIndex);
@@ -1546,51 +1550,14 @@ class MusifiedAudioHandler extends BaseAudioHandler {
     });
   }
 
-  /// While the current track plays, resolve the next track's stream URL so
-  /// lock-screen auto-advance does not need a cold network fetch (especially
-  /// when switching YouTube ↔ JioSaavn).
+  /// While this track plays, resolve the next several stream URLs.
+  /// Warming only the immediate next song left the one after it cold, so
+  /// lock-screen playback died on song 2 when that handoff needed a fetch.
   void _eagerlyPrepareNextTrack() {
     if (offlineMode.value || _currentLoadingTransitionId != -1) return;
-    final nextIndex = _hub.queue.currentIndex + 1;
-    if (nextIndex < 0 || nextIndex >= _hub.queue.items.length) return;
-    if (_eagerPreparedForNextIndex == nextIndex) return;
-
-    final nextSong = _hub.queue.items[nextIndex];
-    final ytid = nextSong['ytid']?.toString();
-    if (ytid == null || ytid.isEmpty) return;
-
-    final warmed = nextSong['_preloadedStreamUrl']?.toString();
-    if (warmed != null &&
-        warmed.isNotEmpty &&
-        streamUrlMatchesPreferredSource(warmed, nextSong)) {
-      _eagerPreparedForNextIndex = nextIndex;
-      return;
-    }
-    final cached = _hub.preloadCache.streamUrls[ytid];
-    if (cached != null &&
-        cached.isNotEmpty &&
-        streamUrlMatchesPreferredSource(cached, nextSong)) {
-      nextSong['_preloadedStreamUrl'] = cached;
-      _eagerPreparedForNextIndex = nextIndex;
-      return;
-    }
-
-    _eagerPreparedForNextIndex = nextIndex;
-    unawaited(
-      _hub.preload
-          .preloadSingle(
-            nextSong,
-            offlineModeEnabled: offlineMode.value,
-            isLoadInProgress: () => _currentLoadingTransitionId != -1,
-          )
-          .catchError((Object e, StackTrace st) {
-            logger.log(
-              'Eager preload for next track failed',
-              error: e,
-              stackTrace: st,
-            );
-          }),
-    );
+    if (_eagerPreparedForNextIndex == _hub.queue.currentIndex) return;
+    _eagerPreparedForNextIndex = _hub.queue.currentIndex;
+    _preloadUpcomingSongs();
   }
 
   void _scrubStaleStreamState(Map song) {

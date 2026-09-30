@@ -14,8 +14,10 @@ class AudioHandlerHub {
     this.maxConcurrentPreloads = defaultMaxConcurrentPreloads,
   });
 
-  static const int defaultQueueLookahead = 1;
-  static const int defaultMaxConcurrentPreloads = 1;
+  /// Warm this many upcoming tracks, not only the immediate next one.
+  /// A lookahead of 1 left track 3 cold, so lock-screen playback died on song 2.
+  static const int defaultQueueLookahead = 3;
+  static const int defaultMaxConcurrentPreloads = 2;
 
   final int queueLookahead;
   final int maxConcurrentPreloads;
