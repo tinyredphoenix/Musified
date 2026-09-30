@@ -1032,19 +1032,24 @@ Future<String?> fetchSongStreamUrl(
       await invalidateSongStreamCache(songId);
     }
 
-    // Blocking Saavn search — only when the user selected JioSaavn.
-    // Keep the timeout well under a second so a miss does not create a
+    final isSaavnTrack = song['source'] == 'saavn' ||
+        song['catalogOrigin'] == 'saavn' ||
+        (song['encrypted_media_url'] != null &&
+            song['encrypted_media_url'].toString().isNotEmpty);
+
+    // Blocking Saavn search — only when the user selected JioSaavn or track is from Saavn catalog.
+    // Keep the timeout well under a second for auto-searches so a miss does not create a
     // lock-screen silence gap that lets iOS suspend the audio session.
-    if (allowSaavnSearch &&
+    if ((allowSaavnSearch || isSaavnTrack) &&
         forceSource != 'youtube' &&
         jiosaavnEnabled.value) {
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
             .timeout(
-              // Explicit source-picker force may wait longer; preference-only
+              // Explicit force or direct Saavn tracks resolve fast; preference-only
               // path stays sub-second so lock-screen gaps never stall.
-              Duration(milliseconds: forceJiosaavn ? 8000 : 0),
+              Duration(milliseconds: isSaavnTrack ? 4000 : (forceJiosaavn ? 8000 : 0)),
               onTimeout: () {
                 logger.log(
                   'JioSaavn search timed out for $songId — '
@@ -1097,7 +1102,20 @@ Future<String?> fetchSongStreamUrl(
 
     // YouTube Music resolution — coverage path for auto / youtube / Saavn miss.
     if (abandon?.call() == true) return null;
-    final selectedStream = await fetchBestAudioStream(songId);
+    var resolvedYtSongId = songId;
+    if (isSaavnTrack && !isValidYoutubeVideoId(resolvedYtSongId)) {
+      try {
+        final query = '${song['title']} ${song['artist']}'.trim();
+        final searchRes = await ytMusicClient.music.searchSongs(query);
+        if (searchRes.isNotEmpty) {
+          resolvedYtSongId = searchRes.first.id.toString();
+          song['ytid'] = resolvedYtSongId;
+        }
+      } catch (e) {
+        logger.log('Fallback YouTube search for Saavn track failed: $e');
+      }
+    }
+    final selectedStream = await fetchBestAudioStream(resolvedYtSongId);
     if (selectedStream == null) {
       setYoutubeStreamError(_youtubeStreamFailureMessage());
       logger.log('fetchSongStreamUrl: no YouTube audio streams for $songId');

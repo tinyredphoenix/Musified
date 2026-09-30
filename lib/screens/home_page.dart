@@ -346,7 +346,7 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SectionHeader(
-              title: 'Top Charts',
+              title: 'JioSaavn Charts',
               icon: CupertinoIcons.chart_bar_square_fill,
             ),
             const SizedBox(height: 10),
@@ -359,49 +359,69 @@ class _HomePageState extends State<HomePage> {
                 itemCount: charts.length,
                 itemBuilder: (context, index) {
                   final chart = charts[index];
+                  final id = chart['saavnPlaylistId']?.toString() ?? chart['ytid']?.toString() ?? '';
                   final title = chart['title']?.toString() ?? 'Chart';
+                  final image = chart['image']?.toString() ?? '';
 
                   return Padding(
                     padding: const EdgeInsets.only(right: 12),
-                    child: SizedBox(
-                      width: playlistHeight,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          PlaylistCube(
-                            {
-                              'title': title,
-                              'image': chart['image']?.toString() ?? '',
-                            },
-                            size: playlistHeight,
-                            showTypeLabel: false,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontFamily: MusifiedStyle.uiFont,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.2,
-                              color: isDark
-                                  ? CupertinoColors.white
-                                  : CupertinoColors.black,
+                    child: GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        final cleanId = id.startsWith('saavn_chart_') ? id : 'saavn_chart_$id';
+                        context.push(
+                          '/home/playlist/$cleanId',
+                          extra: {
+                            'title': title,
+                            'image': image,
+                            'ytid': cleanId,
+                            'saavnPlaylistId': chart['saavnPlaylistId'] ?? id,
+                            'source': 'saavn',
+                            'type': 'chart',
+                          },
+                        );
+                      },
+                      child: SizedBox(
+                        width: playlistHeight,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            PlaylistCube(
+                              {
+                                'title': title,
+                                'image': image,
+                                'ytid': id,
+                              },
+                              size: playlistHeight,
+                              showTypeLabel: false,
                             ),
-                          ),
-                          Text(
-                            chart['subtitle']?.toString() ?? 'JioSaavn',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontFamily: MusifiedStyle.uiFont,
-                              fontSize: 11,
-                              color: CupertinoColors.systemGrey,
+                            const SizedBox(height: 6),
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: -0.2,
+                                color: isDark
+                                    ? CupertinoColors.white
+                                    : CupertinoColors.black,
+                              ),
                             ),
-                          ),
-                        ],
+                            Text(
+                              chart['subtitle']?.toString() ?? 'JioSaavn',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontFamily: MusifiedStyle.uiFont,
+                                fontSize: 11,
+                                color: CupertinoColors.systemGrey,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );

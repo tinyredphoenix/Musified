@@ -41,6 +41,25 @@ class SourceResolver {
     final ytid = song['ytid']?.toString() ?? song['id']?.toString() ?? '';
     if (ytid.isEmpty) return null;
 
+    // If song already has direct encrypted_media_url from JioSaavn catalog/chart
+    final directEncrypted = song['encrypted_media_url']?.toString();
+    if (directEncrypted != null && directEncrypted.isNotEmpty) {
+      final streamUrl = await _saavnService.getStreamUrl(
+        directEncrypted,
+        quality: quality ?? jiosaavnQuality.value,
+      );
+      if (streamUrl != null && streamUrl.isNotEmpty) {
+        return {
+          'url': streamUrl,
+          'source': 'saavn',
+          'bitrate': int.tryParse(quality ?? jiosaavnQuality.value) ?? 320,
+          'format': 'm4a',
+          'saavnId': song['saavnId'] ?? ytid,
+          'image': song['image'],
+        };
+      }
+    }
+
     // Check cache
     try {
       final cached = await getCachedMatch(ytid);

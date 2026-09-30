@@ -214,9 +214,32 @@ class _PlaylistPageState extends State<PlaylistPage> {
                           message: context.l10n.noSongsInPlaylist,
                         ),
                       const SliverMiniPlayerBottomSpace(),
-                    ],
-                  )
-                : Center(child: EmptyPlaylistState(message: context.l10n.error)),
+                : Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            CupertinoIcons.list_bullet,
+                            size: 56,
+                            color: CupertinoColors.systemGrey,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            context.l10n.error,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontFamily: MusifiedStyle.uiFont,
+                              color: CupertinoColors.systemGrey,
+                              fontSize: 15,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
       ),
     );
   }

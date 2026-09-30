@@ -155,6 +155,7 @@ class NavigationManager {
                 pageBuilder: (context, state) => _pushPage(
                   child: PlaylistPage(
                     playlistId: state.pathParameters['playlistId'],
+                    playlistData: state.extra,
                   ),
                   state: state,
                 ),

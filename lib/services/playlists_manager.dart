@@ -10,6 +10,7 @@ import 'package:musified/services/artist_service.dart';
 import 'package:musified/services/data_manager.dart';
 import 'package:musified/services/playlist_download_service.dart';
 import 'package:musified/services/youtube_client.dart';
+import 'package:musified/services/jiosaavn_service.dart';
 import 'package:musified/services/settings_manager.dart';
 import 'package:musified/services/youtube_auth_service.dart';
 import 'package:musified/services/youtube_music_sync_service.dart';
@@ -1134,6 +1135,16 @@ Future<Map?> getPlaylistInfoForWidget(
     // the copy above is available offline, a release is never fetched there.
     if (offlineMode.value) return null;
     return getArtistAlbum(normalizedId, forceRefresh: forceRefresh);
+  }
+
+  if (normalizedId.startsWith('saavn_chart_') ||
+      normalizedId.startsWith('saavn_playlist_') ||
+      normalizedId.startsWith('saavn_')) {
+    final saavnId = normalizedId
+        .replaceFirst('saavn_chart_', '')
+        .replaceFirst('saavn_playlist_', '')
+        .replaceFirst('saavn_', '');
+    return JioSaavnService().fetchPlaylistDetails(saavnId);
   }
 
   return _fetchYouTubePlaylist(normalizedId);

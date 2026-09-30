@@ -198,4 +198,76 @@ class JioSaavnService {
       return [];
     }
   }
+
+  /// Fetch full playlist details (including all tracks) for a JioSaavn playlist or chart.
+  Future<Map<String, dynamic>?> fetchPlaylistDetails(String playlistId) async {
+    try {
+      final cleanId = playlistId
+          .replaceFirst('saavn_chart_', '')
+          .replaceFirst('saavn_playlist_', '')
+          .replaceFirst('saavn_', '')
+          .trim();
+      if (cleanId.isEmpty) return null;
+
+      final url = Uri.parse(
+        'https://www.jiosaavn.com/api.php?__call=playlist.getDetails'
+        '&_format=json&_marker=0&api_version=4&ctx=web6dot0&listid=$cleanId',
+      );
+      final response = await http
+          .get(url, headers: {
+            'User-Agent':
+                'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) '
+                'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+            'Accept': 'application/json',
+            'Referer': 'https://www.jiosaavn.com/',
+          })
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return null;
+      final body = response.body.trim();
+      final jsonStart = body.indexOf('{');
+      if (jsonStart == -1) return null;
+      final raw = jsonDecode(body.substring(jsonStart));
+      if (raw is! Map) return null;
+
+      final id = raw['id']?.toString() ?? cleanId;
+      var title = (raw['title']?.toString() ?? raw['listname']?.toString() ?? '')
+          .replaceAll('&quot;', '"')
+          .replaceAll('&amp;', '&')
+          .replaceAll('&#039;', "'")
+          .trim();
+      var image = raw['image']?.toString() ?? '';
+      if (image.contains('150x150')) image = image.replaceAll('150x150', '500x500');
+      if (image.contains('50x50')) image = image.replaceAll('50x50', '500x500');
+
+      final rawList = raw['list'];
+      final songList = <Map<String, dynamic>>[];
+      if (rawList is List) {
+        for (final item in rawList) {
+          if (item is Map) {
+            final track = _formatTrack(Map<String, dynamic>.from(item));
+            track['catalogOrigin'] = 'saavn';
+            songList.add(track);
+          }
+        }
+      }
+
+      return {
+        'ytid': 'saavn_chart_$id',
+        'playlistId': id,
+        'saavnPlaylistId': id,
+        'title': title,
+        'image': image,
+        'source': 'saavn',
+        'catalogOrigin': 'saavn',
+        'subtitle': raw['subtitle']?.toString() ?? '',
+        'description': raw['header_desc']?.toString() ?? '',
+        'list': songList,
+      };
+    } catch (e) {
+      logger.log('JioSaavn fetchPlaylistDetails error for $playlistId: $e');
+      return null;
+    }
+  }
 }
+
