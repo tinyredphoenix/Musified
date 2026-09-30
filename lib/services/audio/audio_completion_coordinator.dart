@@ -106,6 +106,7 @@ class PlaybackErrorContext {
     required this.invalidateStreamCache,
     required this.removePreloadedUrl,
     required this.retryCurrentSong,
+    required this.tryAlternateSource,
     required this.skipToNext,
     required this.songYtid,
     required this.currentSong,
@@ -118,6 +119,8 @@ class PlaybackErrorContext {
   final Future<void> Function(String ytid) invalidateStreamCache;
   final void Function(String ytid) removePreloadedUrl;
   final Future<bool> Function(Map song) retryCurrentSong;
+  /// Try the other provider (Saavn ↔ YouTube) once for the same song.
+  final Future<bool> Function(Map song) tryAlternateSource;
   final Future<void> Function() skipToNext;
   final String? Function(Map song) songYtid;
   final Map? Function() currentSong;
@@ -127,7 +130,8 @@ class PlaybackErrorContext {
 /// No queue/preload imports — handler passes indices and callbacks.
 class AudioCompletionCoordinator {
   static const int maxConsecutiveErrors = 3;
-  static const Duration errorRetryDelay = Duration(seconds: 1);
+  // Keep this near-zero: any multi-second silent gap lets iOS suspend audio.
+  static const Duration errorRetryDelay = Duration(milliseconds: 50);
 
   bool eventPending = false;
   bool handlerLoadStarted = false;
@@ -239,14 +243,28 @@ class AudioCompletionCoordinator {
     // streams) and audio actually stops at the canonical duration.
     final playerOverReportsDuration =
         playerDuration > duration + const Duration(seconds: 5);
-    if (!ctx.lastInstalledWasClipped && !playerOverReportsDuration) return;
+    if (!ctx.lastInstalledWasClipped && !playerOverReportsDuration) {
+      // Still warm the next URL during the last stretch so lock-screen
+      // auto-advance does not cold-fetch under a silence gap.
+      if (duration >= const Duration(seconds: 5)) {
+        final remainingWarm = duration - ctx.position;
+        if (remainingWarm <= const Duration(seconds: 45) &&
+            !remainingWarm.isNegative) {
+          ctx.prepareNextTrack();
+        }
+      }
+      return;
+    }
 
     if (duration < const Duration(seconds: 5)) return;
     final remaining = duration - ctx.position;
+    // Start resolving the next URL while audio is still playing.
+    if (remaining <= const Duration(seconds: 45) && !remaining.isNegative) {
+      ctx.prepareNextTrack();
+    }
     if (remaining > const Duration(seconds: 3)) {
       return;
     }
-    ctx.prepareNextTrack();
     if (remaining > const Duration(milliseconds: 450) || remaining.isNegative) {
       return;
     }
@@ -304,14 +322,24 @@ class AudioCompletionCoordinator {
       error: ctx.lastError,
     );
 
+    // Never kill the whole session because one/few songs failed — skip ahead.
     if (consecutiveErrors >= maxConsecutiveErrors) {
-      logger.log('Max consecutive errors reached. Stopping playback.');
-      unawaited(ctx.stopPlayback());
+      logger.log(
+        'Max consecutive errors reached — skipping to next instead of stopping',
+      );
+      consecutiveErrors = 0;
+      if (ctx.canRetryPlayback()) {
+        unawaited(ctx.skipToNext());
+      }
+      ctx.setLastError(null);
       return;
     }
 
     if (advance && ctx.canRetryPlayback()) {
       unawaited(retryOrAdvanceAfterError(ctx));
+    } else if (advance) {
+      // No further queue items / radio — clear error; do not freeze mid-session.
+      ctx.setLastError(null);
     } else {
       ctx.setLastError(null);
     }
@@ -324,6 +352,13 @@ class AudioCompletionCoordinator {
       await ctx.invalidateStreamCache(ytid);
       ctx.removePreloadedUrl(ytid);
       if (consecutiveErrors == 1 && song != null) {
+        // First failure: try the other source once (Saavn ↔ YouTube).
+        final switched = await ctx.tryAlternateSource(song);
+        if (switched) {
+          consecutiveErrors = 0;
+          ctx.setLastError(null);
+          return;
+        }
         final retried = await ctx.retryCurrentSong(song);
         if (retried) {
           consecutiveErrors = 0;

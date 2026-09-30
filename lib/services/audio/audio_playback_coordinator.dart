@@ -516,7 +516,9 @@ class AudioPlaybackCoordinator {
       unawaited(onRecentlyPlayed(song));
 
       onPlaybackStateChanged();
-      Future.delayed(const Duration(seconds: 2), schedulePreload);
+      // Warm the next track URL while this one is still playing — critical for
+      // lock-screen continuity (iOS suspends on silence between tracks).
+      Future.delayed(const Duration(milliseconds: 800), schedulePreload);
 
       return true;
     } catch (e, stackTrace) {

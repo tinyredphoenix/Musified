@@ -177,10 +177,23 @@ class OfflinePlaylistService {
       activeDownloads.remove(playlistId);
 
       final songsList = playlist['list'] as List<dynamic>;
+      final completed = progressNotifier.value.completed;
+      final failed = progressNotifier.value.failed;
+      final total = songsList.length;
+      // Count only files that actually exist and pass the playable size check.
+      final playableCount = songsList.where((s) {
+        final ytid = s is Map ? s['ytid']?.toString() : null;
+        return hasPlayableOfflineFile(ytid);
+      }).length;
+      // Do not mark the playlist offline when many tracks failed or are
+      // truncated stubs — require nearly-complete playable coverage.
+      final mostlyComplete = !progressNotifier.value.isCancelled &&
+          failed <= (total * 0.1).ceil() &&
+          playableCount >= (total * 0.9).ceil() &&
+          completed > failed;
 
       // Only add to offline playlists if not cancelled and most songs succeeded
-      if (!progressNotifier.value.isCancelled &&
-          progressNotifier.value.completed > progressNotifier.value.failed) {
+      if (mostlyComplete) {
         // Create an offline version of the playlist
         final offlinePlaylist = {
           ...playlist,
@@ -538,8 +551,8 @@ class OfflinePlaylistService {
           continue;
         }
 
-        // Skip if already offline
-        if (isSongAlreadyOffline(song['ytid'])) {
+        // Skip if already offline with a real playable file (not a stub).
+        if (hasPlayableOfflineFile(song['ytid']?.toString())) {
           // Find the existing offline song to get the correct audioPath
           final offlineSong = getOfflineSongByYtid(song['ytid']);
           if (offlineSong.isNotEmpty) {
@@ -552,7 +565,7 @@ class OfflinePlaylistService {
           progressNotifier.notifyListeners();
         } else {
           final success = await makeSongOffline(song, source: downloadSource.value, quality: downloadQuality.value);
-          if (success) {
+          if (success && hasPlayableOfflineFile(song['ytid']?.toString())) {
             progressNotifier.value.completed++;
           } else {
             progressNotifier.value.failed++;

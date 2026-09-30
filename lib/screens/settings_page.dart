@@ -489,25 +489,42 @@ class SettingsPage extends StatelessWidget {
               ValueListenableBuilder<String>(
                 valueListenable: preferredSource,
                 builder: (context, source, _) {
-                  final isJio = source == 'saavn' || source == 'jiosaavn';
+                  String label;
+                  if (source == 'saavn' || source == 'jiosaavn') {
+                    label = 'JioSaavn 320k';
+                  } else if (source == 'youtube') {
+                    label = 'YouTube Music';
+                  } else {
+                    label = 'Auto (Saavn→YT)';
+                  }
                   return _buildSettingRow(
                     icon: CupertinoIcons.music_note_2,
                     iconBg: const Color(0xFFFF2D55),
                     title: 'Default Audio Provider',
-                    subtitle: 'Priority stream source for playback',
-                    trailingText: isJio ? 'JioSaavn 320k' : 'YouTube Music',
+                    subtitle: 'Auto tries Saavn match, else YouTube audio',
+                    trailingText: label,
                     onTap: () {
                       HapticFeedback.selectionClick();
-                      final next = isJio ? 'youtube' : 'jiosaavn';
+                      // Cycle auto → jiosaavn → youtube → auto.
+                      final String next;
+                      if (source == 'auto') {
+                        next = 'jiosaavn';
+                      } else if (source == 'saavn' || source == 'jiosaavn') {
+                        next = 'youtube';
+                      } else {
+                        next = 'auto';
+                      }
                       preferredSource.value = next;
                       unawaited(addOrUpdateData('settings', 'preferredSource', next));
                       if (isAudioHandlerInitialized) {
                         audioHandler.clearPinnedSources();
                       }
-                      showToast(
-                        context,
-                        'Default provider: ${next == 'youtube' ? 'YouTube Music' : 'JioSaavn 320k Lossless'}',
-                      );
+                      final toastLabel = next == 'youtube'
+                          ? 'YouTube Music'
+                          : next == 'auto'
+                              ? 'Auto (Saavn match → YouTube)'
+                              : 'JioSaavn 320k Lossless';
+                      showToast(context, 'Default provider: $toastLabel');
                     },
                     isDark: isDark,
                   );
@@ -524,9 +541,9 @@ class SettingsPage extends StatelessWidget {
                       return _buildSettingRow(
                         icon: CupertinoIcons.cloud_download,
                         iconBg: CupertinoColors.systemRed,
-                        title: 'YouTube Stream Client',
+                        title: 'Sync YouTube Client',
                         subtitle: syncing
-                            ? 'Syncing from yt-dlp…'
+                            ? 'Fetching Innertube config from GitHub…'
                             : _clientSyncSubtitle(service.lastSyncedAt.value),
                         trailingText: service.clientLabel,
                         onTap: syncing
@@ -859,12 +876,18 @@ class SettingsPage extends StatelessWidget {
   }
 
   String _clientSyncSubtitle(DateTime? syncedAt) {
-    if (syncedAt == null) return 'Tap to update definition from yt-dlp';
+    if (syncedAt == null) {
+      return 'Tap to fetch latest Innertube config from GitHub';
+    }
     final elapsed = DateTime.now().difference(syncedAt);
-    if (elapsed.inMinutes < 1) return 'Updated from yt-dlp just now';
-    if (elapsed.inHours < 1) return 'Updated from yt-dlp ${elapsed.inMinutes}m ago';
-    if (elapsed.inDays < 1) return 'Updated from yt-dlp ${elapsed.inHours}h ago';
-    return 'Updated from yt-dlp ${elapsed.inDays}d ago';
+    if (elapsed.inMinutes < 1) return 'Innertube config updated just now';
+    if (elapsed.inHours < 1) {
+      return 'Innertube config updated ${elapsed.inMinutes}m ago';
+    }
+    if (elapsed.inDays < 1) {
+      return 'Innertube config updated ${elapsed.inHours}h ago';
+    }
+    return 'Innertube config updated ${elapsed.inDays}d ago';
   }
 
   Future<void> _syncYoutubeClient(BuildContext context) async {

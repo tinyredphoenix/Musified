@@ -226,12 +226,23 @@ _tryGetManifest(
 
 Future<({StreamManifest manifest, YoutubeApiClient? client})?>
 _fetchStreamManifest(String songId) async {
-  return _tryGetManifest(
-    songId,
-    attempt: YtdlpClientSyncService.instance.clientLabel,
-    timeout: const Duration(seconds: 20),
-    ytClients: youtubeStreamClients(),
-  );
+  // Try each client alone so the returned client matches the stream URLs
+  // (CDN ties User-Agent to the minting client).
+  for (final client in youtubeStreamClients()) {
+    final name =
+        client.payload['context']?['client']?['clientName']?.toString() ??
+            'unknown';
+    final result = await _tryGetManifest(
+      songId,
+      attempt: name,
+      timeout: const Duration(seconds: 12),
+      ytClients: [client],
+    );
+    if (result != null) {
+      return (manifest: result.manifest, client: client);
+    }
+  }
+  return null;
 }
 
 DateTime? _parseCacheTimestamp(dynamic raw) {
@@ -320,7 +331,7 @@ Future<String?> _getCachedSongUrl(
 
 Future<List> fetchSongsList(String searchQuery) async {
   try {
-    // 1. Search YouTube Music catalog for songs only (avoids news, vlogs, reactions)
+    // YouTube Music catalog with Songs filter (not generic video search).
     final musicTracks = await ytMusicClient.music.searchSongs(searchQuery);
     if (musicTracks.isNotEmpty) {
       return musicTracks
@@ -329,10 +340,11 @@ Future<List> fetchSongsList(String searchQuery) async {
             layout['catalogOrigin'] = 'youtube';
             return layout;
           })
+          .where(_isMusicOnlySearchResult)
           .toList();
     }
 
-    // 2. Fallback: query YouTube with music filter suffix
+    // Soft fallback only when YTM songs shelf is empty — still filter hard.
     final List<Video> searchResults =
         await ytClient.search.search('$searchQuery audio');
     return searchResults
@@ -341,11 +353,33 @@ Future<List> fetchSongsList(String searchQuery) async {
           layout['catalogOrigin'] = 'youtube';
           return layout;
         })
+        .where(_isMusicOnlySearchResult)
         .toList();
   } catch (e, stackTrace) {
     logger.log('Error in fetchSongsList', error: e, stackTrace: stackTrace);
     return [];
   }
+}
+
+/// Drop trailers / non-music / incomplete rows from merged search results.
+bool _isMusicOnlySearchResult(Map layout) {
+  final title = layout['title']?.toString().trim() ?? '';
+  final artist = layout['artist']?.toString().trim() ?? '';
+  if (title.isEmpty || artist.isEmpty) return false;
+  final duration = layout['duration'];
+  final seconds = duration is int
+      ? duration
+      : int.tryParse(duration?.toString() ?? '');
+  if (seconds == null || seconds <= 0) return false;
+  final lower = '$title $artist'.toLowerCase();
+  if (lower.contains('trailer') ||
+      lower.contains('teaser') ||
+      lower.contains('behind the scenes') ||
+      lower.contains('interview') ||
+      lower.contains('reaction')) {
+    return false;
+  }
+  return true;
 }
 
 DateTime? _lastRecTime;
@@ -754,6 +788,15 @@ Future<List<String>> getSearchSuggestions(String query) async {
 
 Future<void> getSimilarSong(String songYtId) async {
   try {
+    // Prefer YouTube Music /next radio (WEB_REMIX) over watch-page HTML parsing.
+    // related_videos_client.dart HTML remains a brittle fallback risk.
+    final fromMusic =
+        await YouTubeMusicSyncService().fetchRadioNextTrack(songYtId);
+    if (fromMusic != null) {
+      nextRecommendedSong = fromMusic;
+      return;
+    }
+
     final song = await ytClient.videos.get(songYtId);
     final relatedSongs = await ytClient.videos.getRelatedVideos(song) ?? [];
 
@@ -875,12 +918,16 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
     }
 
     final playable = audioStream
-        .where((stream) => isPlayableYoutubeStreamUrl(stream.url))
+        .where(
+          (stream) =>
+              isPlayableYoutubeStreamUrl(stream.url) &&
+              isAudioOnlyMimeStream(stream),
+        )
         .toList();
     if (playable.isEmpty) {
       logger.log(
-        'fetchBestAudioStream: no playable URLs for $songId '
-        '(client returned ciphered URLs)',
+        'fetchBestAudioStream: no playable audio/* URLs for $songId '
+        '(rejected video/muxed mime types)',
       );
       return null;
     }
@@ -913,6 +960,33 @@ Future<AudioOnlyStreamInfo?> fetchBestAudioStream(String? songId) async {
   }
 }
 
+/// Fire-and-forget Saavn match while YouTube is already playing.
+/// Never await this on the between-track gap — iOS will suspend on silence.
+Future<void> _cacheSaavnMatchInBackground(Map song) async {
+  final songId = song['ytid']?.toString() ?? '';
+  if (songId.isEmpty || !jiosaavnEnabled.value) return;
+  try {
+    final existing = await SourceResolver().getCachedMatch(songId);
+    if (existing != null) return;
+    final match = await SourceResolver()
+        .resolveAudioSource(song)
+        .timeout(const Duration(seconds: 12), onTimeout: () => null);
+    if (match != null && match['url'] != null) {
+      final url = match['url'] as String;
+      if (url.isNotEmpty) {
+        await _cacheResolvedStream(songId, 'jiosaavn', url, {
+          'bitrate': match['bitrate'],
+          'format': match['format'],
+          'image': match['image'],
+        });
+        logger.log('Background-cached JioSaavn match for $songId');
+      }
+    }
+  } catch (e) {
+    logger.log('Background Saavn cache failed for $songId: $e');
+  }
+}
+
 /// Resolves a playable stream URL for a song (cached when possible).
 Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
   final songId = song['ytid']?.toString() ?? '';
@@ -930,37 +1004,58 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     const cacheDuration = songCacheDuration;
     final forceSource = song['forceSource']?.toString();
     final resolveYoutube = songShouldResolveYoutube(song);
+    final pref = preferredSource.value;
+    final forceJiosaavn =
+        forceSource == 'jiosaavn' || forceSource == 'saavn';
+    // Saavn search ONLY when the user pinned JioSaavn. `auto` must never wait
+    // on a title/artist lookup between tracks — iOS suspends on silence gaps.
+    final allowSaavnSearch = forceJiosaavn ||
+        pref == 'jiosaavn' ||
+        pref == 'saavn';
     final preference = resolveYoutube
         ? 'youtube'
-        : ((forceSource == 'saavn' || forceSource == 'jiosaavn' ||
-                preferredSource.value == 'jiosaavn')
-            ? 'jiosaavn'
-            : 'youtube');
+        : (allowSaavnSearch ? 'jiosaavn' : 'youtube');
 
     logger.log(
       'Resolution start for songId=$songId',
       data: {
         'title': song['title'],
         'force': forceSource ?? '-',
-        'target': resolveYoutube ? 'youtube' : preference,
+        'target': preference,
+        'saavnSearch': allowSaavnSearch,
         'catalogOrigin': song['catalogOrigin']?.toString() ?? '-',
         'offlineMode': offlineMode.value,
       },
     );
 
-    // Check source-specific cache
-    final cachePreference = resolveYoutube ? 'youtube' : preference;
-    final sourceKey = _songStreamCacheKey(songId, cachePreference);
-    final cacheBox = await Hive.openBox('cache');
-    final metadata = cacheBox.get(_songStreamCacheMetaKey(songId, cachePreference));
-    final cachedUrl = await _getCachedSongUrl(
-      sourceKey,
-      cacheDuration,
-      userAgent: metadata is Map
-          ? metadata['userAgent']?.toString()
-          : null,
-    );
-    if (cachedUrl != null) {
+    // Instant cache hits only (no network). For auto, accept either provider's
+    // already-resolved URL so a prior Saavn match can play without searching.
+    final cacheOrder = preference == 'jiosaavn'
+        ? <String>['jiosaavn', 'youtube']
+        : <String>['youtube', 'jiosaavn'];
+    for (final cachePreference in cacheOrder) {
+      // Skip Saavn cache when user pinned YouTube.
+      if (cachePreference == 'jiosaavn' &&
+          (forceSource == 'youtube' || pref == 'youtube')) {
+        continue;
+      }
+      // Skip YouTube cache when user forced Saavn.
+      if (cachePreference == 'youtube' && forceJiosaavn) {
+        continue;
+      }
+      final sourceKey = _songStreamCacheKey(songId, cachePreference);
+      final cacheBox = await Hive.openBox('cache');
+      final metadata =
+          cacheBox.get(_songStreamCacheMetaKey(songId, cachePreference));
+      final cachedUrl = await _getCachedSongUrl(
+        sourceKey,
+        cacheDuration,
+        userAgent: metadata is Map
+            ? metadata['userAgent']?.toString()
+            : null,
+      );
+      if (cachedUrl == null) continue;
+
       final cachedUri = Uri.tryParse(cachedUrl);
       if (cachePreference == 'youtube' &&
           cachedUri != null &&
@@ -970,8 +1065,11 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
           data: {'expire': cachedUri.queryParameters['expire'] ?? '-'},
         );
         await invalidateSongStreamCache(songId);
-      } else if (metadata is Map && metadata['source'] == cachePreference) {
-        final isBadHeAac = cachePreference == 'youtube' && _isCachedHeAacYoutube(metadata);
+        continue;
+      }
+      if (metadata is Map && metadata['source'] == cachePreference) {
+        final isBadHeAac =
+            cachePreference == 'youtube' && _isCachedHeAacYoutube(metadata);
         if (!isBadHeAac) {
           song['resolvedSource'] = cachePreference;
           song['resolvedBitrate'] = metadata['bitrate'];
@@ -1010,19 +1108,26 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       await invalidateSongStreamCache(songId);
     }
 
-    // YouTube catalog/search hits: skip JioSaavn wait when track is not on Saavn.
-    final forceJiosaavn =
-        forceSource == 'jiosaavn' || forceSource == 'saavn';
-    if (!resolveYoutube &&
+    // Blocking Saavn search — only when the user selected JioSaavn.
+    // Keep the timeout well under a second so a miss does not create a
+    // lock-screen silence gap that lets iOS suspend the audio session.
+    if (allowSaavnSearch &&
         forceSource != 'youtube' &&
-        preference == 'jiosaavn' &&
         jiosaavnEnabled.value) {
       try {
         final saavnSource = await SourceResolver()
             .resolveAudioSource(song)
             .timeout(
-              Duration(seconds: forceJiosaavn ? 10 : 5),
-              onTimeout: () => null,
+              // Explicit source-picker force may wait longer; preference-only
+              // path stays sub-second so lock-screen gaps never stall.
+              Duration(milliseconds: forceJiosaavn ? 8000 : 700),
+              onTimeout: () {
+                logger.log(
+                  'JioSaavn search timed out for $songId — '
+                  'not blocking playback gap',
+                );
+                return null;
+              },
             );
         if (saavnSource != null && saavnSource['url'] != null) {
           final url = saavnSource['url'] as String;
@@ -1039,7 +1144,9 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
               'format': saavnSource['format'],
               'image': saavnSource['image'],
             });
-            logger.log('Resolved JioSaavn stream: host=${Uri.tryParse(url)?.host}');
+            logger.log(
+              'Resolved JioSaavn stream: host=${Uri.tryParse(url)?.host}',
+            );
             return url;
           }
         }
@@ -1047,7 +1154,9 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
           logger.log('JioSaavn forced but no match for $songId');
           return null;
         }
-        logger.log('JioSaavn match not found for $songId, falling back to YouTube');
+        logger.log(
+          'JioSaavn match not found for $songId, falling back to YouTube',
+        );
       } catch (e) {
         if (forceJiosaavn) {
           logger.log('JioSaavn forced resolution failed for $songId: $e');
@@ -1062,7 +1171,7 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
       return null;
     }
 
-    // YouTube Music resolution — selected Settings client only, no fallback.
+    // YouTube Music resolution — coverage path for auto / youtube / Saavn miss.
     final selectedStream = await fetchBestAudioStream(songId);
     if (selectedStream == null) {
       setYoutubeStreamError(_youtubeStreamFailureMessage());
@@ -1104,8 +1213,15 @@ Future<String?> fetchSongStreamUrl(Map song, bool isLive) async {
     if (streamDuration == null) {
       unawaited(ensureYoutubeCatalogDuration(song));
     }
+    // Opportunistic Saavn match AFTER YouTube is ready — never on the gap.
+    // Caches a better source for next time when idle/playing.
+    if (!allowSaavnSearch &&
+        jiosaavnEnabled.value &&
+        preferredSource.value == 'auto') {
+      unawaited(_cacheSaavnMatchInBackground(song));
+    }
     logger.log('Resolved YouTube stream: host=${Uri.tryParse(url)?.host}');
-    return url;
+    return url
   } on TimeoutException catch (_) {
     setYoutubeStreamError(_youtubeStreamFailureMessage());
     logger.log('fetchSongStreamUrl timed out for $songId');
@@ -1177,10 +1293,13 @@ Future<bool> makeSongOffline(
     }
 
     if (isSongAlreadyOffline(ytid)) {
-      final existingPath = FilePaths.getAudioPath(ytid);
-      if (await File(existingPath).exists()) {
+      // Tiny/truncated files must not short-circuit a real download.
+      if (hasPlayableOfflineFile(ytid)) {
         return true;
       }
+      logger.log(
+        'makeSongOffline: offline Hive entry for $ytid lacks playable file — re-downloading',
+      );
     }
 
     final offlineSong = Map<String, dynamic>.from(song as Map)
@@ -1283,6 +1402,28 @@ Future<bool> makeSongOffline(
       try {
         await fileStream?.close();
       } catch (_) {}
+      if (await audioFile.exists()) {
+        await audioFile.delete();
+      }
+      return false;
+    }
+
+    // Do not mark offline in Hive unless the file is a real audio payload.
+    if (!_isPlayableAudioFile(audioFile.path)) {
+      logger.log(
+        'makeSongOffline: downloaded file too small or missing for $ytid',
+      );
+      if (await audioFile.exists()) {
+        await audioFile.delete();
+      }
+      return false;
+    }
+    if (downloadedSource == 'youtube' &&
+        audioCodec != null &&
+        audioCodec.toLowerCase().startsWith('video/')) {
+      logger.log(
+        'makeSongOffline: rejecting video mime download for $ytid ($audioCodec)',
+      );
       if (await audioFile.exists()) {
         await audioFile.delete();
       }

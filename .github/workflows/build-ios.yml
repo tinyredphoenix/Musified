@@ -65,6 +65,8 @@ jobs:
           flutter test
 
       - name: Build iOS App (No Codesign)
+        # Unsigned IPA for LiveContainer / SideStore / AltStore sideload
+        # (see readmes/10_ios_build.md — UIBackgroundModes audio only).
         run: flutter build ios --release --no-codesign
 
       - name: Package into IPA
@@ -74,6 +76,13 @@ jobs:
           cd build/ipa
           zip -r Musified.ipa Payload
           ls -la Musified.ipa
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Musified-ipa
+          path: build/ipa/Musified.ipa
+          if-no-files-found: error
 
       - name: Extract app version
         id: app_version

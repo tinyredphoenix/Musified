@@ -252,6 +252,7 @@ class YouTubeMusicSyncService {
         'artist': artist,
         'image': imageUrl ?? '',
         'source': 'youtube',
+        'catalogOrigin': 'youtube',
         if (durationSeconds != null) 'duration': durationSeconds,
       });
     }
@@ -322,6 +323,7 @@ class YouTubeMusicSyncService {
         'artist': subtitle,
         'image': imageUrl ?? '',
         'source': 'youtube',
+        'catalogOrigin': 'youtube',
       });
     }
     return tracks;
@@ -610,6 +612,76 @@ class YouTubeMusicSyncService {
       'videoId': videoId,
       'isAudioOnly': true,
     });
+  }
+
+  /// Next song from YouTube Music radio (`RDAMVM` + `/next`), preferred over
+  /// watch-page HTML related-video parsing.
+  Future<Map<String, dynamic>?> fetchRadioNextTrack(String videoId) async {
+    if (!_isValidYouTubeVideoId(videoId)) return null;
+    try {
+      Map<String, dynamic> response;
+      try {
+        response = await _authenticatedPost('/next', {
+          'videoId': videoId,
+          'playlistId': 'RDAMVM$videoId',
+          'isAudioOnly': true,
+        });
+      } catch (_) {
+        response = await _publicPost('/next', {
+          'videoId': videoId,
+          'playlistId': 'RDAMVM$videoId',
+          'isAudioOnly': true,
+        });
+      }
+
+      for (final item in _findRenderers(response, 'playlistPanelVideoRenderer')) {
+        final id = item['videoId']?.toString();
+        if (id == null || id.isEmpty || id == videoId) continue;
+        if (!_isValidYouTubeVideoId(id)) continue;
+
+        final title =
+            _runsText(item['title'] as Map<String, dynamic>?)?.trim() ?? '';
+        final artist = _runsText(
+              item['longBylineText'] as Map<String, dynamic>?,
+            )?.trim() ??
+            _runsText(item['shortBylineText'] as Map<String, dynamic>?)
+                ?.trim() ??
+            '';
+        if (title.isEmpty || artist.isEmpty) continue;
+
+        String? imageUrl;
+        final thumbnails = item['thumbnail'] is Map
+            ? (item['thumbnail'] as Map)['thumbnails']
+            : null;
+        if (thumbnails is List && thumbnails.isNotEmpty) {
+          final last = thumbnails.last;
+          if (last is Map) imageUrl = last['url']?.toString();
+        }
+
+        final lengthText = item['lengthText'];
+        int? durationSeconds;
+        if (lengthText is Map) {
+          durationSeconds = _clockTextToSeconds(
+            _runsText(Map<String, dynamic>.from(lengthText)),
+          );
+        }
+
+        return {
+          'ytid': id,
+          'title': title,
+          'artist': artist,
+          'image': imageUrl ?? '',
+          'highResImage': imageUrl ?? '',
+          'source': 'youtube',
+          'catalogOrigin': 'youtube',
+          if (durationSeconds != null) 'duration': durationSeconds,
+        };
+      }
+      return null;
+    } catch (e) {
+      logger.log('fetchRadioNextTrack failed for $videoId: $e');
+      return null;
+    }
   }
 
   /// Reports a play to YouTube Music watch history when the user is signed in.

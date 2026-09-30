@@ -222,43 +222,93 @@ bool isUsableJiosaavnPlaybackUrl(String url) {
   return isJiosaavnStreamHost(uri.host);
 }
 
+/// Whether a song map is tagged as coming from the YouTube catalog.
+///
+/// Trending/home tracks often set `source: 'youtube'` without `catalogOrigin`.
+bool songIsYoutubeCatalog(Map song) {
+  final origin = song['catalogOrigin']?.toString();
+  if (origin == 'youtube') return true;
+  final source = song['source']?.toString();
+  return source == 'youtube' ||
+      source == 'youtube-artist' ||
+      source == 'youtube-album';
+}
+
 /// Which streaming provider this song should play from right now.
+///
+/// Returns `auto` when the global preference is auto and nothing has been
+/// forced/resolved yet — callers must accept either Saavn or YouTube URLs.
 String preferredStreamSourceForSong(Map song) {
   final force = song['forceSource']?.toString();
   if (force == 'youtube') return 'youtube';
   if (force == 'jiosaavn' || force == 'saavn') return 'jiosaavn';
   final resolved = song['resolvedSource']?.toString();
   if (resolved == 'youtube' || resolved == 'jiosaavn') return resolved!;
-  return songShouldResolveYoutube(song) ? 'youtube' : 'jiosaavn';
+  if (songIsYoutubeCatalog(song)) return 'youtube';
+  final pref = preferredSource.value;
+  if (pref == 'youtube') return 'youtube';
+  if (pref == 'jiosaavn' || pref == 'saavn') return 'jiosaavn';
+  return 'auto';
 }
 
 bool streamUrlMatchesPreferredSource(String url, Map song) {
   final preferred = preferredStreamSourceForSong(song);
+  if (preferred == 'auto') {
+    return isUsableYoutubePlaybackUrl(url) || isUsableJiosaavnPlaybackUrl(url);
+  }
   if (preferred == 'youtube') return isUsableYoutubePlaybackUrl(url);
   if (preferred == 'jiosaavn') return isUsableJiosaavnPlaybackUrl(url);
   return false;
 }
 
-/// Prefer YouTube over JioSaavn when the catalog entry is from YouTube.
+/// Whether the playback path should go straight to YouTube (no Saavn search).
+///
+/// iOS suspends the process during any silence gap between tracks. A Saavn
+/// title/artist search on the critical path is unacceptable — especially while
+/// locked. Return true for `auto` and YouTube so we start audio immediately;
+/// Saavn search belongs only when the user pinned JioSaavn, or a prior strict
+/// match is already cached on the song (`resolvedSource` / Hive).
 /// Explicit [forceSource] always wins over catalog metadata.
 bool songShouldResolveYoutube(Map song) {
   final force = song['forceSource']?.toString();
   if (force == 'youtube') return true;
   if (force == 'jiosaavn' || force == 'saavn') return false;
-  if (song['catalogOrigin']?.toString() == 'youtube') return true;
+  // Already-matched Saavn: use the cached URL path, never re-search.
+  if (song['resolvedSource']?.toString() == 'jiosaavn') return false;
+  if (songIsYoutubeCatalog(song)) return true;
   if (song['resolvedSource']?.toString() == 'youtube') return true;
-  final pref = force ?? preferredSource.value;
-  return pref == 'youtube';
+  final pref = preferredSource.value;
+  if (pref == 'jiosaavn' || pref == 'saavn') return false;
+  // auto + youtube → YouTube now. Do NOT put Saavn search back on this path.
+  return true;
+}
+
+/// True when [stream] is an adaptive audio-only format (mime starts with audio/).
+/// Rejects video/* and muxed containers even if they contain an audio track.
+bool isAudioOnlyMimeStream(AudioOnlyStreamInfo stream) {
+  final mimeType = stream.codec.type.toLowerCase();
+  if (mimeType != 'audio') return false;
+  final full = stream.codec.toString().toLowerCase();
+  if (full.startsWith('video/')) return false;
+  return true;
 }
 
 AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
   List<AudioOnlyStreamInfo> availableSources,
 ) {
-  // CRITICAL FOR IOS: Apple AVPlayer does not support WebM (AVError -11828).
-  // Never select HE-AAC (mp4a.40.5 / itags 139, 599, 600): CoreAudio reports
-  // ~2× duration, so the next queue item starts at the real EOF with no
-  // artwork/title change, or the remaining half plays silence.
-  bool isMp4Family(AudioOnlyStreamInfo stream) {
+  // Select by mime type (audio/*), never by a hardcoded itag table.
+  // Prefer AAC/m4a, then Opus. CRITICAL FOR IOS: AVPlayer rejects WebM
+  // (AVError -11828), so Opus/webm is last-resort only.
+  // Never select HE-AAC (mp4a.40.5): CoreAudio reports ~2× duration.
+  final audioOnly = availableSources
+      .where(
+        (stream) =>
+            isPlayableYoutubeStreamUrl(stream.url) &&
+            isAudioOnlyMimeStream(stream),
+      )
+      .toList();
+
+  bool isAacFamily(AudioOnlyStreamInfo stream) {
     final codec = stream.codec.toString().toLowerCase();
     final container = stream.container.name.toLowerCase();
     if (_isDolbyCodec(codec)) return false;
@@ -268,38 +318,41 @@ AudioOnlyStreamInfo selectAudioOnlyStreamForQuality(
         (codec.contains('mp4a') || codec.contains('aac'));
   }
 
-  final aacLcSources = availableSources
-      .where(
-        (stream) =>
-            isPlayableYoutubeStreamUrl(stream.url) &&
-            isMp4Family(stream) &&
-            !isHeAacStream(stream),
-      )
+  bool isOpusFamily(AudioOnlyStreamInfo stream) {
+    final codec = stream.codec.toString().toLowerCase();
+    final container = stream.container.name.toLowerCase();
+    return codec.contains('opus') ||
+        container.contains('webm') ||
+        container.contains('opus');
+  }
+
+  final aacLcSources = audioOnly
+      .where((stream) => isAacFamily(stream) && !isHeAacStream(stream))
       .toList();
 
   // Last resort only: HE-AAC is playable but MUST be clipped to catalog
-  // duration by the player. Never fall through to WebM on iOS.
-  final heAacFallback = availableSources
-      .where(
-        (stream) =>
-            isPlayableYoutubeStreamUrl(stream.url) &&
-            isMp4Family(stream) &&
-            isHeAacStream(stream),
-      )
+  // duration by the player.
+  final heAacFallback = audioOnly
+      .where((stream) => isAacFamily(stream) && isHeAacStream(stream))
       .toList();
 
-  final anyPlayable = availableSources
-      .where((stream) => isPlayableYoutubeStreamUrl(stream.url))
-      .toList();
+  final opusFallback =
+      audioOnly.where((stream) => isOpusFamily(stream)).toList();
 
   final selectionPool = aacLcSources.isNotEmpty
       ? aacLcSources
       : (heAacFallback.isNotEmpty
           ? heAacFallback
-          : anyPlayable);
+          : (opusFallback.isNotEmpty ? opusFallback : audioOnly));
   final sortedPool = selectionPool.sortByBitrate();
   if (sortedPool.isEmpty) {
-    return availableSources.first;
+    // Never fall through to a video/muxed stream — prefer first audio-only
+    // candidate from the original list, else first entry as absolute last resort.
+    final audioFallback =
+        availableSources.where(isAudioOnlyMimeStream).toList();
+    return audioFallback.isNotEmpty
+        ? audioFallback.first
+        : availableSources.first;
   }
 
   final qualitySetting = audioQualitySetting.value;

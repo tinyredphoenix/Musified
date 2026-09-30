@@ -20,6 +20,35 @@ void main() {
     expect(songShouldResolveYoutube(song), true);
   });
 
+  test('source youtube without catalogOrigin still resolves youtube', () {
+    final song = {
+      'ytid': 'abc',
+      'source': 'youtube',
+    };
+    expect(songIsYoutubeCatalog(song), true);
+    expect(songShouldResolveYoutube(song), true);
+    expect(preferredStreamSourceForSong(song), 'youtube');
+  });
+
+  test('auto preference resolves youtube immediately (no Saavn gap)', () {
+    final song = {
+      'ytid': 'abc',
+      'title': 'Some Track',
+      'artist': 'Someone',
+    };
+    // Without a YouTube catalog tag, auto must still prefer YouTube on the
+    // playback path so lock-screen transitions never wait on Saavn search.
+    expect(songShouldResolveYoutube(song), true);
+  });
+
+  test('cached jiosaavn resolvedSource skips youtube-first path', () {
+    final song = {
+      'ytid': 'abc',
+      'resolvedSource': 'jiosaavn',
+    };
+    expect(songShouldResolveYoutube(song), false);
+  });
+
   test('saavn URL is not treated as youtube playback URL', () {
     expect(
       isUsableYoutubePlaybackUrl('https://aac.saavncdn.com/song.mp4'),

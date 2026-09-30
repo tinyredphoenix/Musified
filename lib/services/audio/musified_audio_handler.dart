@@ -494,10 +494,42 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       invalidateStreamCache: invalidateSongStreamCache,
       removePreloadedUrl: (ytid) => _hub.preloadCache.streamUrls.remove(ytid),
       retryCurrentSong: playSong,
+      tryAlternateSource: _tryAlternateSourceOnce,
       skipToNext: skipToNext,
       songYtid: _songYtid,
       currentSong: () => currentSong,
     );
+  }
+
+  /// Swap Saavn ↔ YouTube once for the same queue entry after a stream failure.
+  Future<bool> _tryAlternateSourceOnce(Map song) async {
+    if (offlineMode.value) return false;
+    final current = song['forceSource']?.toString() ??
+        song['resolvedSource']?.toString() ??
+        preferredStreamSourceForSong(song);
+    final alternate = (current == 'jiosaavn' || current == 'saavn')
+        ? 'youtube'
+        : 'jiosaavn';
+    if (alternate == 'jiosaavn' && !jiosaavnEnabled.value) return false;
+
+    logger.log(
+      'Trying alternate source $alternate after failure '
+      '(was ${current == 'auto' ? 'auto/youtube' : current})',
+    );
+    song
+      ..['forceSource'] = alternate
+      ..remove('resolvedSource')
+      ..remove('_preloadedStreamUrl');
+    final ytid = _songYtid(song);
+    if (ytid != null && ytid.isNotEmpty) {
+      _hub.preloadCache.drop(ytid);
+      await invalidateSongStreamCache(ytid);
+    }
+    final ok = await playSong(song);
+    if (!ok) {
+      song.remove('forceSource');
+    }
+    return ok;
   }
 
   SongCompletionContext _songCompletionContext() {
@@ -1416,23 +1448,39 @@ class MusifiedAudioHandler extends BaseAudioHandler {
           unawaited(_backgroundAddSongsToQueue());
         }
       } else {
-        _rollbackFailedQueuePlay(
-          previousQueueIndex: previousQueueIndex,
-          previousMediaItem: previousMediaItem,
-          resumePlayback: wasPlayingBeforeLoad,
-        );
-        final failedYtid = _hub.queue.items[_hub.queue.currentIndex]['ytid']
-            ?.toString();
-        if (failedYtid != null && failedYtid.isNotEmpty) {
-          _hub.queue.items[_hub.queue.currentIndex].remove('_preloadedStreamUrl');
-          _hub.preloadCache.drop(failedYtid);
-          unawaited(invalidateSongStreamCache(failedYtid));
+        // Try the other provider once before treating this as a hard miss.
+        final failedSong = _hub.queue.items[_hub.queue.currentIndex];
+        final switched = await _tryAlternateSourceOnce(failedSong);
+        if (switched && currentTransitionId == _currentLoadingTransitionId) {
+          succeeded = true;
+          _eagerPreparedForNextIndex = null;
+          _completion.clearConsecutiveErrors();
+          _preloadUpcomingSongs();
+          if (playNextSongAutomatically.value) {
+            unawaited(_backgroundAddSongsToQueue());
+          }
+        } else {
+          _rollbackFailedQueuePlay(
+            previousQueueIndex: previousQueueIndex,
+            previousMediaItem: previousMediaItem,
+            resumePlayback: wasPlayingBeforeLoad,
+          );
+          final failedYtid = _hub.queue.items[_hub.queue.currentIndex]['ytid']
+              ?.toString();
+          if (failedYtid != null && failedYtid.isNotEmpty) {
+            _hub.queue.items[_hub.queue.currentIndex]
+                .remove('_preloadedStreamUrl');
+            _hub.preloadCache.drop(failedYtid);
+            unawaited(invalidateSongStreamCache(failedYtid));
+          }
+          // After both sources fail, skip forward instead of leaving the
+          // player idle mid-queue.
+          _completion.handlePlaybackError(
+            _playbackErrorContext(),
+            advance: true,
+          );
+          _showPlaybackStreamError();
         }
-        _completion.handlePlaybackError(
-          _playbackErrorContext(),
-          advance: false,
-        );
-        _showPlaybackStreamError();
       }
     } catch (e, stackTrace) {
       logger.log('Error playing from queue', error: e, stackTrace: stackTrace);
@@ -1454,7 +1502,7 @@ class MusifiedAudioHandler extends BaseAudioHandler {
       }
       _completion.handlePlaybackError(
         _playbackErrorContext(),
-        advance: false,
+        advance: true,
       );
       _showPlaybackStreamError();
     } finally {
@@ -1546,8 +1594,10 @@ class MusifiedAudioHandler extends BaseAudioHandler {
   void _scrubStaleStreamState(Map song) {
     final preferred = preferredStreamSourceForSong(song);
     final resolved = song['resolvedSource']?.toString();
+    // auto accepts either provider — only scrub when preference is pinned.
     if (resolved != null &&
         resolved != 'offline' &&
+        preferred != 'auto' &&
         resolved != preferred) {
       song
         ..remove('resolvedSource')

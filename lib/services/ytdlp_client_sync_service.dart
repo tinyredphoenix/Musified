@@ -10,8 +10,10 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 const _ytdlpBasePyUrl =
     'https://raw.githubusercontent.com/yt-dlp/yt-dlp/master/yt_dlp/extractor/youtube/_base.py';
 
-/// Musified uses exactly one InnerTube client for stream resolution: visionos.
-/// There is no picker and no automatic fallback to other clients.
+/// Primary stream client is visionos (synced from yt-dlp). A small fallback
+/// chain (android_vr → android_music → ios) is tried in the same request when
+/// the active client returns empty or errors. Config updates do not require
+/// an App Store rebuild.
 
 const _clientEntryKey = 'youtubeVisionOsClient';
 const _syncAtKey = 'youtubeVisionOsSyncAt';
@@ -103,10 +105,35 @@ class YtdlpClientSyncService {
   VisionOsClientConfig get activeConfig => _active;
   String get clientLabel => _active.displayLabel;
 
-  /// The only InnerTube client used for YouTube stream manifests and downloads.
+  /// Primary InnerTube client (synced visionos or built-in).
   YoutubeApiClient streamClient() => _active.toYoutubeApiClient();
 
-  List<YoutubeApiClient> streamClients() => [streamClient()];
+  /// Primary plus baked-in fallbacks. Tried sequentially per stream request.
+  List<YoutubeApiClient> streamClients() {
+    final primary = streamClient();
+    final primaryName = primary.payload['context']?['client']?['clientName']
+        ?.toString();
+    final fallbacks = <YoutubeApiClient>[
+      YoutubeApiClient.androidVr,
+      // ignore: deprecated_member_use
+      YoutubeApiClient.androidMusic,
+      YoutubeApiClient.ios,
+    ];
+    final out = <YoutubeApiClient>[primary];
+    for (final client in fallbacks) {
+      final name =
+          client.payload['context']?['client']?['clientName']?.toString();
+      if (name == null || name == primaryName) continue;
+      if (out.any(
+        (c) =>
+            c.payload['context']?['client']?['clientName']?.toString() == name,
+      )) {
+        continue;
+      }
+      out.add(client);
+    }
+    return out;
+  }
 
   Future<void> ensureLoaded() async {
     if (_loaded) return;

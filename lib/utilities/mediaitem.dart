@@ -69,8 +69,9 @@ String? resolveMediaArtworkUrl(
   chosen ??= candidates.isNotEmpty ? candidates.first : null;
 
   final resolvedSource = song['resolvedSource']?.toString();
-  final catalogYoutube =
-      resolvedSource == 'youtube' || song['catalogOrigin']?.toString() == 'youtube';
+  final catalogYoutube = resolvedSource == 'youtube' ||
+      song['catalogOrigin']?.toString() == 'youtube' ||
+      song['source']?.toString() == 'youtube';
   if (catalogYoutube && ytid != null && ytid.isNotEmpty) {
     final square = chosen != null && _isSquareArtworkCdn(chosen);
     if (!square) {
