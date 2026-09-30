@@ -214,6 +214,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
                           message: context.l10n.noSongsInPlaylist,
                         ),
                       const SliverMiniPlayerBottomSpace(),
+                    ],
+                  )
                 : Center(
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 32),
